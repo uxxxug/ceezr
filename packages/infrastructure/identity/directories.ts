@@ -20,6 +20,7 @@ import type {
 } from "../../application/bots/types.ts";
 import type { PortFailureError } from "../../application/ports/index.ts";
 import type { Coordinates } from "../../domain/geo/value-objects.ts";
+import { normalizeLanguageTag } from "../../domain/i18n-translation/value-objects.ts";
 import type { CityId, DriverId, RiderId } from "../../shared/kernel/index.ts";
 import type { Result } from "../../shared/result/index.ts";
 import { guard, type Sql } from "../db/client.ts";
@@ -82,6 +83,26 @@ const DRIVER_SELECT = `
     left join driver_availability a on a.driver_id = d.id
 `;
 
+/**
+ * LOAD-01 · C2 — القراءةُ المدمجةُ لسياقِ المرسلِ: تبدأُ من `users` (فلا تُفقدُ لغةُ
+ * راكبٍ مسجَّلٍ يراسلُ بوتَ السائقِ) ثمَّ تربطُ `drivers` و`driver_availability`
+ * ربطًا اختياريًا. صفٌّ واحدٌ أو لا شيء: غيابُ المستخدمِ ⇒ `null` (لا سياقَ ولا ملفٌّ
+ * مصطنَعٌ)، وغيابُ السائقِ ⇒ `driver = null` مع بقاءِ اللغة. عمودُ اللغةِ يمرُّ بنفسِ
+ * `normalizeLanguageTag` الذي يمرُّ به محوّلُ `get_user_language` — العقدُ نفسُه.
+ */
+const SENDER_CONTEXT_SELECT = `
+  select u.language_code,
+         d.id as driver_id, d.city_id, u.telegram_id, u.full_name, u.phone,
+         d.verification_status, a.is_available,
+         (d.last_location is not null) as has_location,
+         st_y(d.last_location::geometry) as last_lat,
+         st_x(d.last_location::geometry) as last_lng,
+         (extract(epoch from d.last_location_recorded_at) * 1000)::bigint::text as last_location_at_ms
+    from users u
+    left join drivers d on d.user_id = u.id
+    left join driver_availability a on a.driver_id = d.id
+`;
+
 export function createDriverDirectory(sql: Sql): DriverDirectory {
   return {
     findByTelegramId: (telegramUserId: string) =>
@@ -91,6 +112,23 @@ export function createDriverDirectory(sql: Sql): DriverDirectory {
         ]);
         const row = rows[0];
         return row === undefined ? null : toDriverProfile(row);
+      }),
+
+    findSenderContext: (telegramUserId: string) =>
+      guard("drivers.findSenderContext", async () => {
+        const rows = await sql.unsafe<(DriverRow & { readonly language_code: string | null })[]>(
+          `${SENDER_CONTEXT_SELECT} where u.telegram_id = $1`,
+          [telegramUserId],
+        );
+        const row = rows[0];
+        // المستخدمُ الغائبُ لا سياقَ له — كما يُعيدُ المنفذانِ المنفصلانِ `null` في حالتِه.
+        if (row === undefined) return null;
+        return {
+          language: normalizeLanguageTag(row.language_code),
+          // لا ملفَّ سائقٍ مصطنَعٍ: غيابُ الصفِّ في drivers يُترجَمُ `null` كما يفعلُ
+          // `findByTelegramId` تمامًا.
+          driver: row.driver_id === null ? null : toDriverProfile(row),
+        };
       }),
 
     /**

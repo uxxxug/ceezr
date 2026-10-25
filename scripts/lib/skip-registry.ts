@@ -412,6 +412,21 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
   },
 
   {
+    file: "tests/integration/driver-sender-context.test.ts",
+    suites: ["findSenderContext على القاعدة الحقيقية (LOAD-01 · C2)"],
+    skipped: 5,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "يُثبِتُ عقدَ القراءةِ المدمجةِ لسياقِ المرسلِ (LOAD-01 · C2، حزمة load01-c2-contact-merged-read): جملةٌ واحدةٌ تبدأُ من users فلا تُفقدُ لغةُ مسجَّلٍ بغيرِ جمهورِ السائقينَ، وتربطُ drivers اختياريًا بلا ملفٍّ مصطنَعٍ، وغيابُ المستخدمِ ⇒ null، والملفُّ المُعادُ مطابقٌ حرفيًّا لقراءةِ findByTelegramId — لقطةُ PostgreSQL ومشغِّلاتُها لا يُثبِتُها بديلٌ في الذاكرة. ولا يُدَّعى به أثرُ سعة: ذاك يُقاسُ بموجةِ A/B على المقعد (LOAD-01).",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بها الهجرات مطبَّقة. يفعله CI في وظيفةِ «تكامل على PostgreSQL حقيقي» عبرَ test:integration، ويفعله المطوّرُ محلّياً. والملفُّ يبذرُ صفوفَه ثمَّ يُزيلُها.",
+    owner: "منفّذ المستودع",
+    criticalPath: "دورةُ الرحلةِ والإسناد",
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+
+  {
     file: "tests/integration/telegram-update-claim-plan.test.ts",
     suites: ["خطةُ التقاطِ تيليجرام FIFO المُفهرسةِ — بلا Sort كاملٍ ولا أولويّةٍ نوعيّة"],
     skipped: 4,

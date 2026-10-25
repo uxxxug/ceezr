@@ -8,6 +8,7 @@
  */
 
 import type { Coordinates } from "../../domain/geo/value-objects.ts";
+import type { SupportedLanguage } from "../../domain/i18n-translation/index.ts";
 import type { Subscription } from "../../domain/subscription/entity.ts";
 import type {
   CityId,
@@ -421,8 +422,28 @@ export interface RegisterDriverInput {
   readonly vehiclePhotoFileId: string | null;
 }
 
+/**
+ * سياقُ المرسلِ كما يقرأه `findSenderContext`: لغةُ التفضيلِ من `users` **بغضِّ النظرِ عن
+ * جمهورِه** (فمن راكبٍ مسجَّلٍ يراسلُ بوتَ السائقِ لا تُفقدُ لغتُه)، وملفُ السائقِ إن كان
+ * سائقًا مسجَّلًا — وإلّا `null` بلا ملفٍّ مُصطنَعٍ بقيمٍ فارغة. غيابُ المستخدمِ من
+ * `users` كلِّه ⇒ الدالةُ تُعيد `null` (لا سياق)، وهو عينُ ما يُعيدُهُ المنفذانِ
+ * المنفصلانِ اليومَ في الحالتَينِ.
+ */
+export interface DriverSenderContext {
+  readonly language: SupportedLanguage | null;
+  readonly driver: DriverProfile | null;
+}
+
 export interface DriverDirectory {
   findByTelegramId(telegramUserId: string): Promise<Result<DriverProfile | null, PortFailureError>>;
+  /**
+   * LOAD-01 · C2 — قراءةُ سياقِ المرسلِ **بجملةٍ واحدة** (users يسارًا ثم drivers
+   * اختياريًا) بدلَ `get_user_language` + `findByTelegramId`. اختياريٌّ: غيابُهُ يُبقي
+   * المسارينِ منفصلَينِ كما كانا — فلا يُكسِرُ المزدوجاتِ القائمةَ.
+   */
+  findSenderContext?(
+    telegramUserId: string,
+  ): Promise<Result<DriverSenderContext | null, PortFailureError>>;
   register(input: RegisterDriverInput): Promise<Result<DriverProfile, PortFailureError>>;
   setAvailability(
     driverId: DriverId,

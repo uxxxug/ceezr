@@ -138,3 +138,72 @@ describe("ترطيب اللغة من القاعدة", () => {
     expect(logged).toContain("language.hydrate_failed");
   });
 });
+
+describe("ترطيب اللغة من القراءة المدمجة (LOAD-01 · C2)", () => {
+  /**
+   * المعاملُ الثاني قيمةٌ مقروءةٌ في موضعِ الترطيبِ نفسِهِ (مسارُ contact): يجب أن
+   * تُستعمَلَ كما هي — بلا نداءٍ على القاعدةِ إضافيّاً — وأن يبقى سلوكُ الجلسةِ نفسُه:
+   * كتابةُ اللغةِ في جلسةٍ غائبة، وتصحيحُ جلسةٍ قائمةٍ بلغةٍ مخالفة، ولا-عملَ للقيمةِ الفارغة.
+   */
+  it("قيمة ممرّرة تُستعمل كما هي بلا نداء على getLanguage", async () => {
+    const store = sessions();
+    const prefs = preferences("ar");
+
+    await createLanguageHydration({ preferences: prefs.port, sessions: store }).hydrate(
+      SENDER,
+      "ur",
+    );
+
+    const state = await store.load(SENDER.telegramUserId);
+    expect(state.ok && state.value?.language).toBe("ur");
+    // القراءةُ المدمجةُ عوّضتِ النداءَ — لا نداءَ ثانياً على المنفذِ المنفصلِ.
+    expect(prefs.reads()).toBe(0);
+  });
+
+  it("قيمة فارغة (لا تفضيل) = لا-عمل بلا نداء — عقد القيمة الفارغة نفسه", async () => {
+    const store = sessions();
+    const prefs = preferences("ur");
+
+    await createLanguageHydration({ preferences: prefs.port, sessions: store }).hydrate(
+      SENDER,
+      null,
+    );
+
+    const state = await store.load(SENDER.telegramUserId);
+    expect(state.ok && state.value).toBeNull();
+    expect(prefs.reads()).toBe(0);
+  });
+
+  it("غياب المعامل (undefined) = المسار القديم كما هو: اقرأ من القاعدة", async () => {
+    const store = sessions();
+    const prefs = preferences("ur");
+
+    await createLanguageHydration({ preferences: prefs.port, sessions: store }).hydrate(SENDER);
+
+    const state = await store.load(SENDER.telegramUserId);
+    expect(state.ok && state.value?.language).toBe("ur");
+    expect(prefs.reads()).toBe(1);
+  });
+
+  it("تصحّح جلسة قائمة بلغة مخالفة بالقيمة الممرّرة بلا لمس بقيّة الحالة", async () => {
+    const store = sessions();
+    await store.save(SENDER.telegramUserId, {
+      ...INITIAL_STATE,
+      step: "awaiting_name",
+      language: "ar",
+      draftName: "أحمد العمري",
+    });
+    const prefs = preferences("ar");
+
+    await createLanguageHydration({ preferences: prefs.port, sessions: store }).hydrate(
+      SENDER,
+      "en",
+    );
+
+    const state = await store.load(SENDER.telegramUserId);
+    expect(state.ok && state.value?.language).toBe("en");
+    expect(state.ok && state.value?.step).toBe("awaiting_name");
+    expect(state.ok && state.value?.draftName).toBe("أحمد العمري");
+    expect(prefs.reads()).toBe(0);
+  });
+});

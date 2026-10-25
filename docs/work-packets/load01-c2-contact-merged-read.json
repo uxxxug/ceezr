@@ -1,0 +1,31 @@
+{
+ "id": "load01-c2-contact-merged-read",
+ "goal": "LOAD-01 · C2 — دمجُ قراءةِ لغةِ المرسلِ (get_user_language) معَ أوّلِ قراءةٍ في حوارِ contact في جملةٍ واحدةٍ (findSenderContext تبدأُ من users) بدلَ حجزَي مقعدٍ من gatewayRequest لكلِّ وظيفةِ contact (12,252 في موجةِ B1). عقدُ الحداثةِ محفوظٌ: القيمةُ تُقرأُ في موضعِ الترطيبِ نفسِهِ لا لقطةً من الالتقاط، وتُعادُ قراءتُها عندَ كلِّ محاولةِ CAS، وفشلُها يُرجِعُ المسارَ كما كان. أثرُ G1 غيرُ مُقاس؛ LOAD-01M = NOT_MET وLOAD-01 = FAIL.",
+ "canonical_source": [
+  "docs/evidence/capacity/LOAD01-C2-CONTACT-MERGED-READ-20261026/RESULT.md"
+ ],
+ "implementation": [
+  "apps/gateway/src/bots/driver/index.ts",
+  "apps/gateway/src/bots/shared/language-middleware.ts",
+  "packages/application/bots/types.ts",
+  "packages/application/bots/one-shot-driver-lookup.ts",
+  "packages/infrastructure/identity/directories.ts",
+  "scripts/lib/skip-registry.ts",
+  "tests/unit/one-shot-driver-lookup.test.ts",
+  "tests/unit/language-hydration.test.ts",
+  "tests/unit/driver-bot-contact-merged-read.test.ts",
+  "tests/integration/driver-sender-context.test.ts"
+ ],
+ "state": [
+  "docs/SYSTEM_STATE.md"
+ ],
+ "roadmap": [
+  "ROADMAP.md"
+ ],
+ "affected_docs": [
+  "docs/evidence/capacity/LOAD01-C2-CONTACT-MERGED-READ-20261026/RESULT.md",
+  "docs/evidence/capacity/LOAD01-C2-CONTACT-MERGED-READ-20261026/SHA256SUMS",
+  "docs/roadmap/execution/STATUS.md"
+ ],
+ "no_other_affected_docs_reason": null
+}
