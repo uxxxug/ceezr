@@ -12,7 +12,9 @@ import {
   jain,
   kindReport,
   MECH_RULE,
+  MIXED_RULE,
   mechanismPairs,
+  mixedValidity,
   parseJobs,
   parseMixed,
   parseTrace,
@@ -299,5 +301,28 @@ describe("job-timeline — الخطُّ الزمنيُّ لكلِّ وظيفة",
       pick,
     );
     expect(near.direction).toBe("UNDECIDED");
+  });
+
+  test("صلاحيّةُ الحِملِ المختلط: الكلُّ مُرسَلٌ، و2xx ≥ 99%، وp99 التأخّرِ ≤ 1000ms", () => {
+    expect(MIXED_RULE).toEqual({ minOkShare: 0.99, maxLagP99Ms: 1000 });
+    const lines = (n: number, lag: number, bad = 0) =>
+      [
+        { k: "plan", n },
+        ...Array.from({ length: n }, (_, i) => ({
+          k: "sent",
+          kind: "command",
+          plannedAt: i,
+          sentAt: i + lag,
+          status: i < bad ? 0 : 200,
+        })),
+      ]
+        .map((o) => JSON.stringify(o))
+        .join("\n");
+    expect(mixedValidity(parseMixed(lines(200, 5))).valid).toBe(true);
+    expect(mixedValidity(parseMixed(lines(200, 1500))).valid).toBe(false);
+    expect(mixedValidity(parseMixed(lines(200, 5, 3))).reasons[0]).toContain("2xx");
+    const skipped = `${lines(3, 5)}\n${JSON.stringify({ k: "skipped", kind: "message" })}`;
+    expect(mixedValidity(parseMixed(skipped.replace('"n":3', '"n":4'))).valid).toBe(false);
+    expect(mixedValidity(null).valid).toBe(false);
   });
 });
