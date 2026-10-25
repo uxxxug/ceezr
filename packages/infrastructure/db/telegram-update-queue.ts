@@ -39,6 +39,14 @@ export interface ClaimedTelegramUpdateJob {
   readonly claimToken: string;
   readonly attempts: number;
   readonly maxAttempts: number;
+  /**
+   * LOAD-01 · C1 (2026-10-25) — هل خُتِمَ أثرُ الوظيفةِ قبلَ هذا الالتقاط؟ قُرِئَت من صفِّ
+   * الوظيفةِ داخلَ معاملةِ الالتقاطِ نفسِها (هجرةُ `20261025140000`) فتُغني الكنّاسَ عن نداءِ
+   * `telegram_update_effect_recorded` المنفصلِ. **غيابُه** (قاعدةٌ قبلَ الهجرة، أو طابورٌ
+   * وهميٌّ في اختبار) ⇒ غيرُ معروفٍ ⇒ يبقى الفحصُ بالنداءِ كما كان — فالشيفرةُ تحتملُ
+   * المخطَّطَ القديمَ والجديدَ معًا.
+   */
+  readonly effectRecorded?: boolean | undefined;
 }
 
 /** مُعرِّفُ وظيفةٍ مُحتجَزةٍ — ما يحتاجُه الدرينرُ ليختمَ أو يتركَ. */
@@ -154,6 +162,9 @@ export function createPostgresTelegramUpdateQueue(
           claimToken: String(delivery.claim_token),
           attempts: Number(delivery.attempts),
           maxAttempts: Number(delivery.max_attempts),
+          // C1: حاضرٌ في ردِّ الدالةِ بعدَ 20261025140000، وغيابُه ⇒ undefined ⇒ فحصٌ منفصلٌ كما كان.
+          effectRecorded:
+            delivery.effect_recorded === undefined ? undefined : delivery.effect_recorded === true,
         } satisfies ClaimedTelegramUpdateJob,
       };
     },
@@ -178,6 +189,9 @@ export function createPostgresTelegramUpdateQueue(
           claimToken: String(delivery.claim_token),
           attempts: Number(delivery.attempts),
           maxAttempts: Number(delivery.max_attempts),
+          // C1: حاضرٌ في ردِّ الدالةِ بعدَ 20261025140000، وغيابُه ⇒ undefined ⇒ فحصٌ منفصلٌ كما كان.
+          effectRecorded:
+            delivery.effect_recorded === undefined ? undefined : delivery.effect_recorded === true,
         } satisfies ClaimedTelegramUpdateJob,
       };
     },
@@ -202,6 +216,10 @@ export function createPostgresTelegramUpdateQueue(
               claimToken: String(delivery.claim_token),
               attempts: Number(delivery.attempts),
               maxAttempts: Number(delivery.max_attempts),
+              effectRecorded:
+                delivery.effect_recorded === undefined
+                  ? undefined
+                  : delivery.effect_recorded === true,
             }) satisfies ClaimedTelegramUpdateJob,
         ),
       };

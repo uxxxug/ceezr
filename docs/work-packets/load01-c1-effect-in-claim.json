@@ -1,0 +1,21 @@
+{
+  "id": "load01-c1-effect-in-claim",
+  "goal": "LOAD-01 · C1 (تصميمُ LOAD01-POOL-ACQ-20261025 المُوثَّق): ضمُّ فحصِ الأثرِ إلى الالتقاط — هجرةٌ أماميّةٌ 20261025140000 تُعيدُ نصَّ دوالِّ الالتقاطِ الثلاثِ حرفيًّا كما في 20261025120000 (FIFO الخالص) معَ إعادةِ effect_recorded (effect_recorded_at is not null) لكلِّ وظيفةٍ ملتقَطة، فيستغني الكنّاسُ عن نداءِ telegram_update_effect_recorded المنفصلِ — حجزُ مقعدِ gatewayRequest واحدٌ أقلُّ لكلِّ وظيفةٍ (سقفُ الأثرِ 0.0346 من الطلبِ الكلّيِّ على المقعدِ؛ لا يكفي وحدَه لإصلاحِ G1). الشيفرةُ تحتملُ القاعدةَ قبلَ الهجرةِ (غيابُ الحقلِ ⇒ الفحصُ بالنداءِ كما كان). لا مساسَ بحدٍّ محميّ؛ لا موجةَ أُشغّلت — الأثرُ على السعةِ غيرُ مُثبَتٍ ويحتاجُ مقارنةً مقترنةً؛ LOAD-01M = NOT_MET وLOAD-01 = FAIL.",
+  "canonical_source": ["docs/evidence/capacity/LOAD01-C1-EFFECT-IN-CLAIM-20261025/RESULT.md"],
+  "implementation": [
+    "supabase/migrations/20261025140000_load01_c1_effect_in_claim.sql",
+    "apps/gateway/src/background/telegram-update-drainer.ts",
+    "packages/infrastructure/db/telegram-update-queue.ts",
+    "tests/unit/telegram-update-drainer-effect-in-claim.test.ts",
+    "tests/integration/telegram-update-claim-effect-in-claim.test.ts",
+    "scripts/lib/rollback-registry.ts",
+    "scripts/lib/skip-registry.ts"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [
+    "docs/roadmap/execution/STATUS.md",
+    "docs/evidence/capacity/LOAD01-C1-EFFECT-IN-CLAIM-20261025/RESULT.md"
+  ],
+  "no_other_affected_docs_reason": null
+}

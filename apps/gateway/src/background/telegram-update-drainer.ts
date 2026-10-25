@@ -368,8 +368,20 @@ async function processDurably(
   const bot = job.bot as BotKind;
   try {
     let t = performance.now();
-    const alreadyRecorded = await ledger.effectRecorded(job.bot, job.updateId);
-    if (phases !== null) phases.effectCheckMs = performance.now() - t;
+    // LOAD-01 · C1 (2026-10-25) — الأثرُ مقروءٌ من صفِّ الوظيفةِ في معاملةِ الالتقاطِ نفسِها
+    // (هجرةُ `20261025140000`): حضورُ الحقلِ — صادقًا أو كاذبًا — يُغني عن نداءِ الفحصِ
+    // المنفصلِ، فالحجزُ للمقعدِ واحدٌ أقلُّ لكلِّ وظيفة. غيابُه (قاعدةٌ قبلَ الهجرة أو
+    // طابورٌ وهميّ) ⇒ الفحصُ بالنداءِ كما كان — فالشيفرةُ تحتملُ المخطّطَين معًا.
+    // والتكافؤُ: الكاتبُ الوحيدُ للعمودِ هو `record_telegram_update_effect` ويشترطُ رمزَ
+    // إيجارٍ حيًّا، فلا يتغيّرُ ما دامَ الإيجارُ لنا، وعندَ انقضائِه يقرأُه الملتقطُ
+    // التالي بقيمةٍ طازجة.
+    const alreadyRecorded =
+      job.effectRecorded === undefined
+        ? await ledger.effectRecorded(job.bot, job.updateId)
+        : job.effectRecorded;
+    if (phases !== null && job.effectRecorded === undefined) {
+      phases.effectCheckMs = performance.now() - t;
+    }
     if (alreadyRecorded) {
       const replay = await ledger.recordEffect(lease, []);
       deps.log?.("telegram.drainer.effect_replay_skipped", {
