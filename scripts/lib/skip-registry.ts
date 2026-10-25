@@ -337,12 +337,12 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     whyNotRun: null,
   },
   {
-    file: "tests/integration/telegram-update-contact-first-claim.test.ts",
-    suites: ["أولويةُ contact في التقاطِ وظائفِ تحديثِ تيليجرام — قاعدةٌ حقيقية"],
+    file: "tests/integration/telegram-update-claim-fifo-fairness.test.ts",
+    suites: ["عدالةُ الالتقاطِ FIFO في وظائفِ تحديثِ تيليجرام بلا أولويّةٍ نوعيّة — قاعدةٌ حقيقية"],
     skipped: 5,
     gate: "TEST_DATABASE_URL",
     reason:
-      "أولويةُ contact وترقيةُ التقادمِ وD4 في دوالِّ الالتقاطِ (LOAD-01M، أولويةُ contact): تعبيرُ الترتيبِ في SQL وسلوكُ skip locked والفهرسُ الجزئيُّ على lane_key لا يُثبتُها بديلٌ في الذاكرة.",
+      "عدالةُ الالتقاطِ FIFO بعدَ إيقافِ أولويّةِ contact (LOAD-01، هجرةُ 20261025120000): لا قفزَ بالنوعِ ولا عتبةَ تقادمٍ في الدفعةِ والمفرد، وD4 محفوظ، ونصُّ الدوالِّ الثلاثِ بلا محمولِ contact — تعبيرُ الترتيبِ في SQL وسلوكُ skip locked لا يُثبتُهما بديلٌ في الذاكرة.",
     activation:
       "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بالهجراتِ مطبَّقة. يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي»، ويفعله المطوّرُ محلّياً.",
     owner: "منفّذ المستودع",
@@ -353,13 +353,13 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
 
   {
     file: "tests/integration/telegram-update-claim-plan.test.ts",
-    suites: ["خطةُ التقاطِ تيليجرام المُفهرسةِ — ثلاثُ مراحلَ بلا Sort كاملٍ"],
+    suites: ["خطةُ التقاطِ تيليجرام FIFO المُفهرسةِ — بلا Sort كاملٍ ولا أولويّةٍ نوعيّة"],
     skipped: 4,
     gate: "TEST_DATABASE_URL",
     reason:
-      "انحدارُ خطةِ فهرسِ التقاطِ وظائفِ تيليجرام (LOAD-01 الدورةُ الثانيةُ): تأكيداتُ EXPLAIN على الخطةِ الخاصةِ والعامةِ المعلمةِ (لا Seq Scan ولا Sort كاملٌ، واستخدامُ الفهرسِ الجزئيِّ contact_pending_idx) والتكافؤُ الدلاليُّ وزمنُ الالتقاطِ تحتَ التراكمِ — لا بديلَ لها في الذاكرةِ لأنها اختبارُ خطةِ محلّلِ PostgreSQL نفسِهِ.",
+      "انحدارُ خطةِ فهرسِ التقاطِ وظائفِ تيليجرام بعدَ استعادةِ FIFO (LOAD-01، هجرةُ 20261025120000): تأكيداتُ EXPLAIN على الخطةِ الخاصةِ والعامةِ المعلمة (لا Seq Scan ولا Sort كامل، ولا اعتمادَ على contact_pending_idx) والتكافؤُ الدلاليُّ معَ ترتيبِ الإنشاءِ وزمنُ الالتقاطِ تحتَ التراكم — لا بديلَ لها في الذاكرةِ لأنها اختبارُ خطةِ محلّلِ PostgreSQL نفسِه.",
     activation:
-      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بالهجراتِ مطبَّقةً بما فيها 20261024140000. يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي»، ويفعله المطوّرُ محلّياً.",
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بالهجراتِ مطبَّقةً بما فيها 20261025120000. يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي»، ويفعله المطوّرُ محلّياً.",
     owner: "منفّذ المستودع",
     criticalPath: null,
     runsIn: "اختبارات التكامل على قاعدة حقيقية",
