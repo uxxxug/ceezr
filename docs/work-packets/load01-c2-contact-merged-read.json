@@ -12,7 +12,8 @@
     "tests/unit/one-shot-driver-lookup.test.ts",
     "tests/unit/language-hydration.test.ts",
     "tests/unit/driver-bot-contact-merged-read.test.ts",
-    "tests/integration/driver-sender-context.test.ts"
+    "tests/integration/driver-sender-context.test.ts",
+    "tests/unit/skip-audit.test.ts"
   ],
   "state": ["docs/SYSTEM_STATE.md"],
   "roadmap": ["ROADMAP.md"],
