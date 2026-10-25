@@ -2307,6 +2307,21 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     whyNotRun: null,
   },
   // زيادةٌ تُقرأُ معَ ما قبلَها (`ح-8`) — `SEC-07`: حدُّ المسارِ المكشوفِ.
+  // زيادةٌ (`LOAD-01` · 2026-10-25 · حزمةُ `load01-revocation-mget`): فحصُ الإبطالِ بأمرٍ واحد.
+  {
+    file: "tests/real-redis/session-revocation-mget-real.test.ts",
+    suites: ["LOAD-01 — فحصُ الإبطالِ بأمرِ MGET واحدٍ على Redis حقيقيّ"],
+    skipped: 1,
+    gate: "UPSTASH_REDIS_REST_URL",
+    reason:
+      "يُثبِتُ أنَّ فحصَ الإبطالِ (`SEC-18` · `SEC-18-ب`) بأمرِ `MGET` واحدٍ يُعطي حكمَ `GET` ثمَّ `GET` حرفاً في كلِّ حالةٍ، وأنَّ شكلَ ردِّ `MGET` من الخادمِ والقشرةِ مصفوفةٌ بقيمتَين بترتيبِ المفاتيح — وهذا الشكلُ هوَ المقيسُ فلا يشهدُ عليه مزدوج.",
+    activation:
+      "يُضبَط UPSTASH_REDIS_REST_URL وUPSTASH_REDIS_REST_TOKEN على قشرةِ REST التي تنشرُها وظيفةُ CI نفسُها فوقَ خادمِ `redis:7-alpine` مُستضافٍ في الشغلةِ (`S-3` · ADR 0096) — لا سرَّ خارجيٌّ ولا حسابٌ عندَ مُزوِّدٍ. ويفعلُه المطوّرُ محلّياً بالقشرةِ نفسِها فوقَ `redis-server`.",
+    owner: "منفّذ المستودع",
+    criticalPath: "الهويةُ والجلسةُ والصلاحيات",
+    runsIn: "اختبارات الجلسات على Redis حقيقي",
+    whyNotRun: null,
+  },
   {
     file: "tests/real-redis/rate-limit-routes-real.test.ts",
     suites: ["حدُّ المسارِ المكشوفِ نافذةٌ واحدةٌ بينَ نسختَينِ على Redis حقيقيٍّ (SEC-07)"],
