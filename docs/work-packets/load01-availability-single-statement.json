@@ -1,0 +1,23 @@
+{
+  "id": "load01-availability-single-statement",
+  "goal": "LOAD-01 — توفّرُ السائقِ بجملةٍ واحدةٍ بدلَ رحلتين (بحثُ السائقِ ثمَّ record_attendance) تحجزُ كلٌّ منهما مقعدًا من gatewayRequest؛ 80.8 ث = 8.44% من احتجازِ المجمّعِ في موجةِ B4. العقدُ محفوظٌ باختباراتِ وحدةٍ وتكاملٍ حقيقيٍّ وتحكّمَين سلبيَّين. أثرُ G1 غيرُ مُقاس؛ LOAD-01M = NOT_MET وLOAD-01 = FAIL.",
+  "canonical_source": [
+    "docs/evidence/capacity/LOAD01-AVAILABILITY-SINGLE-STATEMENT-20261025/RESULT.md"
+  ],
+  "implementation": [
+    "packages/application/bots/types.ts",
+    "packages/application/driver/driver-offers.ts",
+    "packages/infrastructure/identity/directories.ts",
+    "tests/unit/driver-availability-single-statement.test.ts",
+    "tests/integration/driver-availability-single-statement.test.ts",
+    "scripts/lib/skip-registry.ts",
+    "tests/unit/skip-audit.test.ts"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [
+    "docs/roadmap/execution/STATUS.md",
+    "docs/evidence/capacity/LOAD01-AVAILABILITY-SINGLE-STATEMENT-20261025/RESULT.md"
+  ],
+  "no_other_affected_docs_reason": null
+}

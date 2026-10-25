@@ -1019,7 +1019,8 @@ describe("السجلُّ الحقيقيُّ — أرقامٌ مقيسةٌ مُث
     // زيادةٌ (LOAD-01 · تسجيلُ السائقِ بجملةٍ واحدة · 2026-10-25 · حزمةُ `load01-driver-register-single-statement`):
     // 214 — `driver-register-single-statement.test.ts` (أربعُ حالات: سائقٌ جديدٌ برحلةٍ واحدة، إعادةُ التسجيل،
     // المسؤولُ لا يُنزَل، الذرّيّة).
-    expect(SKIP_REGISTRY).toHaveLength(214);
+    // زيادةٌ (LOAD-01 · توفّرُ السائقِ بجملةٍ واحدة · 2026-10-25): 215 — `driver-availability-single-statement.test.ts`.
+    expect(SKIP_REGISTRY).toHaveLength(215);
     // زيادةٌ (الدفعةُ 19 · تدقيقُ PR #595): 1689 — حالةُ سباقِ فتحِ الجلسةِ على PostgreSQL
     // حقيقيٍّ في `tracking-duty-and-trip-reader.test.ts` (تعملُ في وظيفةِ التكاملِ).
     // زيادةٌ (الدفعةُ 20): 1692 — حالاتُ الملفِّ الثلاث.
@@ -1035,7 +1036,8 @@ describe("السجلُّ الحقيقيُّ — أرقامٌ مقيسةٌ مُث
     // زيادةٌ (LOAD-01 · قراءةُ الإقلاعِ المُدمَجة · 2026-10-25): 1726 — حالاتُ `session-bootstrap-snapshot.test.ts` الثلاث.
     // زيادةٌ (LOAD-01 · فحصُ الإبطالِ بأمرٍ واحد · 2026-10-25): 1727 — حالةُ `session-revocation-mget-real.test.ts`.
     // زيادةٌ (LOAD-01 · تسجيلُ السائقِ بجملةٍ واحدة · 2026-10-25): 1731 — حالاتُ `driver-register-single-statement.test.ts` الأربع.
-    expect(SKIP_REGISTRY.reduce((sum, entry) => sum + entry.skipped, 0)).toBe(1731);
+    // زيادةٌ (LOAD-01 · توفّرُ السائقِ بجملةٍ واحدة · 2026-10-25): 1734 — حالاتُ `driver-availability-single-statement.test.ts` الثلاث.
+    expect(SKIP_REGISTRY.reduce((sum, entry) => sum + entry.skipped, 0)).toBe(1734);
   });
 
   it("لا تجاوزَ على مسارٍ حرجٍ بلا مُشغِّلٍ، وما لا مُشغِّلَ له مُعلَنٌ ببيانٍ", () => {

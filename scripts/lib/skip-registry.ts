@@ -3308,4 +3308,18 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     runsIn: "توقُّفُ مزوّدِ الدفعِ لا يُفسِدُ معاملةً ولا يسجنُ سائقاً (F11-07)",
     whyNotRun: null,
   },
+  {
+    file: "tests/integration/driver-availability-single-statement.test.ts",
+    suites: ["LOAD-01 · التوفُّرُ بجملةٍ واحدة"],
+    skipped: 3,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "يُثبتُ أنَّ `POST /v1/driver/availability` صارَ رحلةً واحدةً إلى PostgreSQL (بحثُ السائقِ بمعرّفِ تيليجرام واستدعاءُ `record_attendance` في جملةٍ واحدة) بأحكامِ المسارِ القديمِ نفسِها: سائقٌ موجودٌ ⇒ `set` ويُسجَّلُ الحضور، وغيرُ سائقٍ ⇒ `not_a_driver` بلا أثر. وعدُّ الرحلاتِ لا يُثبَتُ بقاعدةٍ مزيّفة، فيلزمُ PostgreSQL حقيقيّ. ولا يُدَّعى به أثرُ سعة: ذاك يُقاسُ على المقعد (`LOAD-01`).",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بها الهجرات مطبَّقة. يفعله CI في وظيفةِ «تكامل على PostgreSQL حقيقي» عبرَ `test:integration`، ويفعله المطوّرُ محلّياً بحاويةِ postgres. والملفُّ يبذرُ سائقيه ثمَّ يُزيلُهم.",
+    owner: "منفّذ المستودع",
+    criticalPath: "دورةُ الرحلةِ والإسناد",
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
 ] as const;

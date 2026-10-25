@@ -88,7 +88,10 @@ export interface DriverOfferDeps {
   readonly sessions: MiniAppSessionReader;
   readonly store: DriverOfferStore;
   /** **المنفذُ القائمُ** — لا يُنشَأُ له بديلٌ: `record_attendance` كاتبُ التوفُّرِ. */
-  readonly drivers: Pick<DriverDirectory, "findByTelegramId" | "setAvailability">;
+  readonly drivers: Pick<
+    DriverDirectory,
+    "findByTelegramId" | "setAvailability" | "setAvailabilityByTelegramId"
+  >;
   /** **المنفذُ القائمُ** — رفضُ عرضٍ واحدٍ بمعرِّفِه (`BUG-003`). */
   readonly offers: OfferDecisionPort;
   readonly now: () => Date;
@@ -301,6 +304,15 @@ export async function setDriverAvailability(
   // **لا تخميناً لقيمةٍ منطقيّةٍ**: `"false"` نصّاً يُقرأُ صادقاً في أيِّ تحويلٍ
   // متسامحٍ، فيُبدَّلُ التوفُّرُ عكسَ ما أرادَ السائقُ.
   if (typeof input.isAvailable !== "boolean") return err(rejection("AVAILABILITY_INVALID"));
+
+  // LOAD-01: جملةٌ واحدةٌ إن وُجدَ المنفذ — الأحكامُ نفسُها: تعذّرٌ ⇒ NOT_AVAILABLE، لا سائق ⇒ NOT_A_DRIVER.
+  const single = deps.drivers.setAvailabilityByTelegramId;
+  if (single !== undefined) {
+    const applied = await single(session.value, input.isAvailable);
+    if (!applied.ok) return err(rejection("AVAILABILITY_NOT_AVAILABLE"));
+    if (applied.value === "not_a_driver") return err(rejection("NOT_A_DRIVER"));
+    return ok({ isAvailable: input.isAvailable });
+  }
 
   const found = await deps.drivers.findByTelegramId(session.value);
   if (!found.ok) return err(rejection("AVAILABILITY_NOT_AVAILABLE"));
