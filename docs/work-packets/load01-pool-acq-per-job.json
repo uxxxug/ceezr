@@ -1,0 +1,18 @@
+{
+  "id": "load01-pool-acq-per-job",
+  "goal": "LOAD-01 (قرارُ المالكِ بعدَ PR #651): بدءُ دورةِ خفضِ حجوزاتِ مجمّعِ gatewayRequest لكلِّ وظيفةٍ مع بقاءِ الحدِّ 5. المرحلةُ الأولى قياسٌ فقط: سجلُّ psig في load-trace.ts ينسبُ كلَّ استعلامٍ بتوقيعِه وانتظارِه واحتجازِه إلى المسارِ المُعلَن (drainer:job:<bot>:<نوع> وسواه)، خامدٌ بلا DISPATCH_TRACE_FILE؛ وحسابٌ قابلٌ للإعادةِ من أرشيفِ LOAD01M-MIXED-AB-20261025 لحصّةِ الكنّاسِ من الحجوزاتِ والانتظار؛ وخريطةُ حجوزاتِ وظيفةِ contact من الشيفرة؛ وتصميمُ C1 (ضمُّ فحصِ الأثرِ إلى الالتقاط) غيرُ مُنفَّذٍ حتى يُدمَجَ PR الـFIFO. لا مساسَ بحدٍّ محميّ؛ LOAD-01M = NOT_MET وLOAD-01 = FAIL.",
+  "canonical_source": ["docs/evidence/capacity/LOAD01-POOL-ACQ-20261025/RESULT.md"],
+  "implementation": [
+    "apps/gateway/src/background/load-trace.ts",
+    "tests/unit/load-path-scope.test.ts"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [
+    "docs/roadmap/execution/STATUS.md",
+    "docs/evidence/capacity/LOAD01-POOL-ACQ-20261025/RESULT.md",
+    "docs/evidence/capacity/LOAD01-POOL-ACQ-20261025/drainer-share.py",
+    "docs/evidence/capacity/LOAD01-POOL-ACQ-20261025/drainer-share.json"
+  ],
+  "no_other_affected_docs_reason": null
+}
