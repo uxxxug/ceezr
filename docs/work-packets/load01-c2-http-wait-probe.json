@@ -1,0 +1,22 @@
+{
+  "id": "load01-c2-http-wait-probe",
+  "goal": "LOAD-01 · دورةُ تشخيصِ علّةِ انتظارِ مقعدِ gatewayRequest في مسارِ HTTP — قياسٌ فقط. المُثبَتُ استرجاعيًّا ([التحليل](../evidence/capacity/LOAD01-C2-HTTP-WAIT-ANALYSIS-20261026/RESULT.md)): الزيادةُ في مجسّاتِ الكمونِ في B تقيمُ في انتظارِ المقعدِ (B/A 1.02–1.20) لا في الاحتجازِ (0.96–1.06) ولا الخيطِ ولا postgres؛ العلّةُ غيرُ محسومة (بقيّةٌ 10–15% عندَ تساوي الطلبِ النافذي، والزوجُ 2 ينقضُّ تفسيرَ المعدلِ وحده). الأداةُ المُسجَّلةُ مسبقًا ([البروتوكول](../evidence/capacity/LOAD01-C2-HTTP-WAIT-PROBE-20261026/PROTOCOL-load01-c2-http-wait-probe.md)): حدثٌ طلبيٌّ فردّيٌّ httpreq (انتظار/احتجاز/زمنٌ خادميٌّ لكلِّ طلبٍ بلا نوافذَ) يملأُ فجوةَ الربطِ الطلبيِّ، وعدّاداتُ وصولٍ بثانيةٍ واحدةٍ arr1s تكشفُ الانفجاريّةَ المخفيّةَ في مجاميعِ 5ث؛ موجاتٌ مقترنةٌ (ABBA×2 m5-1500 + S1/S2) بقواعدِ فصلٍ مسجَّلةٍ لـH1 (شكلُ الحمل) وH2 (تحوّلُ التنازع). لا تغييرَ سلوكيًّا ولا حدًّا ولا عتبة: مسارُ حجوزاتِ contact لا يُمسّ (3→2 مثبتٌ قائم)، وgatewayRequest: 5 وIMMEDIATE_REDISPATCH_LIMIT = 50 وحدودُ تيليجرام ثابتة، وحالاتُ القبولِ كما هي. النجاحُ عزلُ العلّةِ أو توثيقُ حدٍّ صريح — ليس تحسينَ سعةٍ ولا دليلَ عدمِ ضرر؛ LOAD-01M = NOT_MET وLOAD-01 = FAIL يبقيان.",
+  "canonical_source": [
+    "docs/evidence/capacity/LOAD01-C2-HTTP-WAIT-PROBE-20261026/PROTOCOL-load01-c2-http-wait-probe.md"
+  ],
+  "implementation": [
+    "apps/gateway/src/background/load-trace.ts",
+    "deploy/capacity-run/load/wave-report.ts"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [
+    "docs/evidence/capacity/LOAD01-C2-HTTP-WAIT-ANALYSIS-20261026/RESULT.md",
+    "docs/evidence/capacity/LOAD01-C2-HTTP-WAIT-ANALYSIS-20261026/analyze_http_wait.py",
+    "docs/evidence/capacity/LOAD01-C2-HTTP-WAIT-ANALYSIS-20261026/analysis.json",
+    "docs/evidence/capacity/LOAD01-C2-HTTP-WAIT-ANALYSIS-20261026/SHA256SUMS",
+    "docs/evidence/capacity/LOAD01-C2-HTTP-WAIT-PROBE-20261026/PROTOCOL-load01-c2-http-wait-probe.md",
+    "docs/roadmap/execution/STATUS.md"
+  ],
+  "no_other_affected_docs_reason": null
+}
