@@ -32,12 +32,13 @@
     "docs/evidence/capacity/LOAD01-C2-HTTP-WAIT-PROBE-20261026/cost-gate.json",
     "docs/evidence/capacity/LOAD01-C2-HTTP-WAIT-PROBE-20261026/ab-result.json",
     "docs/evidence/capacity/LOAD01-C2-HTTP-WAIT-PROBE-20261026/strata.json",
-    "docs/evidence/capacity/LOAD01-C2-HTTP-WAIT-PROBE-20261026/final-audit-status.txt",
-    "docs/evidence/capacity/LOAD01-C2-HTTP-WAIT-PROBE-20261026/final-secret-audit.txt",
     "docs/roadmap/execution/STATUS.md",
     "docs/evidence/capacity/LOAD01-C2-HTTP-WAIT-PROBE-20261026/analyze-linkage.py",
     "docs/evidence/capacity/LOAD01-C2-HTTP-WAIT-PROBE-20261026/linkage-summary.json",
-    "docs/evidence/capacity/LOAD01-C2-HTTP-WAIT-PROBE-20261026/client-server-gap.json"
+    "docs/evidence/capacity/LOAD01-C2-HTTP-WAIT-PROBE-20261026/client-server-gap.json",
+    "docs/evidence/archive/LOAD01-C2-HTTP-WAIT-PROBE-20261026/final-audit-status.txt",
+    "docs/evidence/archive/LOAD01-C2-HTTP-WAIT-PROBE-20261026/final-secret-audit.txt",
+    "docs/evidence/archive/LOAD01-C2-HTTP-WAIT-PROBE-20261026/SHA256SUMS"
   ],
   "no_other_affected_docs_reason": null
 }
