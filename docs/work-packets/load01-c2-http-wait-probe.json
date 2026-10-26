@@ -34,7 +34,10 @@
     "docs/evidence/capacity/LOAD01-C2-HTTP-WAIT-PROBE-20261026/strata.json",
     "docs/evidence/capacity/LOAD01-C2-HTTP-WAIT-PROBE-20261026/final-audit-status.txt",
     "docs/evidence/capacity/LOAD01-C2-HTTP-WAIT-PROBE-20261026/final-secret-audit.txt",
-    "docs/roadmap/execution/STATUS.md"
+    "docs/roadmap/execution/STATUS.md",
+    "docs/evidence/capacity/LOAD01-C2-HTTP-WAIT-PROBE-20261026/analyze-linkage.py",
+    "docs/evidence/capacity/LOAD01-C2-HTTP-WAIT-PROBE-20261026/linkage-summary.json",
+    "docs/evidence/capacity/LOAD01-C2-HTTP-WAIT-PROBE-20261026/client-server-gap.json"
   ],
   "no_other_affected_docs_reason": null
 }

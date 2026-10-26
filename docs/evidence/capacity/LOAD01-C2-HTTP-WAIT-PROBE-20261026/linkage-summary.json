@@ -1,0 +1,714 @@
+{
+ "A1": {
+  "arm": "A",
+  "httpreq": 171437,
+  "rides": 5336,
+  "other": 166101,
+  "httpreq_with_gate": 158102,
+  "pseat": 207321,
+  "pseat_linked": 207321,
+  "pseat_noreq": 0,
+  "pseat_unmatched": 0,
+  "hcall": 104126,
+  "hcall_matched": 104126,
+  "seat_stats": {
+   "other|out": {
+    "n": 1,
+    "wait_mean": 0.0,
+    "wait_p95": 0.0,
+    "hold_mean": 4.0,
+    "hold_p95": 4.0
+   },
+   "other|inj": {
+    "n": 176327,
+    "wait_mean": 174.67,
+    "wait_p95": 283.74,
+    "hold_mean": 178.71,
+    "hold_p95": 289.0
+   },
+   "rides|inj": {
+    "n": 9454,
+    "wait_mean": 158.17,
+    "wait_p95": 276.08,
+    "hold_mean": 164.43,
+    "hold_p95": 284.0
+   },
+   "other|drain": {
+    "n": 20321,
+    "wait_mean": 117.22,
+    "wait_p95": 229.55,
+    "hold_mean": 120.8,
+    "hold_p95": 234.0
+   },
+   "rides|drain": {
+    "n": 1218,
+    "wait_mean": 122.83,
+    "wait_p95": 210.18,
+    "hold_mean": 130.27,
+    "hold_p95": 221.15
+   }
+  },
+  "rides_httpreq": {
+   "inj": {
+    "n": 4727,
+    "gateWait_mean": 156.41,
+    "gateWait_p95": 274.32,
+    "server_mean": 169.47,
+    "server_p95": 288.69
+   },
+   "drain": {
+    "n": 609,
+    "gateWait_mean": 121.76,
+    "gateWait_p95": 209.2,
+    "server_mean": 136.99,
+    "server_p95": 222.97
+   }
+  },
+  "other_httpreq": {
+   "out": {
+    "n": 794,
+    "gateWait_mean": 0.0,
+    "gateWait_p95": 0.0,
+    "server_mean": 0.19,
+    "server_p95": 0.29
+   },
+   "inj": {
+    "n": 148106,
+    "gateWait_mean": 207.43,
+    "gateWait_p95": 371.95,
+    "server_mean": 217.32,
+    "server_p95": 394.15
+   },
+   "drain": {
+    "n": 17201,
+    "gateWait_mean": 142.92,
+    "gateWait_p95": 297.02,
+    "server_mean": 151.23,
+    "server_p95": 308.14
+   }
+  }
+ },
+ "B1": {
+  "arm": "B",
+  "httpreq": 167837,
+  "rides": 5148,
+  "other": 162689,
+  "httpreq_with_gate": 154909,
+  "pseat": 201845,
+  "pseat_linked": 201845,
+  "pseat_noreq": 0,
+  "pseat_unmatched": 0,
+  "hcall": 101721,
+  "hcall_matched": 101721,
+  "seat_stats": {
+   "other|out": {
+    "n": 1,
+    "wait_mean": 0.0,
+    "wait_p95": 0.0,
+    "hold_mean": 3.0,
+    "hold_p95": 3.0
+   },
+   "other|inj": {
+    "n": 176355,
+    "wait_mean": 199.74,
+    "wait_p95": 300.2,
+    "hold_mean": 203.86,
+    "hold_p95": 305.0
+   },
+   "rides|inj": {
+    "n": 9546,
+    "wait_mean": 172.83,
+    "wait_p95": 288.52,
+    "hold_mean": 179.05,
+    "hold_p95": 296.0
+   },
+   "rides|drain": {
+    "n": 750,
+    "wait_mean": 168.15,
+    "wait_p95": 312.37,
+    "hold_mean": 175.85,
+    "hold_p95": 318.0
+   },
+   "other|drain": {
+    "n": 15193,
+    "wait_mean": 149.35,
+    "wait_p95": 302.52,
+    "hold_mean": 153.3,
+    "hold_p95": 307.0
+   }
+  },
+  "rides_httpreq": {
+   "inj": {
+    "n": 4769,
+    "gateWait_mean": 171.61,
+    "gateWait_p95": 283.56,
+    "server_mean": 184.56,
+    "server_p95": 299.59
+   },
+   "drain": {
+    "n": 379,
+    "gateWait_mean": 167.04,
+    "gateWait_p95": 303.16,
+    "server_mean": 182.98,
+    "server_p95": 321.63
+   }
+  },
+  "other_httpreq": {
+   "out": {
+    "n": 1068,
+    "gateWait_mean": 0.0,
+    "gateWait_p95": 0.0,
+    "server_mean": 0.14,
+    "server_p95": 0.19
+   },
+   "inj": {
+    "n": 147946,
+    "gateWait_mean": 237.66,
+    "gateWait_p95": 366.21,
+    "server_mean": 247.87,
+    "server_p95": 395.71
+   },
+   "drain": {
+    "n": 13675,
+    "gateWait_mean": 170.67,
+    "gateWait_p95": 325.95,
+    "server_mean": 179.16,
+    "server_p95": 339.23
+   }
+  }
+ },
+ "B2": {
+  "arm": "B",
+  "httpreq": 165182,
+  "rides": 4999,
+  "other": 160183,
+  "httpreq_with_gate": 151899,
+  "pseat": 197427,
+  "pseat_linked": 197427,
+  "pseat_noreq": 0,
+  "pseat_unmatched": 0,
+  "hcall": 98871,
+  "hcall_matched": 98871,
+  "seat_stats": {
+   "other|out": {
+    "n": 1,
+    "wait_mean": 0.0,
+    "wait_p95": 0.0,
+    "hold_mean": 3.0,
+    "hold_p95": 3.0
+   },
+   "other|inj": {
+    "n": 173513,
+    "wait_mean": 205.23,
+    "wait_p95": 307.06,
+    "hold_mean": 209.44,
+    "hold_p95": 312.0
+   },
+   "rides|inj": {
+    "n": 9275,
+    "wait_mean": 172.83,
+    "wait_p95": 296.41,
+    "hold_mean": 179.13,
+    "hold_p95": 306.0
+   },
+   "other|drain": {
+    "n": 13915,
+    "wait_mean": 156.53,
+    "wait_p95": 284.43,
+    "hold_mean": 160.67,
+    "hold_p95": 290.3
+   },
+   "rides|drain": {
+    "n": 723,
+    "wait_mean": 178.89,
+    "wait_p95": 305.95,
+    "hold_mean": 187.07,
+    "hold_p95": 313.0
+   }
+  },
+  "rides_httpreq": {
+   "inj": {
+    "n": 4628,
+    "gateWait_mean": 172.59,
+    "gateWait_p95": 295.73,
+    "server_mean": 185.7,
+    "server_p95": 313.36
+   },
+   "drain": {
+    "n": 371,
+    "gateWait_mean": 182.15,
+    "gateWait_p95": 306.09,
+    "server_mean": 199.33,
+    "server_p95": 329.59
+   }
+  },
+  "other_httpreq": {
+   "out": {
+    "n": 1325,
+    "gateWait_mean": 0.0,
+    "gateWait_p95": 0.0,
+    "server_mean": 0.15,
+    "server_p95": 0.23
+   },
+   "inj": {
+    "n": 146458,
+    "gateWait_mean": 242.48,
+    "gateWait_p95": 376.3,
+    "server_mean": 252.57,
+    "server_p95": 399.62
+   },
+   "drain": {
+    "n": 12400,
+    "gateWait_mean": 183.44,
+    "gateWait_p95": 337.73,
+    "server_mean": 192.46,
+    "server_p95": 365.84
+   }
+  }
+ },
+ "A2": {
+  "arm": "A",
+  "httpreq": 164934,
+  "rides": 5126,
+  "other": 159808,
+  "httpreq_with_gate": 153272,
+  "pseat": 199956,
+  "pseat_linked": 199956,
+  "pseat_noreq": 0,
+  "pseat_unmatched": 0,
+  "hcall": 99980,
+  "hcall_matched": 99980,
+  "seat_stats": {
+   "other|out": {
+    "n": 1,
+    "wait_mean": 0.0,
+    "wait_p95": 0.0,
+    "hold_mean": 4.0,
+    "hold_p95": 4.0
+   },
+   "other|inj": {
+    "n": 172195,
+    "wait_mean": 184.82,
+    "wait_p95": 298.87,
+    "hold_mean": 188.96,
+    "hold_p95": 304.0
+   },
+   "rides|inj": {
+    "n": 9256,
+    "wait_mean": 154.98,
+    "wait_p95": 285.65,
+    "hold_mean": 161.18,
+    "hold_p95": 294.0
+   },
+   "other|drain": {
+    "n": 17508,
+    "wait_mean": 102.78,
+    "wait_p95": 194.46,
+    "hold_mean": 106.52,
+    "hold_p95": 198.0
+   },
+   "rides|drain": {
+    "n": 996,
+    "wait_mean": 117.1,
+    "wait_p95": 213.69,
+    "hold_mean": 124.18,
+    "hold_p95": 221.25
+   }
+  },
+  "rides_httpreq": {
+   "inj": {
+    "n": 4625,
+    "gateWait_mean": 152.99,
+    "gateWait_p95": 282.81,
+    "server_mean": 166.0,
+    "server_p95": 298.88
+   },
+   "drain": {
+    "n": 501,
+    "gateWait_mean": 117.73,
+    "gateWait_p95": 230.27,
+    "server_mean": 132.61,
+    "server_p95": 248.56
+   }
+  },
+  "other_httpreq": {
+   "out": {
+    "n": 382,
+    "gateWait_mean": 0.0,
+    "gateWait_p95": 0.0,
+    "server_mean": 0.2,
+    "server_p95": 0.32
+   },
+   "inj": {
+    "n": 144644,
+    "gateWait_mean": 219.44,
+    "gateWait_p95": 364.49,
+    "server_mean": 229.49,
+    "server_p95": 383.07
+   },
+   "drain": {
+    "n": 14782,
+    "gateWait_mean": 127.43,
+    "gateWait_p95": 263.66,
+    "server_mean": 135.84,
+    "server_p95": 278.72
+   }
+  }
+ },
+ "A3": {
+  "arm": "A",
+  "httpreq": 155072,
+  "rides": 4729,
+  "other": 150343,
+  "httpreq_with_gate": 145786,
+  "pseat": 189106,
+  "pseat_linked": 189106,
+  "pseat_noreq": 0,
+  "pseat_unmatched": 0,
+  "hcall": 92954,
+  "hcall_matched": 92954,
+  "seat_stats": {
+   "other|out": {
+    "n": 1,
+    "wait_mean": 0.0,
+    "wait_p95": 0.0,
+    "hold_mean": 3.0,
+    "hold_p95": 3.0
+   },
+   "other|inj": {
+    "n": 167400,
+    "wait_mean": 189.92,
+    "wait_p95": 313.14,
+    "hold_mean": 194.21,
+    "hold_p95": 319.0
+   },
+   "rides|inj": {
+    "n": 8893,
+    "wait_mean": 153.42,
+    "wait_p95": 299.68,
+    "hold_mean": 159.63,
+    "hold_p95": 310.0
+   },
+   "other|drain": {
+    "n": 12247,
+    "wait_mean": 111.23,
+    "wait_p95": 247.71,
+    "hold_mean": 114.95,
+    "hold_p95": 252.0
+   },
+   "rides|drain": {
+    "n": 565,
+    "wait_mean": 115.38,
+    "wait_p95": 255.45,
+    "hold_mean": 122.38,
+    "hold_p95": 262.0
+   }
+  },
+  "rides_httpreq": {
+   "inj": {
+    "n": 4442,
+    "gateWait_mean": 152.6,
+    "gateWait_p95": 298.96,
+    "server_mean": 165.56,
+    "server_p95": 317.7
+   },
+   "drain": {
+    "n": 287,
+    "gateWait_mean": 119.33,
+    "gateWait_p95": 259.36,
+    "server_mean": 134.32,
+    "server_p95": 280.37
+   }
+  },
+  "other_httpreq": {
+   "out": {
+    "n": 247,
+    "gateWait_mean": 0.0,
+    "gateWait_p95": 0.0,
+    "server_mean": 0.27,
+    "server_p95": 0.35
+   },
+   "inj": {
+    "n": 140206,
+    "gateWait_mean": 226.07,
+    "gateWait_p95": 358.13,
+    "server_mean": 236.58,
+    "server_p95": 375.08
+   },
+   "drain": {
+    "n": 9890,
+    "gateWait_mean": 147.43,
+    "gateWait_p95": 269.2,
+    "server_mean": 156.55,
+    "server_p95": 279.08
+   }
+  }
+ },
+ "B3": {
+  "arm": "B",
+  "httpreq": 173738,
+  "rides": 5541,
+  "other": 168197,
+  "httpreq_with_gate": 163934,
+  "pseat": 214435,
+  "pseat_linked": 214435,
+  "pseat_noreq": 0,
+  "pseat_unmatched": 0,
+  "hcall": 110962,
+  "hcall_matched": 110962,
+  "seat_stats": {
+   "other|out": {
+    "n": 1,
+    "wait_mean": 0.0,
+    "wait_p95": 0.0,
+    "hold_mean": 4.0,
+    "hold_p95": 4.0
+   },
+   "other|inj": {
+    "n": 185764,
+    "wait_mean": 190.35,
+    "wait_p95": 300.43,
+    "hold_mean": 194.27,
+    "hold_p95": 305.0
+   },
+   "rides|inj": {
+    "n": 10230,
+    "wait_mean": 158.29,
+    "wait_p95": 285.15,
+    "hold_mean": 164.32,
+    "hold_p95": 293.0
+   },
+   "other|drain": {
+    "n": 17588,
+    "wait_mean": 184.27,
+    "wait_p95": 305.44,
+    "hold_mean": 188.18,
+    "hold_p95": 311.0
+   },
+   "rides|drain": {
+    "n": 852,
+    "wait_mean": 205.04,
+    "wait_p95": 319.48,
+    "hold_mean": 213.11,
+    "hold_p95": 324.0
+   }
+  },
+  "rides_httpreq": {
+   "inj": {
+    "n": 5115,
+    "gateWait_mean": 156.52,
+    "gateWait_p95": 282.01,
+    "server_mean": 169.17,
+    "server_p95": 299.02
+   },
+   "drain": {
+    "n": 426,
+    "gateWait_mean": 203.31,
+    "gateWait_p95": 296.62,
+    "server_mean": 219.95,
+    "server_p95": 318.75
+   }
+  },
+  "other_httpreq": {
+   "out": {
+    "n": 314,
+    "gateWait_mean": 0.0,
+    "gateWait_p95": 0.0,
+    "server_mean": 0.18,
+    "server_p95": 0.23
+   },
+   "inj": {
+    "n": 153128,
+    "gateWait_mean": 230.72,
+    "gateWait_p95": 369.05,
+    "server_mean": 240.33,
+    "server_p95": 385.43
+   },
+   "drain": {
+    "n": 14755,
+    "gateWait_mean": 221.61,
+    "gateWait_p95": 391.19,
+    "server_mean": 230.68,
+    "server_p95": 406.13
+   }
+  }
+ },
+ "B4": {
+  "arm": "B",
+  "httpreq": 174876,
+  "rides": 5481,
+  "other": 169395,
+  "httpreq_with_gate": 161697,
+  "pseat": 211737,
+  "pseat_linked": 211737,
+  "pseat_noreq": 0,
+  "pseat_unmatched": 0,
+  "hcall": 107953,
+  "hcall_matched": 107953,
+  "seat_stats": {
+   "other|out": {
+    "n": 1,
+    "wait_mean": 0.0,
+    "wait_p95": 0.0,
+    "hold_mean": 4.0,
+    "hold_p95": 4.0
+   },
+   "other|inj": {
+    "n": 184259,
+    "wait_mean": 190.54,
+    "wait_p95": 296.11,
+    "hold_mean": 194.5,
+    "hold_p95": 301.0
+   },
+   "rides|inj": {
+    "n": 10092,
+    "wait_mean": 163.7,
+    "wait_p95": 283.27,
+    "hold_mean": 169.74,
+    "hold_p95": 291.0
+   },
+   "other|drain": {
+    "n": 16515,
+    "wait_mean": 124.7,
+    "wait_p95": 260.0,
+    "hold_mean": 128.32,
+    "hold_p95": 265.0
+   },
+   "rides|drain": {
+    "n": 870,
+    "wait_mean": 140.18,
+    "wait_p95": 259.32,
+    "hold_mean": 147.2,
+    "hold_p95": 266.0
+   }
+  },
+  "rides_httpreq": {
+   "inj": {
+    "n": 5046,
+    "gateWait_mean": 162.43,
+    "gateWait_p95": 280.15,
+    "server_mean": 175.03,
+    "server_p95": 296.93
+   },
+   "drain": {
+    "n": 435,
+    "gateWait_mean": 142.22,
+    "gateWait_p95": 263.22,
+    "server_mean": 156.75,
+    "server_p95": 280.33
+   }
+  },
+  "other_httpreq": {
+   "out": {
+    "n": 1345,
+    "gateWait_mean": 0.0,
+    "gateWait_p95": 0.0,
+    "server_mean": 0.13,
+    "server_p95": 0.19
+   },
+   "inj": {
+    "n": 153559,
+    "gateWait_mean": 227.79,
+    "gateWait_p95": 395.6,
+    "server_mean": 237.53,
+    "server_p95": 421.37
+   },
+   "drain": {
+    "n": 14491,
+    "gateWait_mean": 151.06,
+    "gateWait_p95": 319.37,
+    "server_mean": 159.13,
+    "server_p95": 331.57
+   }
+  }
+ },
+ "A4": {
+  "arm": "A",
+  "httpreq": 163417,
+  "rides": 5189,
+  "other": 158228,
+  "httpreq_with_gate": 155844,
+  "pseat": 203183,
+  "pseat_linked": 203183,
+  "pseat_noreq": 0,
+  "pseat_unmatched": 0,
+  "hcall": 102456,
+  "hcall_matched": 102456,
+  "seat_stats": {
+   "other|out": {
+    "n": 1,
+    "wait_mean": 0.0,
+    "wait_p95": 0.0,
+    "hold_mean": 3.0,
+    "hold_p95": 3.0
+   },
+   "other|inj": {
+    "n": 177543,
+    "wait_mean": 181.5,
+    "wait_p95": 295.08,
+    "hold_mean": 185.54,
+    "hold_p95": 300.0
+   },
+   "rides|inj": {
+    "n": 9584,
+    "wait_mean": 153.58,
+    "wait_p95": 290.67,
+    "hold_mean": 159.84,
+    "hold_p95": 298.0
+   },
+   "other|drain": {
+    "n": 15261,
+    "wait_mean": 103.34,
+    "wait_p95": 264.5,
+    "hold_mean": 106.94,
+    "hold_p95": 269.0
+   },
+   "rides|drain": {
+    "n": 794,
+    "wait_mean": 111.96,
+    "wait_p95": 245.06,
+    "hold_mean": 119.4,
+    "hold_p95": 254.4
+   }
+  },
+  "rides_httpreq": {
+   "inj": {
+    "n": 4792,
+    "gateWait_mean": 153.33,
+    "gateWait_p95": 289.75,
+    "server_mean": 166.56,
+    "server_p95": 304.54
+   },
+   "drain": {
+    "n": 397,
+    "gateWait_mean": 112.71,
+    "gateWait_p95": 262.42,
+    "server_mean": 128.04,
+    "server_p95": 280.57
+   }
+  },
+  "other_httpreq": {
+   "out": {
+    "n": 126,
+    "gateWait_mean": 0.0,
+    "gateWait_p95": 0.0,
+    "server_mean": 0.35,
+    "server_p95": 0.52
+   },
+   "inj": {
+    "n": 145841,
+    "gateWait_mean": 220.54,
+    "gateWait_p95": 365.2,
+    "server_mean": 230.8,
+    "server_p95": 387.85
+   },
+   "drain": {
+    "n": 12261,
+    "gateWait_mean": 133.56,
+    "gateWait_p95": 305.18,
+    "server_mean": 142.36,
+    "server_p95": 315.68
+   }
+  }
+ }
+}
