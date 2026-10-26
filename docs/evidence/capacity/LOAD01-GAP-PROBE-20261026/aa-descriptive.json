@@ -1,0 +1,154 @@
+{
+ "note": "وصفيٌّ فقط بلا حكمٍ: المتوسطاتُ الشرطيّةُ لكلِّ الحدودِ والمركّباتِ (ملحق 1 §4–§5) لموجتَي A/A — لا فاصلَ (زوجٌ واحد).",
+ "waves": {
+  "AA1-i70": {
+   "fetchMs": {
+    "mean_ms": 128.64,
+    "n": 8550,
+    "windows": 36
+   },
+   "writeHeadMs": {
+    "mean_ms": 128.65,
+    "n": 8550,
+    "windows": 36
+   },
+   "firstWriteMs": {
+    "mean_ms": 128.7,
+    "n": 8550,
+    "windows": 36
+   },
+   "endMs": {
+    "mean_ms": 128.71,
+    "n": 8550,
+    "windows": 36
+   },
+   "finishMs": {
+    "mean_ms": 128.72,
+    "n": 8550,
+    "windows": 36
+   },
+   "ttfbMs": {
+    "mean_ms": 157.32,
+    "n": 8550,
+    "windows": 36
+   },
+   "bodyMs": {
+    "mean_ms": 0.03,
+    "n": 8550,
+    "windows": 36
+   },
+   "seg_head": {
+    "mean_ms": 0.01,
+    "n": 8550,
+    "windows": 36
+   },
+   "seg_body": {
+    "mean_ms": 0.06,
+    "n": 8550,
+    "windows": 36
+   },
+   "seg_flush": {
+    "mean_ms": 0.0,
+    "n": 8550,
+    "windows": 36
+   },
+   "bridge_over": {
+    "mean_ms": 0.03,
+    "n": 8550,
+    "windows": 36
+   },
+   "client_total": {
+    "mean_ms": 157.35,
+    "n": 8550,
+    "windows": 36
+   },
+   "residual": {
+    "mean_ms": 28.63,
+    "n": 8550,
+    "windows": 36
+   }
+  },
+  "AA2-i71": {
+   "fetchMs": {
+    "mean_ms": 136.97,
+    "n": 7901,
+    "windows": 36
+   },
+   "writeHeadMs": {
+    "mean_ms": 136.97,
+    "n": 7901,
+    "windows": 36
+   },
+   "firstWriteMs": {
+    "mean_ms": 137.03,
+    "n": 7901,
+    "windows": 36
+   },
+   "endMs": {
+    "mean_ms": 137.04,
+    "n": 7901,
+    "windows": 36
+   },
+   "finishMs": {
+    "mean_ms": 137.04,
+    "n": 7901,
+    "windows": 36
+   },
+   "ttfbMs": {
+    "mean_ms": 180.72,
+    "n": 7901,
+    "windows": 36
+   },
+   "bodyMs": {
+    "mean_ms": 0.02,
+    "n": 7901,
+    "windows": 36
+   },
+   "seg_head": {
+    "mean_ms": 0.01,
+    "n": 7901,
+    "windows": 36
+   },
+   "seg_body": {
+    "mean_ms": 0.07,
+    "n": 7901,
+    "windows": 36
+   },
+   "seg_flush": {
+    "mean_ms": 0.0,
+    "n": 7901,
+    "windows": 36
+   },
+   "bridge_over": {
+    "mean_ms": 0.04,
+    "n": 7901,
+    "windows": 36
+   },
+   "client_total": {
+    "mean_ms": 180.74,
+    "n": 7901,
+    "windows": 36
+   },
+   "residual": {
+    "mean_ms": 43.7,
+    "n": 7901,
+    "windows": 36
+   }
+  }
+ },
+ "d_AA2_minus_AA1": {
+  "fetchMs": 8.33,
+  "writeHeadMs": 8.32,
+  "firstWriteMs": 8.33,
+  "endMs": 8.33,
+  "finishMs": 8.32,
+  "ttfbMs": 23.4,
+  "bodyMs": -0.01,
+  "seg_head": 0.0,
+  "seg_body": 0.01,
+  "seg_flush": 0.0,
+  "bridge_over": 0.01,
+  "client_total": 23.39,
+  "residual": 15.07
+ }
+}
