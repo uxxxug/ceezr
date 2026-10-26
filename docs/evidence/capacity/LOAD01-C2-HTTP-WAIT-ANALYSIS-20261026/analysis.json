@@ -8,35 +8,43 @@
  "inputs": {
   "A1-i80": {
    "load-trace.jsonl.gz": "91e3d343c48035d8e7780e5a046330d0db63d6714a6ed62ef2894ab6e922e85a",
-   "load-events.jsonl.gz": "12b147d1229bedaa190cd5cb394a17c1f74943aa842334f0e45a7a6db06991ee"
+   "load-events.jsonl.gz": "12b147d1229bedaa190cd5cb394a17c1f74943aa842334f0e45a7a6db06991ee",
+   "pgss-full.csv.gz": "bcd191951d422bbf2e598cb95a17cfbbcdc5917daf4f32688ff4fddfec9e7f0c"
   },
   "B1-i81": {
    "load-trace.jsonl.gz": "cd9f4d96778ffdb85728e38ad732d83ef2094e9e5978353d8610f84dc0f88c21",
-   "load-events.jsonl.gz": "4e249824b2a7c7690836670fcff2933691e7340635a751835b8ef5d39b51cd61"
+   "load-events.jsonl.gz": "4e249824b2a7c7690836670fcff2933691e7340635a751835b8ef5d39b51cd61",
+   "pgss-full.csv.gz": "1e5f6e46ee3a995e40b53207cd25d062d5e605892233fce519b4da5f24d7237f"
   },
   "B2-i82": {
    "load-trace.jsonl.gz": "402de5f5df36fb3f857ed4328aa04a60960ba39a5f7cb1119e0c1bbcfef9d4fa",
-   "load-events.jsonl.gz": "794ee10122b5087c12c1c7ef6cb82a2b2affe06c033be1fcd4e0be05eeeb7ad2"
+   "load-events.jsonl.gz": "794ee10122b5087c12c1c7ef6cb82a2b2affe06c033be1fcd4e0be05eeeb7ad2",
+   "pgss-full.csv.gz": "ec234340ee475c806fea355bcebec244993a2950ac5cecf34cd9976ed8944fb6"
   },
   "A2-i83": {
    "load-trace.jsonl.gz": "994e00b30956170b1089c0553ac9c5828e6aa519395cd797b547c6e09632eb63",
-   "load-events.jsonl.gz": "f3a223eace32f78af4004a9ce44b083952eecfbee69a9c010b69132840534b7b"
+   "load-events.jsonl.gz": "f3a223eace32f78af4004a9ce44b083952eecfbee69a9c010b69132840534b7b",
+   "pgss-full.csv.gz": "b962fc68389582a608ae8344a31d67831d2e0981adbe47c3a26627d0c562d994"
   },
   "A3-i84": {
    "load-trace.jsonl.gz": "e537785c8e9d89fa724242f4679ac12dea9a9d196de5300d2e1198feb02ab52d",
-   "load-events.jsonl.gz": "c31b2abc0365ea56c4a048e669eefb5eea68d9567661883df6d285273ec97e07"
+   "load-events.jsonl.gz": "c31b2abc0365ea56c4a048e669eefb5eea68d9567661883df6d285273ec97e07",
+   "pgss-full.csv.gz": "3a5ccc6e223bb9c5489df31901b7e9b58180fb9565e9b8cb16f75a92e61b2c6c"
   },
   "B3-i85": {
    "load-trace.jsonl.gz": "023d8559ecb4cc10b333cac6ba8c001255ba3f3dede18517459363dc4007a250",
-   "load-events.jsonl.gz": "03cb0fd87d5ac1763ef8ef436fb04ff82bef4d11ecc2922ff98bb51e9fcfbb78"
+   "load-events.jsonl.gz": "03cb0fd87d5ac1763ef8ef436fb04ff82bef4d11ecc2922ff98bb51e9fcfbb78",
+   "pgss-full.csv.gz": "35bf83db9ad593999ac11dce6b7d45ab8b3a1ef69d2f887c5fd0148403213301"
   },
   "B4-i86": {
    "load-trace.jsonl.gz": "405cf7e51072c559dde18d17162a456123df69996a0fcc35744d984a606fd81d",
-   "load-events.jsonl.gz": "16d74b9b851eaab42278fbe15aae82386f955221faeabec47676cf079070a49c"
+   "load-events.jsonl.gz": "16d74b9b851eaab42278fbe15aae82386f955221faeabec47676cf079070a49c",
+   "pgss-full.csv.gz": "629b9d5398a74ec442aa8eb8c8ec319edc0a45b2efa1e6d134c233b1d0ada1f2"
   },
   "A4-i87": {
    "load-trace.jsonl.gz": "07d5bcce8a7b1cad3228566eabce91ed4a460da5037d0ed6cb641f5fd3dc7b8f",
-   "load-events.jsonl.gz": "23c283fbd23b1be906a8a5689636bb80648dc0666d6fa0c607d8caa86f4d07be"
+   "load-events.jsonl.gz": "23c283fbd23b1be906a8a5689636bb80648dc0666d6fa0c607d8caa86f4d07be",
+   "pgss-full.csv.gz": "412ea256e98fcdf9d9e5a96655e7bfbb94b8eb253a6f5d8e8ebb654ab4c9498a"
   },
   "S1-i90": {
    "load-trace.jsonl.gz": "41f64487979337aa98eee3c3dda0646a457ce4aed4bf8651e75c846195539c6e",
@@ -229,191 +237,65 @@
      }
     }
    },
-   "pagg_reconciliation_A": {
-    "(background)": {
-     "pagg_n": 266,
-     "pdb_n": 266,
-     "pagg_waitSum": 33793.18,
-     "pdb_waitSum": 33793.2
-    },
-    "drainer:replies": {
-     "pagg_n": 126,
-     "pdb_n": 126,
-     "pagg_waitSum": 16522.69,
-     "pdb_waitSum": 16522.69
-    },
-    "drainer:sweep": {
-     "pagg_n": 2125,
-     "pdb_n": 2125,
-     "pagg_waitSum": 171877.3,
-     "pdb_waitSum": 171877.31
-    },
-    "http:POST /webhook/telegram/driver": {
-     "pagg_n": 16000,
-     "pdb_n": 16000,
-     "pagg_waitSum": 3156292.77,
-     "pdb_waitSum": 3156292.75
-    },
-    "drainer:job:driver:message": {
-     "pagg_n": 7628,
-     "pdb_n": 7628,
-     "pagg_waitSum": 585856.04,
-     "pdb_waitSum": 585856.02
-    },
-    "drainer:job:driver:command": {
-     "pagg_n": 7462,
-     "pdb_n": 7462,
-     "pagg_waitSum": 712728.5,
-     "pdb_waitSum": 712728.51
-    },
-    "http:POST /v1/session/telegram": {
-     "pagg_n": 22428,
-     "pdb_n": 22428,
-     "pagg_waitSum": 3996822.84,
-     "pdb_waitSum": 3996822.86
-    },
-    "drainer:job:driver:contact": {
-     "pagg_n": 38301,
-     "pdb_n": 38301,
-     "pagg_waitSum": 3011870.33,
-     "pdb_waitSum": 3011870.34
-    },
-    "http:GET /v1/onboarding": {
-     "pagg_n": 12421,
-     "pdb_n": 12421,
-     "pagg_waitSum": 2237975.73,
-     "pdb_waitSum": 2237975.75
-    },
-    "http:POST /v1/onboarding/driver": {
-     "pagg_n": 17794,
-     "pdb_n": 17794,
-     "pagg_waitSum": 2986450.79,
-     "pdb_waitSum": 2986450.76
-    },
-    "http:POST /v1/rides": {
-     "pagg_n": 10028,
-     "pdb_n": 10028,
-     "pagg_waitSum": 1477502.05,
-     "pdb_waitSum": 1477502.07
-    },
-    "http:POST /v1/driver/availability": {
-     "pagg_n": 10028,
-     "pdb_n": 10028,
-     "pagg_waitSum": 1706378.38,
-     "pdb_waitSum": 1706378.37
-    },
-    "http:POST /v1/driver/location": {
-     "pagg_n": 40140,
-     "pdb_n": 40140,
-     "pagg_waitSum": 5814846.73,
-     "pdb_waitSum": 5814846.74
-    },
-    "http:GET /v1/driver/offers": {
-     "pagg_n": 9650,
-     "pdb_n": 9650,
-     "pagg_waitSum": 1616172.67,
-     "pdb_waitSum": 1616172.67
-    },
-    "http:POST /v1/driver/offers/receipts": {
-     "pagg_n": 6633,
-     "pdb_n": 6633,
-     "pagg_waitSum": 1280178.7,
-     "pdb_waitSum": 1280178.69
-    },
-    "http:POST /v1/driver/offers/:id/accept": {
-     "pagg_n": 5015,
-     "pdb_n": 5015,
-     "pagg_waitSum": 991768.31,
-     "pdb_waitSum": 991768.28
-    },
-    "http:GET /v1/rides/:id/trip-events": {
-     "pagg_n": 13924,
-     "pdb_n": 13924,
-     "pagg_waitSum": 2751961.94,
-     "pdb_waitSum": 2751961.94
-    },
-    "http:GET /v1/rides/:id/candidate": {
-     "pagg_n": 5014,
-     "pdb_n": 5014,
-     "pagg_waitSum": 974363.27,
-     "pdb_waitSum": 974363.27
-    },
-    "http:POST /v1/rides/:id/trip-events/ack": {
-     "pagg_n": 13873,
-     "pdb_n": 13873,
-     "pagg_waitSum": 2732003.17,
-     "pdb_waitSum": 2732003.18
-    },
-    "http:POST /v1/driver/job/:id/arrived": {
-     "pagg_n": 5014,
-     "pdb_n": 5014,
-     "pagg_waitSum": 998611.34,
-     "pdb_waitSum": 998611.33
-    },
-    "http:POST /v1/driver/job/:id/start": {
-     "pagg_n": 5014,
-     "pdb_n": 5014,
-     "pagg_waitSum": 990902.61,
-     "pdb_waitSum": 990902.58
-    },
-    "http:POST /v1/driver/job/:id/complete": {
-     "pagg_n": 5014,
-     "pdb_n": 5014,
-     "pagg_waitSum": 1007582.13,
-     "pdb_waitSum": 1007582.1
-    }
-   },
    "postgres_top_queries": {
-    "select d.id as driver_id, d.city_id, st_y(d.last_location::geometry) as lat, st_x(d.last_l": {
+    "f098937b434f": {
+     "queryPrefix": "select d.id as driver_id, d.city_id, st_y(d.last_location::geometry) as lat, st_x(d.last_l",
      "callsA": 7966.0,
      "callsB": 8922.0,
      "meanExecA_ms": 6.058180015064022,
      "meanExecB_ms": 4.780939251288949,
      "meanBA": 0.7891708796042477
     },
-    "select claim_notification_delivery() result": {
+    "7d89bbfcc37d": {
+     "queryPrefix": "select claim_notification_delivery() result",
      "callsA": 18454.0,
      "callsB": 14854.0,
      "meanExecA_ms": 2.511385770022759,
      "meanExecB_ms": 2.2035424128180963,
      "meanBA": 0.8774209200039096
     },
-    "select status::text, attempts, delivered_at::text from notification_outbox where order_id ": {
+    "e22b3a07d950": {
+     "queryPrefix": "select status::text, attempts, delivered_at::text from notification_outbox where order_id ",
      "callsA": 5014.0,
      "callsB": 5230.0,
      "meanExecA_ms": 5.943894894295971,
      "meanExecB_ms": 6.017521223709369,
      "meanBA": 1.0123868827970113
     },
-    "select open_offer_round( $1::uuid, $2::integer, $3::timestamptz, $4::jsonb ) as result": {
+    "2558fc8f8bba": {
+     "queryPrefix": "select open_offer_round( $1::uuid, $2::integer, $3::timestamptz, $4::jsonb ) as result",
      "callsA": 7877.0,
      "callsB": 8813.0,
      "meanExecA_ms": 3.6359278913291866,
      "meanExecB_ms": 3.5249449676614093,
      "meanBA": 0.9694760383085581
     },
-    "select claim_and_enqueue_telegram_update( $1, $2, $3, $4, $5 ) as result": {
+    "aa43c42a0118": {
+     "queryPrefix": "select claim_and_enqueue_telegram_update( $1, $2, $3, $4, $5 ) as result",
      "callsA": 16000.0,
      "callsB": 16007.0,
      "meanExecA_ms": 1.561286625,
      "meanExecB_ms": 1.5180171799837572,
      "meanBA": 0.9722860336318818
     },
-    "select request_ride_with_offer($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::tex": {
+    "56cd15d2544c": {
+     "queryPrefix": "select request_ride_with_offer($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::tex",
      "callsA": 5014.0,
      "callsB": 5230.0,
      "meanExecA_ms": 4.931800159553251,
      "meanExecB_ms": 5.341993881453155,
      "meanBA": 1.0831732245081607
     },
-    "select ack_rider_trip_events( $1::bigint, $2::uuid, $3::uuid[] ) as result": {
+    "ad6a15d9782c": {
+     "queryPrefix": "select ack_rider_trip_events( $1::bigint, $2::uuid, $3::uuid[] ) as result",
      "callsA": 13873.0,
      "callsB": 14467.0,
      "meanExecA_ms": 1.7657591004108701,
      "meanExecB_ms": 1.3185575447570332,
      "meanBA": 0.7467369384930376
     },
-    "with board as ( select driver_offer_board($1::bigint) as payload ), elig as ( select d.ver": {
+    "5d79d4d37a2b": {
+     "queryPrefix": "with board as ( select driver_offer_board($1::bigint) as payload ), elig as ( select d.ver",
      "callsA": 9650.0,
      "callsB": 9829.0,
      "meanExecA_ms": 1.487640310880829,
@@ -603,191 +485,65 @@
      }
     }
    },
-   "pagg_reconciliation_A": {
-    "(background)": {
-     "pagg_n": 266,
-     "pdb_n": 266,
-     "pagg_waitSum": 34199.32,
-     "pdb_waitSum": 34199.33
-    },
-    "drainer:replies": {
-     "pagg_n": 126,
-     "pdb_n": 126,
-     "pagg_waitSum": 17623.43,
-     "pdb_waitSum": 17623.44
-    },
-    "drainer:sweep": {
-     "pagg_n": 2137,
-     "pdb_n": 2137,
-     "pagg_waitSum": 172241.63,
-     "pdb_waitSum": 172241.59
-    },
-    "http:POST /webhook/telegram/driver": {
-     "pagg_n": 15966,
-     "pdb_n": 15966,
-     "pagg_waitSum": 3334749.45,
-     "pdb_waitSum": 3334749.44
-    },
-    "drainer:job:driver:message": {
-     "pagg_n": 7604,
-     "pdb_n": 7604,
-     "pagg_waitSum": 581578.46,
-     "pdb_waitSum": 581578.45
-    },
-    "drainer:job:driver:command": {
-     "pagg_n": 7407,
-     "pdb_n": 7407,
-     "pagg_waitSum": 673868.69,
-     "pdb_waitSum": 673868.72
-    },
-    "http:POST /v1/session/telegram": {
-     "pagg_n": 22022,
-     "pdb_n": 22022,
-     "pagg_waitSum": 4059284.26,
-     "pdb_waitSum": 4059284.26
-    },
-    "drainer:job:driver:contact": {
-     "pagg_n": 38317,
-     "pdb_n": 38317,
-     "pagg_waitSum": 3064130.55,
-     "pdb_waitSum": 3064130.55
-    },
-    "http:GET /v1/onboarding": {
-     "pagg_n": 12384,
-     "pdb_n": 12384,
-     "pagg_waitSum": 2201718.11,
-     "pdb_waitSum": 2201718.14
-    },
-    "http:POST /v1/onboarding/driver": {
-     "pagg_n": 17798,
-     "pdb_n": 17798,
-     "pagg_waitSum": 2954104.58,
-     "pdb_waitSum": 2954104.55
-    },
-    "http:POST /v1/rides": {
-     "pagg_n": 9656,
-     "pdb_n": 9656,
-     "pagg_waitSum": 1403914.81,
-     "pdb_waitSum": 1403914.79
-    },
-    "http:POST /v1/driver/availability": {
-     "pagg_n": 9656,
-     "pdb_n": 9656,
-     "pagg_waitSum": 1656421.98,
-     "pdb_waitSum": 1656421.95
-    },
-    "http:POST /v1/driver/location": {
-     "pagg_n": 38658,
-     "pdb_n": 38658,
-     "pagg_waitSum": 5644672.63,
-     "pdb_waitSum": 5644672.63
-    },
-    "http:GET /v1/driver/offers": {
-     "pagg_n": 8629,
-     "pdb_n": 8629,
-     "pagg_waitSum": 1468837.32,
-     "pdb_waitSum": 1468837.31
-    },
-    "http:POST /v1/driver/offers/receipts": {
-     "pagg_n": 6162,
-     "pdb_n": 6162,
-     "pagg_waitSum": 1180924.31,
-     "pdb_waitSum": 1180924.3
-    },
-    "http:POST /v1/driver/offers/:id/accept": {
-     "pagg_n": 4833,
-     "pdb_n": 4833,
-     "pagg_waitSum": 943927.64,
-     "pdb_waitSum": 943927.67
-    },
-    "http:GET /v1/rides/:id/candidate": {
-     "pagg_n": 4828,
-     "pdb_n": 4828,
-     "pagg_waitSum": 939990.32,
-     "pdb_waitSum": 939990.29
-    },
-    "http:GET /v1/rides/:id/trip-events": {
-     "pagg_n": 13376,
-     "pdb_n": 13376,
-     "pagg_waitSum": 2643051.29,
-     "pdb_waitSum": 2643051.29
-    },
-    "http:POST /v1/rides/:id/trip-events/ack": {
-     "pagg_n": 13337,
-     "pdb_n": 13337,
-     "pagg_waitSum": 2625313.54,
-     "pdb_waitSum": 2625313.55
-    },
-    "http:POST /v1/driver/job/:id/arrived": {
-     "pagg_n": 4828,
-     "pdb_n": 4828,
-     "pagg_waitSum": 956511.51,
-     "pdb_waitSum": 956511.53
-    },
-    "http:POST /v1/driver/job/:id/start": {
-     "pagg_n": 4828,
-     "pdb_n": 4828,
-     "pagg_waitSum": 954131.06,
-     "pdb_waitSum": 954131.08
-    },
-    "http:POST /v1/driver/job/:id/complete": {
-     "pagg_n": 4828,
-     "pdb_n": 4828,
-     "pagg_waitSum": 969070.15,
-     "pdb_waitSum": 969070.17
-    }
-   },
    "postgres_top_queries": {
-    "select claim_notification_delivery() result": {
+    "7d89bbfcc37d": {
+     "queryPrefix": "select claim_notification_delivery() result",
      "callsA": 15520.0,
      "callsB": 13299.0,
      "meanExecA_ms": 3.4031204896907217,
      "meanExecB_ms": 3.5603781487329873,
      "meanBA": 1.0462098416787344
     },
-    "select claim_and_enqueue_telegram_update( $1, $2, $3, $4, $5 ) as result": {
+    "aa43c42a0118": {
+     "queryPrefix": "select claim_and_enqueue_telegram_update( $1, $2, $3, $4, $5 ) as result",
      "callsA": 15966.0,
      "callsB": 15844.0,
      "meanExecA_ms": 2.520805336339722,
      "meanExecB_ms": 1.5963134940671548,
      "meanBA": 0.6332553613144304
     },
-    "select d.id as driver_id, d.city_id, st_y(d.last_location::geometry) as lat, st_x(d.last_l": {
+    "f098937b434f": {
+     "queryPrefix": "select d.id as driver_id, d.city_id, st_y(d.last_location::geometry) as lat, st_x(d.last_l",
      "callsA": 7561.0,
      "callsB": 8400.0,
      "meanExecA_ms": 4.401546224044439,
      "meanExecB_ms": 6.190391428571429,
      "meanBA": 1.4064129088898396
     },
-    "select open_offer_round( $1::uuid, $2::integer, $3::timestamptz, $4::jsonb ) as result": {
+    "2558fc8f8bba": {
+     "queryPrefix": "select open_offer_round( $1::uuid, $2::integer, $3::timestamptz, $4::jsonb ) as result",
      "callsA": 7491.0,
      "callsB": 8296.0,
      "meanExecA_ms": 3.779358563609665,
      "meanExecB_ms": 3.5673517357762776,
      "meanBA": 0.9439040185615785
     },
-    "select status::text, attempts, delivered_at::text from notification_outbox where order_id ": {
+    "e22b3a07d950": {
+     "queryPrefix": "select status::text, attempts, delivered_at::text from notification_outbox where order_id ",
      "callsA": 4828.0,
      "callsB": 4822.0,
      "meanExecA_ms": 5.6559115575807795,
      "meanExecB_ms": 5.720790958108668,
      "meanBA": 1.0114710776268998
     },
-    "select request_ride_with_offer($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::tex": {
+    "56cd15d2544c": {
+     "queryPrefix": "select request_ride_with_offer($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::tex",
      "callsA": 4828.0,
      "callsB": 4822.0,
      "meanExecA_ms": 4.787978666114333,
      "meanExecB_ms": 5.078164247200331,
      "meanBA": 1.0606071165562434
     },
-    "select ack_rider_trip_events( $1::bigint, $2::uuid, $3::uuid[] ) as result": {
+    "ad6a15d9782c": {
+     "queryPrefix": "select ack_rider_trip_events( $1::bigint, $2::uuid, $3::uuid[] ) as result",
      "callsA": 13337.0,
      "callsB": 13465.0,
      "meanExecA_ms": 1.4073655994601484,
      "meanExecB_ms": 1.3555963609357593,
      "meanBA": 0.9632155009727058
     },
-    "with board as ( select driver_offer_board($1::bigint) as payload ), elig as ( select d.ver": {
+    "5d79d4d37a2b": {
+     "queryPrefix": "with board as ( select driver_offer_board($1::bigint) as payload ), elig as ( select d.ver",
      "callsA": 8629.0,
      "callsB": 9033.0,
      "meanExecA_ms": 1.4041102097577933,
@@ -977,191 +733,65 @@
      }
     }
    },
-   "pagg_reconciliation_A": {
-    "(background)": {
-     "pagg_n": 269,
-     "pdb_n": 269,
-     "pagg_waitSum": 34848.52,
-     "pdb_waitSum": 34848.52
-    },
-    "drainer:replies": {
-     "pagg_n": 125,
-     "pdb_n": 125,
-     "pagg_waitSum": 18440.93,
-     "pdb_waitSum": 18440.92
-    },
-    "drainer:sweep": {
-     "pagg_n": 2138,
-     "pdb_n": 2138,
-     "pagg_waitSum": 175210.19,
-     "pdb_waitSum": 175210.16
-    },
-    "http:POST /webhook/telegram/driver": {
-     "pagg_n": 16012,
-     "pdb_n": 16012,
-     "pagg_waitSum": 3236020.22,
-     "pdb_waitSum": 3236020.23
-    },
-    "drainer:job:driver:message": {
-     "pagg_n": 7631,
-     "pdb_n": 7631,
-     "pagg_waitSum": 573078.65,
-     "pdb_waitSum": 573078.63
-    },
-    "drainer:job:driver:command": {
-     "pagg_n": 7427,
-     "pdb_n": 7427,
-     "pagg_waitSum": 684256.92,
-     "pdb_waitSum": 684256.92
-    },
-    "http:POST /v1/session/telegram": {
-     "pagg_n": 22283,
-     "pdb_n": 22283,
-     "pagg_waitSum": 4067090.18,
-     "pdb_waitSum": 4067090.13
-    },
-    "drainer:job:driver:contact": {
-     "pagg_n": 38461,
-     "pdb_n": 38461,
-     "pagg_waitSum": 3123975.13,
-     "pdb_waitSum": 3123975.12
-    },
-    "http:GET /v1/onboarding": {
-     "pagg_n": 12433,
-     "pdb_n": 12433,
-     "pagg_waitSum": 2261898.42,
-     "pdb_waitSum": 2261898.38
-    },
-    "http:POST /v1/onboarding/driver": {
-     "pagg_n": 18170,
-     "pdb_n": 18170,
-     "pagg_waitSum": 3018193.18,
-     "pdb_waitSum": 3018193.16
-    },
-    "http:POST /v1/rides": {
-     "pagg_n": 9870,
-     "pdb_n": 9870,
-     "pagg_waitSum": 1488144.77,
-     "pdb_waitSum": 1488144.76
-    },
-    "http:POST /v1/driver/availability": {
-     "pagg_n": 9870,
-     "pdb_n": 9870,
-     "pagg_waitSum": 1761756.95,
-     "pdb_waitSum": 1761756.95
-    },
-    "http:POST /v1/driver/location": {
-     "pagg_n": 39510,
-     "pdb_n": 39510,
-     "pagg_waitSum": 5922339.55,
-     "pdb_waitSum": 5922339.53
-    },
-    "http:GET /v1/driver/offers": {
-     "pagg_n": 9058,
-     "pdb_n": 9058,
-     "pagg_waitSum": 1587211.56,
-     "pdb_waitSum": 1587211.59
-    },
-    "http:POST /v1/driver/offers/receipts": {
-     "pagg_n": 6456,
-     "pdb_n": 6456,
-     "pagg_waitSum": 1292712.77,
-     "pdb_waitSum": 1292712.75
-    },
-    "http:POST /v1/driver/offers/:id/accept": {
-     "pagg_n": 4940,
-     "pdb_n": 4940,
-     "pagg_waitSum": 1036036.92,
-     "pdb_waitSum": 1036036.92
-    },
-    "http:GET /v1/rides/:id/candidate": {
-     "pagg_n": 4935,
-     "pdb_n": 4935,
-     "pagg_waitSum": 1013614.64,
-     "pdb_waitSum": 1013614.68
-    },
-    "http:GET /v1/rides/:id/trip-events": {
-     "pagg_n": 13560,
-     "pdb_n": 13560,
-     "pagg_waitSum": 2814167.46,
-     "pdb_waitSum": 2814167.49
-    },
-    "http:POST /v1/rides/:id/trip-events/ack": {
-     "pagg_n": 13499,
-     "pdb_n": 13499,
-     "pagg_waitSum": 2780167.76,
-     "pdb_waitSum": 2780167.75
-    },
-    "http:POST /v1/driver/job/:id/arrived": {
-     "pagg_n": 4935,
-     "pdb_n": 4935,
-     "pagg_waitSum": 1018145.52,
-     "pdb_waitSum": 1018145.51
-    },
-    "http:POST /v1/driver/job/:id/start": {
-     "pagg_n": 4935,
-     "pdb_n": 4935,
-     "pagg_waitSum": 1015585.9,
-     "pdb_waitSum": 1015585.93
-    },
-    "http:POST /v1/driver/job/:id/complete": {
-     "pagg_n": 4935,
-     "pdb_n": 4935,
-     "pagg_waitSum": 1041731.27,
-     "pdb_waitSum": 1041731.26
-    }
-   },
    "postgres_top_queries": {
-    "select claim_notification_delivery() result": {
+    "7d89bbfcc37d": {
+     "queryPrefix": "select claim_notification_delivery() result",
      "callsA": 14033.0,
      "callsB": 15487.0,
      "meanExecA_ms": 3.7511090287180218,
      "meanExecB_ms": 3.40095124943501,
      "meanBA": 0.9066521989624275
     },
-    "select d.id as driver_id, d.city_id, st_y(d.last_location::geometry) as lat, st_x(d.last_l": {
+    "f098937b434f": {
+     "queryPrefix": "select d.id as driver_id, d.city_id, st_y(d.last_location::geometry) as lat, st_x(d.last_l",
      "callsA": 7963.0,
      "callsB": 8436.0,
      "meanExecA_ms": 4.331932060781113,
      "meanExecB_ms": 4.482868302513039,
      "meanBA": 1.0348427075065232
     },
-    "select status::text, attempts, delivered_at::text from notification_outbox where order_id ": {
+    "e22b3a07d950": {
+     "queryPrefix": "select status::text, attempts, delivered_at::text from notification_outbox where order_id ",
      "callsA": 4935.0,
      "callsB": 5085.0,
      "meanExecA_ms": 6.034740425531915,
      "meanExecB_ms": 6.095603146509341,
      "meanBA": 1.010085391696373
     },
-    "select open_offer_round( $1::uuid, $2::integer, $3::timestamptz, $4::jsonb ) as result": {
+    "2558fc8f8bba": {
+     "queryPrefix": "select open_offer_round( $1::uuid, $2::integer, $3::timestamptz, $4::jsonb ) as result",
      "callsA": 7899.0,
      "callsB": 8343.0,
      "meanExecA_ms": 3.6365717179389794,
      "meanExecB_ms": 3.6361316073354906,
      "meanBA": 0.9998789765092992
     },
-    "select claim_and_enqueue_telegram_update( $1, $2, $3, $4, $5 ) as result": {
+    "aa43c42a0118": {
+     "queryPrefix": "select claim_and_enqueue_telegram_update( $1, $2, $3, $4, $5 ) as result",
      "callsA": 16012.0,
      "callsB": 15965.0,
      "meanExecA_ms": 1.6206395828128903,
      "meanExecB_ms": 1.5779549013466958,
      "meanBA": 0.9736618296141403
     },
-    "select request_ride_with_offer($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::tex": {
+    "56cd15d2544c": {
+     "queryPrefix": "select request_ride_with_offer($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::tex",
      "callsA": 4935.0,
      "callsB": 5085.0,
      "meanExecA_ms": 4.953512664640324,
      "meanExecB_ms": 5.146541199606687,
      "meanBA": 1.0389680107904555
     },
-    "select ack_rider_trip_events( $1::bigint, $2::uuid, $3::uuid[] ) as result": {
+    "ad6a15d9782c": {
+     "queryPrefix": "select ack_rider_trip_events( $1::bigint, $2::uuid, $3::uuid[] ) as result",
      "callsA": 13499.0,
      "callsB": 14133.0,
      "meanExecA_ms": 1.4201379361434179,
      "meanExecB_ms": 1.6107087667161961,
      "meanBA": 1.1341917751245347
     },
-    "with board as ( select driver_offer_board($1::bigint) as payload ), elig as ( select d.ver": {
+    "5d79d4d37a2b": {
+     "queryPrefix": "with board as ( select driver_offer_board($1::bigint) as payload ), elig as ( select d.ver",
      "callsA": 9058.0,
      "callsB": 8881.0,
      "meanExecA_ms": 1.8033065798189447,
@@ -1351,191 +981,65 @@
      }
     }
    },
-   "pagg_reconciliation_A": {
-    "(background)": {
-     "pagg_n": 268,
-     "pdb_n": 268,
-     "pagg_waitSum": 37054.14,
-     "pdb_waitSum": 37054.1
-    },
-    "drainer:replies": {
-     "pagg_n": 127,
-     "pdb_n": 127,
-     "pagg_waitSum": 18518.16,
-     "pdb_waitSum": 18518.16
-    },
-    "drainer:sweep": {
-     "pagg_n": 2128,
-     "pdb_n": 2128,
-     "pagg_waitSum": 171305.91,
-     "pdb_waitSum": 171305.89
-    },
-    "http:POST /webhook/telegram/driver": {
-     "pagg_n": 15939,
-     "pdb_n": 15939,
-     "pagg_waitSum": 3598945.3,
-     "pdb_waitSum": 3598945.3
-    },
-    "drainer:job:driver:message": {
-     "pagg_n": 8055,
-     "pdb_n": 8055,
-     "pagg_waitSum": 663834.04,
-     "pdb_waitSum": 663834.03
-    },
-    "drainer:job:driver:command": {
-     "pagg_n": 7523,
-     "pdb_n": 7523,
-     "pagg_waitSum": 707943.31,
-     "pdb_waitSum": 707943.3
-    },
-    "http:POST /v1/session/telegram": {
-     "pagg_n": 21047,
-     "pdb_n": 21047,
-     "pagg_waitSum": 4170328.95,
-     "pdb_waitSum": 4170328.94
-    },
-    "drainer:job:driver:contact": {
-     "pagg_n": 37661,
-     "pdb_n": 37661,
-     "pagg_waitSum": 2993070.34,
-     "pdb_waitSum": 2993070.34
-    },
-    "http:GET /v1/onboarding": {
-     "pagg_n": 12354,
-     "pdb_n": 12354,
-     "pagg_waitSum": 2312244.03,
-     "pdb_waitSum": 2312244.05
-    },
-    "http:POST /v1/onboarding/driver": {
-     "pagg_n": 17092,
-     "pdb_n": 17092,
-     "pagg_waitSum": 3008871.84,
-     "pdb_waitSum": 3008871.81
-    },
-    "http:POST /v1/rides": {
-     "pagg_n": 8708,
-     "pdb_n": 8708,
-     "pagg_waitSum": 1362344.38,
-     "pdb_waitSum": 1362344.39
-    },
-    "http:POST /v1/driver/availability": {
-     "pagg_n": 8708,
-     "pdb_n": 8708,
-     "pagg_waitSum": 1694549.06,
-     "pdb_waitSum": 1694549.05
-    },
-    "http:POST /v1/driver/location": {
-     "pagg_n": 34848,
-     "pdb_n": 34848,
-     "pagg_waitSum": 5476743.12,
-     "pdb_waitSum": 5476743.13
-    },
-    "http:GET /v1/driver/offers": {
-     "pagg_n": 7744,
-     "pdb_n": 7744,
-     "pagg_waitSum": 1459342.97,
-     "pdb_waitSum": 1459342.95
-    },
-    "http:POST /v1/driver/offers/receipts": {
-     "pagg_n": 5493,
-     "pdb_n": 5493,
-     "pagg_waitSum": 1215325.16,
-     "pdb_waitSum": 1215325.15
-    },
-    "http:POST /v1/driver/offers/:id/accept": {
-     "pagg_n": 4355,
-     "pdb_n": 4355,
-     "pagg_waitSum": 987829.33,
-     "pdb_waitSum": 987829.31
-    },
-    "http:GET /v1/rides/:id/candidate": {
-     "pagg_n": 4354,
-     "pdb_n": 4354,
-     "pagg_waitSum": 991866.88,
-     "pdb_waitSum": 991866.88
-    },
-    "http:GET /v1/rides/:id/trip-events": {
-     "pagg_n": 12236,
-     "pdb_n": 12236,
-     "pagg_waitSum": 2882711.45,
-     "pdb_waitSum": 2882711.48
-    },
-    "http:POST /v1/rides/:id/trip-events/ack": {
-     "pagg_n": 12178,
-     "pdb_n": 12178,
-     "pagg_waitSum": 2854119.36,
-     "pdb_waitSum": 2854119.34
-    },
-    "http:POST /v1/driver/job/:id/arrived": {
-     "pagg_n": 4354,
-     "pdb_n": 4354,
-     "pagg_waitSum": 1024257.65,
-     "pdb_waitSum": 1024257.68
-    },
-    "http:POST /v1/driver/job/:id/start": {
-     "pagg_n": 4354,
-     "pdb_n": 4354,
-     "pagg_waitSum": 1037454.1,
-     "pdb_waitSum": 1037454.1
-    },
-    "http:POST /v1/driver/job/:id/complete": {
-     "pagg_n": 4354,
-     "pdb_n": 4354,
-     "pagg_waitSum": 1037506.41,
-     "pdb_waitSum": 1037506.38
-    }
-   },
    "postgres_top_queries": {
-    "select claim_notification_delivery() result": {
+    "7d89bbfcc37d": {
+     "queryPrefix": "select claim_notification_delivery() result",
      "callsA": 9687.0,
      "callsB": 14273.0,
      "meanExecA_ms": 8.303773097966346,
      "meanExecB_ms": 3.336467456035872,
      "meanBA": 0.40180137591343834
     },
-    "select d.id as driver_id, d.city_id, st_y(d.last_location::geometry) as lat, st_x(d.last_l": {
+    "f098937b434f": {
+     "queryPrefix": "select d.id as driver_id, d.city_id, st_y(d.last_location::geometry) as lat, st_x(d.last_l",
      "callsA": 7260.0,
      "callsB": 8302.0,
      "meanExecA_ms": 4.057302066115702,
      "meanExecB_ms": 5.660720790171043,
      "meanBA": 1.39519333239844
     },
-    "select claim_and_enqueue_telegram_update( $1, $2, $3, $4, $5 ) as result": {
+    "aa43c42a0118": {
+     "queryPrefix": "select claim_and_enqueue_telegram_update( $1, $2, $3, $4, $5 ) as result",
      "callsA": 15939.0,
      "callsB": 15892.0,
      "meanExecA_ms": 1.740827655436351,
      "meanExecB_ms": 1.6555035237855524,
      "meanBA": 0.9509864567096324
     },
-    "select open_offer_round( $1::uuid, $2::integer, $3::timestamptz, $4::jsonb ) as result": {
+    "2558fc8f8bba": {
+     "queryPrefix": "select open_offer_round( $1::uuid, $2::integer, $3::timestamptz, $4::jsonb ) as result",
      "callsA": 7179.0,
      "callsB": 8211.0,
      "meanExecA_ms": 3.8049143334726283,
      "meanExecB_ms": 3.6752491779320424,
      "meanBA": 0.9659216623092156
     },
-    "select status::text, attempts, delivered_at::text from notification_outbox where order_id ": {
+    "e22b3a07d950": {
+     "queryPrefix": "select status::text, attempts, delivered_at::text from notification_outbox where order_id ",
      "callsA": 4354.0,
      "callsB": 4741.0,
      "meanExecA_ms": 5.329762976573266,
      "meanExecB_ms": 5.748576038810378,
      "meanBA": 1.078580053949488
     },
-    "select ack_rider_trip_events( $1::bigint, $2::uuid, $3::uuid[] ) as result": {
+    "ad6a15d9782c": {
+     "queryPrefix": "select ack_rider_trip_events( $1::bigint, $2::uuid, $3::uuid[] ) as result",
      "callsA": 12178.0,
      "callsB": 13355.0,
      "meanExecA_ms": 1.7338069469535227,
      "meanExecB_ms": 1.3967067764882066,
      "meanBA": 0.8055722575932484
     },
-    "select request_ride_with_offer($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::tex": {
+    "56cd15d2544c": {
+     "queryPrefix": "select request_ride_with_offer($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::tex",
      "callsA": 4354.0,
      "callsB": 4741.0,
      "meanExecA_ms": 4.75175287092329,
      "meanExecB_ms": 5.1087034380932295,
      "meanBA": 1.0751197667189671
     },
-    "with board as ( select driver_offer_board($1::bigint) as payload ), elig as ( select d.ver": {
+    "5d79d4d37a2b": {
+     "queryPrefix": "with board as ( select driver_offer_board($1::bigint) as payload ), elig as ( select d.ver",
      "callsA": 7744.0,
      "callsB": 8496.0,
      "meanExecA_ms": 1.5163688016528927,
@@ -1889,12 +1393,12 @@
      "waitMed": 282.4990265320096
     },
     "5000–5999": {
-     "n": 73,
-     "waitMed": 236.7479411764706
+     "n": 72,
+     "waitMed": 236.12988585847225
     },
     "6000–6999": {
-     "n": 39,
-     "waitMed": 181.49955559687615
+     "n": 40,
+     "waitMed": 188.75404420410547
     },
     "7000–7999": {
      "n": 21,

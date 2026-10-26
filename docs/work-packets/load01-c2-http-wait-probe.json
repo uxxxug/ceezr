@@ -1,11 +1,13 @@
 {
   "id": "load01-c2-http-wait-probe",
-  "goal": "LOAD-01 · دورةُ تشخيصِ علّةِ انتظارِ مقعدِ gatewayRequest في مسارِ HTTP — قياسٌ فقط. المُنجَزُ استرجاعيًّا ([التحليل](../evidence/capacity/LOAD01-C2-HTTP-WAIT-ANALYSIS-20261026/RESULT.md)) وصفيٌّ لا سببيّ: متوسطُ الانتظارِ المنسوبِ إلى مساراتِ HTTP أعلى في B بالتزامنِ معَ ارتفاعِ متوسطِ زمنِها الخادميِّ (‏B/A ‏1.02–1.20، احتجازٌ مستوٍ 0.96–1.06)؛ وتفسيرُ مجسّاتِ الذيلِ (P1–P6c) وعلّتُه غيرُ محسومَين (الدرينرُ −23%، المجموعُ 0.950–0.995، انتظارُ HTTP ‏1.106–1.170). المُسجَّلُ مسبقًا ([البروتوكول](../evidence/capacity/LOAD01-C2-HTTP-WAIT-PROBE-20261026/PROTOCOL-load01-c2-http-wait-probe.md)): ذراعا المنتجِ هما التزاما بروتوكولِ C2 (A = 4bd9432e قبلَ C2، B = d7eb7d5a) وأداةُ الربطِ **متطابقةٌ في الذراعين**: حدثٌ طلبيٌّ فردّيٌّ httpreq عندَ دخولِ الطلبِ + عدّاداتُ وصولٍ بثانيةٍ arr1s + ربطٌ بمعرّفِ الطلبِ ينسِبُ حجوزاتِ المقعدِ الفردّيّة، وموجةُ A/A لفحصِ كلفةِ الأداة؛ قواعدُ فصلٍ مشروطةٍ مقترنةٌ بعتبةٍ عمليّةٍ معلنةٍ (δ=15ms) واحترامِ الاقترانِ والاعتمادِ الزمنيّ. لا تغييرَ سلوكيًّا ولا حدًّا ولا عتبة: مسارُ حجوزاتِ contact لا يُمسّ (3→2 مثبتٌ قائم)، وgatewayRequest: 5 وIMMEDIATE_REDISPATCH_LIMIT = 50 وحدودُ تيليجرام ثابتة، وحالاتُ القبولِ كما هي. النجاحُ حكمٌ «متّسقٌ معَ فرضيّة» أو توثيقُ حدٍّ صريح — ليس تحسينَ سعةٍ ولا دليلَ عدمِ ضرر؛ LOAD-01M = NOT_MET وLOAD-01 = FAIL يبقيان.",
+  "goal": "LOAD-01 · دورةُ تشخيصِ علّةِ انتظارِ مقعدِ gatewayRequest في مسارِ HTTP — قياسٌ فقط. المُنجَزُ استرجاعيًّا ([التحليل](../evidence/capacity/LOAD01-C2-HTTP-WAIT-ANALYSIS-20261026/RESULT.md)) وصفيٌّ لا سببيّ: متوسطُ الانتظارِ المنسوبِ إلى مساراتِ HTTP أعلى في B بالتزامنِ معَ ارتفاعِ متوسطِ زمنِها الخادميِّ (‏B/A ‏1.02–1.20، احتجازٌ مستوٍ 0.96–1.06)؛ وتفسيرُ مجسّاتِ الذيلِ (P1–P6c) وعلّتُه غيرُ محسومَين (الدرينرُ −23%، المجموعُ 0.950–0.995، انتظارُ HTTP ‏1.106–1.170). المُسجَّلُ مسبقًا ([البروتوكول](../evidence/capacity/LOAD01-C2-HTTP-WAIT-PROBE-20261026/PROTOCOL-load01-c2-http-wait-probe.md)): ذراعا المنتجِ هما التزاما بروتوكولِ C2 (A = 4bd9432e قبلَ C2، B = d7eb7d5a) وأداةُ الربطِ متطابقةٌ في الذراعين بإعادةِ استعمالِ معرّفِ الطلبِ القائم: حدثٌ httpreq طلبيٌّ فردّيٌّ بفواصلَ لا مجاميعَ + عدّاداتُ arr1s للوصولِ عندَ الدخول + ربطٌ بالمعرّفِ ينسِبُ حجوزاتِ المقعدِ الفردّيّةَ، وعمودُ العميلِ في سجلِّ المولّد؛ موجاتٌ: A/A (قابليةُ إعادةِ الإنتاج) وفحصُ كلفةِ الأداةِ بترتيبٍ متعاكسٍ (رصدٌ موسّع/خامل على الالتزامِ A) ثم 8 موجاتِ ABBA×2 ‏m5-1500 + S1/S2؛ قواعدُ فصلٍ مشروطةٍ مقترنةٌ بطبقتَي المسارِ والطورِ وعتبةٍ عمليّةٍ معلنةٍ (δ=15ms) تُحكَمُ بفواصلِ الثقةِ كلِّها داخلَ [−δ, +δ] وبإعادةِ عيّنٍ على وحدةِ الزوجِ (وكتلٍ زمنيّةٍ متجاورةٍ داخلَ الموجة)، ولغةُ «متّسقٌ معَ» لا إثباتٌ سببيّ. لا تغييرَ سلوكيًّا ولا حدًّا ولا عتبة: مسارُ حجوزاتِ contact لا يُمسّ (3→2 مثبتٌ قائم)، وgatewayRequest: 5 وIMMEDIATE_REDISPATCH_LIMIT = 50 وحدودُ تيليجرام ثابتة، وحالاتُ القبولِ كما هي. النجاحُ حكمٌ «متّسقٌ معَ فرضيّة» أو توثيقُ حدٍّ صريح — ليس تحسينَ سعةٍ ولا دليلَ عدمِ ضرر؛ LOAD-01M = NOT_MET وLOAD-01 = FAIL يبقيان.",
   "canonical_source": [
     "docs/evidence/capacity/LOAD01-C2-HTTP-WAIT-PROBE-20261026/PROTOCOL-load01-c2-http-wait-probe.md"
   ],
   "implementation": [
     "apps/gateway/src/background/load-trace.ts",
+    "apps/gateway/src/background/load-path-scope.ts",
+    "deploy/capacity-run/load/miniapp-load.ts",
     "deploy/capacity-run/load/wave-report.ts"
   ],
   "state": ["docs/SYSTEM_STATE.md"],
@@ -16,7 +18,8 @@
     "docs/evidence/capacity/LOAD01-C2-HTTP-WAIT-ANALYSIS-20261026/analysis.json",
     "docs/evidence/capacity/LOAD01-C2-HTTP-WAIT-ANALYSIS-20261026/SHA256SUMS",
     "docs/evidence/capacity/LOAD01-C2-HTTP-WAIT-PROBE-20261026/PROTOCOL-load01-c2-http-wait-probe.md",
-    "docs/roadmap/execution/STATUS.md"
+    "docs/roadmap/execution/STATUS.md",
+    "docs/evidence/capacity/LOAD01-C2-HTTP-WAIT-ANALYSIS-20261026/test_analyze_http_wait.py"
   ],
   "no_other_affected_docs_reason": null
 }
