@@ -1,0 +1,22 @@
+{
+  "id": "load01-c2-http-wait-probe-tool",
+  "canonical_source": [
+    "docs/evidence/capacity/LOAD01-C2-HTTP-WAIT-PROBE-20261026/PROTOCOL-load01-c2-http-wait-probe.md",
+    "docs/evidence/capacity/LOAD01-C2-HTTP-WAIT-PROBE-TOOL-20261026/RESULT.md"
+  ],
+  "implementation": [
+    "apps/gateway/src/background/load-trace.ts",
+    "deploy/capacity-run/load/lib.ts",
+    "deploy/capacity-run/load/miniapp-load.ts",
+    "deploy/capacity-run/load/wave-report.ts",
+    "tests/unit/load-trace-httpreq.test.ts"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [
+    "docs/evidence/capacity/LOAD01-C2-HTTP-WAIT-PROBE-TOOL-20261026/RESULT.md",
+    "docs/evidence/capacity/LOAD01-C2-HTTP-WAIT-PROBE-TOOL-20261026/SHA256SUMS",
+    "docs/roadmap/execution/STATUS.md"
+  ],
+  "no_other_affected_docs_reason": null
+}

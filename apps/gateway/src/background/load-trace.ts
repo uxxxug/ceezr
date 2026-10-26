@@ -25,11 +25,22 @@
  *   **منسوبًا إلى المسارِ المُعلَن** (`drainer:job:<bot>:<نوع>` وسواه) لا إلى مسارِ HTTP وحدَه،
  *   فيُحصى «أيُّ استعلامٍ يحجزُ المقعدَ في كلِّ وظيفة» من الأثرِ لا تخمينًا. يُصبُّ عندَ الإيقاف.
  *   ما لا نطاقَ مُعلَنًا له لا يدخلُه (`rsig` يغطّيه). قياسٌ فقط: لا يغيّرُ سلوكًا ولا حدًّا.
+ * - `httpreq`/`pseat`/`arr1s` (دورةُ تشخيصِ انتظارِ HTTP، 2026-10-26 — البروتوكولُ
+ *   `LOAD01-C2-HTTP-WAIT-PROBE-20261026`): ربطٌ طلبيٌّ فرديٌّ بلا نوافذَ ولا مجاميعَ:
+ *   `httpreq` سطرٌ لكلِّ طلبِ HTTP (المعرّفُ المارُّ فعلًا في رأسِ `X-Request-Id` — لا معرّفٌ
+ *   جديد — والمسارُ وزمنُهُ الخادميُّ وحالتُهُ ومجموعُ انتظارِ مقعدِهِ واحتجازِهِ)، و`pseat`
+ *   سطرٌ لكلِّ حجزِ مقعدٍ **منسوبٍ إلى معرّفِ الطلبِ** بفواصلِهِ المشتقّةِ (بدايةُ الانتظارِ
+ *   ونهايتُهُ ونهايةُ الاحتجازِ من `waitMs`/`runMs` عندَ الحسمِ)، و`arr1s` عدُّ وصولٍ
+ *   بثانيةٍ واحدةٍ **عندَ الدخولِ** (طلباتُ HTTP لكلِّ مسارٍ، وطلباتُ المقاعدِ لحظةَ طلبِها لكلِّ
+ *   تجمُّعٍ) — لا إعادةُ تسميةٍ لعدّادِ الاكتمالاتِ. القياسُ كلهُ خلفَ `DISPATCH_TRACE_FILE`
+ *   وحدَه كما كلُّ هذا الملفِّ: بلا تفعيلٍ لا سلوكَ ولا كلفة.
  */
 import { AsyncLocalStorage } from "node:async_hooks";
 import { readFileSync } from "node:fs";
 import { appendFile } from "node:fs/promises";
 import { observeQueryTimings } from "../../../../packages/infrastructure/db/query-deadline.ts";
+import { currentRequestId } from "../../../../packages/infrastructure/observability/correlation.ts";
+import { REQUEST_ID_HEADER } from "../observability/request-id.ts";
 import { currentLoadPath, enableLoadPathScope, withLoadPath } from "./load-path-scope.ts";
 import type { DrainerTiming } from "./telegram-update-drainer.ts";
 
@@ -116,6 +127,12 @@ export function createLoadTrace(file: string | undefined): LoadTrace | null {
   const routeSig = new Map<string, { n: number; runMs: number }>();
   // ب32: انتظارُ المقعدِ واحتجازُه لكلِّ مسارٍ مُعلَن — نافذةُ 5ث، ومجموعُ الموجةِ كلِّها.
   enableLoadPathScope(true);
+  // دورةُ تشخيصِ انتظارِ HTTP: وصولٌ بثانيةٍ واحدةٍ عندَ الدخولِ (http لكلِّ مسارٍ، وseat لكلِّ
+  // تجمُّعٍ لحظةَ طلبِهِ) — لا يُصبُّ إلا ما مضت ثانيتُه كاملةً (انظر flush).
+  const arrivals = new Map<string, number>();
+  const countArrival = (key: string): void => {
+    arrivals.set(key, (arrivals.get(key) ?? 0) + 1);
+  };
   let pathWindow = new Map<string, { wait: number[]; run: number[] }>();
   const pathTotal = new Map<string, { wait: number[]; run: number[] }>();
   const pushPath = (
@@ -143,6 +160,36 @@ export function createLoadTrace(file: string | undefined): LoadTrace | null {
     const pk = `${store?.path ?? "(background)"}|${t.label}|${t.kind}`;
     pushPath(pathWindow, pk, t.waitMs, t.runMs);
     pushPath(pathTotal, pk, t.waitMs, t.runMs);
+    // طلبُ مقعدٍ لحظةَ طلبِه: بدايةُ الانتظارِ ≈ الحسم − الاحتجاز − الانتظار (بالميلي ثانيةِ).
+    if (t.kind !== "txQuery") {
+      const now = Date.now();
+      const sec = Math.floor((now - t.waitMs - t.runMs) / 1000) * 1000;
+      countArrival(`${sec}|seat|${t.label}`);
+    }
+    // pseat: حجزُ مقعدٍ فردّيٌّ منسوبٌ إلى معرّفِ الطلبِ (المارِّ فعلًا في سياقِ الارتباطِ
+    // الجاري — لا معرّفٌ جديد) بفواصلِهِ المشتقّةِ، للنطاقاتِ الـHTTP وحدها.
+    // **txQuery لا يُسجَّلُ فردًّا**: استعلامُ المعاملةِ لا يحجزُ مقعدًا جديدًا — احتجازُه
+    // داخلٌ في احتجازِ المعاملةِ الأصلِ (كعدّادِ الحجزِ وarr1s المقعدِ)؛ تسجيلُهُ يَعُدُّ
+    // حجوزاتٍ غيرَ موجودةٍ ويُفسِدُ المصالحةَ معَ إجمالياتِ المسارِ.
+    if (t.kind !== "txQuery" && store?.path.startsWith("http:")) {
+      const rid = currentRequestId();
+      if (rid !== undefined) {
+        const now = Date.now();
+        emit({
+          k: "pseat",
+          at: now,
+          requestId: rid,
+          path: store.path,
+          pool: t.label,
+          kind: t.kind,
+          waitMs: round2(t.waitMs),
+          runMs: round2(t.runMs),
+          waitStartAt: Math.round(now - t.waitMs - t.runMs),
+          waitEndAt: Math.round(now - t.runMs),
+          holdEndAt: now,
+        });
+      }
+    }
     const key = `${t.label}|${t.kind}`;
     let w = dbWindow.get(key);
     if (w === undefined) {
@@ -219,6 +266,16 @@ export function createLoadTrace(file: string | undefined): LoadTrace | null {
       for (const [key, w] of pathWindow) emit({ k: "pdb", at, ...pathSummary(key, w, false) });
       pathWindow = new Map();
     }
+    // arr1s: لا تُصبُّ ثانيةٌ إلا بعدَ انقضائِها كاملةً (الثانيةُ الجاريةُ ناقصةٌ بحكمِ اللحظةِ).
+    if (arrivals.size > 0) {
+      const now = Date.now();
+      for (const [key, n] of [...arrivals]) {
+        const [at, cls, ...rest] = key.split("|");
+        if (Number(at) + 1000 > now) continue;
+        arrivals.delete(key);
+        emit({ k: "arr1s", at: Number(at), cls, name: rest.join("|"), n });
+      }
+    }
     if (buffer.length === 0) return;
     const text = `${buffer.join("\n")}\n`;
     buffer = [];
@@ -286,7 +343,35 @@ export function createLoadTrace(file: string | undefined): LoadTrace | null {
     },
     inRoute: (pathname, method, fn) => {
       const route = normaliseRoute(method, pathname);
-      return routeScope.run(route, () => withLoadPath(`http:${route}`, fn));
+      // وصولُ الطلبِ يُعدُّ عندَ دخولِهِ — لا عندَ ردِّهِ (ليس إعادةَ تسميةٍ لعدّادِ الاكتمالاتِ).
+      const sec = Math.floor(Date.now() / 1000) * 1000;
+      countArrival(`${sec}|http|${route}`);
+      const t0 = performance.now();
+      return routeScope.run(route, () =>
+        withLoadPath(`http:${route}`, async () => {
+          const result = await fn();
+          // httpreq: سطرٌ طلبيٌّ فردّيٌّ — المعرّفُ من رأسِ الردِّ القائمِ (X-Request-Id) لا
+          // معرّفٌ جديد، والزمنُ الخادميُّ من دخولِ inRoute حتى الردِّ، ومجموعا مقعدِ الطلبِ
+          // من نطاقِ المسارِ نفسِهِ.
+          const r = result as {
+            headers?: { get?: (name: string) => string | null };
+            status?: unknown;
+          } | null;
+          const gate = currentLoadPath()?.gate;
+          emit({
+            k: "httpreq",
+            at: Date.now(),
+            requestId: r?.headers?.get?.(REQUEST_ID_HEADER) ?? null,
+            route,
+            serverMs: round2(performance.now() - t0),
+            status: typeof r?.status === "number" ? r.status : null,
+            gateWaitMs: round2(gate?.waitMs ?? 0),
+            gateHoldMs: round2(gate?.holdMs ?? 0),
+            gateAcquisitions: gate?.acquisitions ?? 0,
+          });
+          return result;
+        }),
+      );
     },
     stop: async () => {
       for (const [key, c] of routeSig) {
@@ -322,6 +407,12 @@ export function createLoadTrace(file: string | undefined): LoadTrace | null {
       clearInterval(lagTimer);
       observeQueryTimings(null);
       await flush();
+      // عندَ الإيقافِ صبُّ ما تبقى: الثواني الأخيرةُ انقضت كلُّها بحكمِ نهايةِ الموجةِ.
+      for (const [key, n] of [...arrivals]) {
+        const [at, cls, ...rest] = key.split("|");
+        arrivals.delete(key);
+        emit({ k: "arr1s", at: Number(at), cls, name: rest.join("|"), n });
+      }
       for (const [key, w] of pathTotal) emit({ k: "pagg", ...pathSummary(key, w, true) });
       pathTotal.clear();
       enableLoadPathScope(false);
