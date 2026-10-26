@@ -13,6 +13,7 @@ import {
   type SessionStore,
 } from "../../../../../packages/application/bots/types.ts";
 import type { LanguagePreferencePort } from "../../../../../packages/application/i18n-translation/select-language.ts";
+import type { SupportedLanguage } from "../../../../../packages/domain/i18n-translation/value-objects.ts";
 import { pseudonymise } from "../../../../../packages/infrastructure/observability/structured-log.ts";
 
 export interface LanguageHydrationDependencies {
@@ -22,8 +23,20 @@ export interface LanguageHydrationDependencies {
 }
 
 export interface LanguageHydration {
-  /** يُنادى قبل تسليم التحديث للحوار. لا يرمي ولا يمنع الحوار مهما فشل. */
-  hydrate(sender: Sender): Promise<void>;
+  /**
+   * يُنادى قبل تسليم التحديث للحوار. لا يرمي ولا يمنع الحوار مهما فشل.
+   *
+   * LOAD-01 · C2 — المعاملُ الثاني اختياريٌّ: **قيمةٌ مقروءةٌ في موضعِ الترطيبِ نفسِهِ**
+   * من القراءةِ المدمجةِ لمسارِ contact. تعريفٌ صريحٌ لا انزلاقَ تحته:
+   * - `undefined` ⇒ المسارُ القديمُ كما هو: اقرأ من القاعدة عبر `getLanguage`.
+   * - `null` ⇒ معلومٌ أن لا تفضيلَ (غيرُ مسجَّل / بلا لغة) — سلوكُ القيمةِ الفارغةِ
+   *   نفسُه (لا-عمل) بلا نداءٍ على القاعدة.
+   * - قيمة ⇒ استعمِلها كما هي (مرّت بـ`normalizeLanguageTag` نفسِه الذي يمرّ به المُحوّل).
+   * هذا المعاملُ **لا يُغَيّرُ عقدَ الحداثة**: القيمةَ إمّا تُقرأُ الآن (هنا) أو تُقرأُ
+   * الآن (المسارُ القديم) — لا لقطةً من لحظةٍ أبعدَ (كالالتقاط)، فيبقى عقدُ
+   * «القاعدةُ أحدثُ أو مساويةٌ أبداً» سليماً في كلتا الحالتين.
+   */
+  hydrate(sender: Sender, language?: SupportedLanguage | null): Promise<void>;
 }
 
 /**
@@ -41,18 +54,23 @@ export function createLanguageHydration(deps: LanguageHydrationDependencies): La
   const log = deps.log ?? (() => {});
 
   return {
-    hydrate: async (sender) => {
-      const stored = await deps.preferences.getLanguage(sender.telegramUserId);
-      if (!stored.ok) {
-        // عطل القاعدة لا يُسكت البوت: لغة أقدم أهون من حوار لا يردّ إطلاقاً.
-        log("language.hydrate_failed", {
-          actor: pseudonymise(sender.telegramUserId),
-          detail: String(stored.error),
-        });
-        return;
+    hydrate: async (sender, language) => {
+      let dbLanguage: SupportedLanguage | null;
+      if (language !== undefined) {
+        // قيمةُ القراءةِ المدمجةِ مقروءةٌ في هذا الموضعِ نفسِه — عقدُ الحداثةِ كما هو.
+        dbLanguage = language;
+      } else {
+        const stored = await deps.preferences.getLanguage(sender.telegramUserId);
+        if (!stored.ok) {
+          // عطل القاعدة لا يُسكت البوت: لغة أقدم أهون من حوار لا يردّ إطلاقاً.
+          log("language.hydrate_failed", {
+            actor: pseudonymise(sender.telegramUserId),
+            detail: String(stored.error),
+          });
+          return;
+        }
+        dbLanguage = stored.value;
       }
-
-      const dbLanguage = stored.value;
       // null = غير مسجَّل بعد، فلا تفضيل محفوظ له. الحوار يستعمل languageHint من تلغرام
       // وهو أفضل تخمين متاح لمن لم يختر بعد.
       if (dbLanguage === null) return;

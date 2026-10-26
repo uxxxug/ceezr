@@ -24,6 +24,7 @@ import {
   type MiniAppSurfaceConfig,
   type SurfacePorts,
 } from "../../../../../packages/application/bots/miniapp-surface.ts";
+import { oneShotDriverLookup } from "../../../../../packages/application/bots/one-shot-driver-lookup.ts";
 import { type BotReply, INITIAL_STATE } from "../../../../../packages/application/bots/types.ts";
 import type { TelegramSender as TelegramSenderType } from "../../../../../packages/infrastructure/notification/telegram-api-sender.ts";
 import { isCallbackDataValid } from "../shared/keyboards.ts";
@@ -127,12 +128,43 @@ export function createDriverBot(
     let replies: readonly BotReply[] = [];
     for (let attempt = 0; ; attempt++) {
       try {
-        if (language !== undefined) await language.hydrate(incoming.from);
+        /**
+         * LOAD-01 · C2 — مسارُ contact وحده (المقاسُ في موجاتِ الحمل): قراءةٌ مدمجةٌ واحدةٌ
+         * (لغةُ المرسلِ + ملفُ سائقِهِ إن وُجد) في موضعِ الترطيبِ نفسِه، تُستهلِكُها **أولُ
+         * قراءةٍ عن المرسلِ** في الحوارِ (أحاديةُ الاستهلاكِ — كلُّ قراءةٍ لاحقةٍ تمرُّ إلى المنفذِ
+         * الأصليّ)، وتُعادُ قراءتُها عند **كلِّ** محاولةِ إعادةِ تشغيلٍ (BUG-007) فلا يتجمّدُ
+         * شيءٌ عبرَ المحاولات. فشلُها ⇒ تراجعٌ كاملٌ إلى المسارينِ المنفصلَينِ كما كانا:
+         * ترطيبٌ عبرَ `getLanguage` وقراءةٌ حيةٌ في الحوار. بقيةُ أنواعِ التحديثِ لم تُمسّ.
+         */
+        const merged =
+          incoming.kind === "contact" && deps.drivers.findSenderContext !== undefined
+            ? await deps.drivers.findSenderContext(incoming.from.telegramUserId)
+            : undefined;
+        const context = merged?.ok ? merged.value : undefined;
+        if (language !== undefined)
+          await language.hydrate(
+            incoming.from,
+            context === undefined ? undefined : (context?.language ?? null),
+          );
+        const dialogDeps =
+          context !== undefined
+            ? {
+                ...deps,
+                drivers: {
+                  ...deps.drivers,
+                  findByTelegramId: oneShotDriverLookup(
+                    deps.drivers.findByTelegramId,
+                    incoming.from.telegramUserId,
+                    context === null ? null : context.driver,
+                  ),
+                },
+              }
+            : deps;
         replies =
           surface === undefined
-            ? await handleDriverUpdate(incoming, deps)
+            ? await handleDriverUpdate(incoming, dialogDeps)
             : await handleSurfaceUpdate("driver", incoming, surface, ports, () =>
-                handleDriverUpdate(incoming, deps),
+                handleDriverUpdate(incoming, dialogDeps),
               );
         break;
       } catch (error) {

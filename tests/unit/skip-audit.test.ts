@@ -1020,7 +1020,13 @@ describe("السجلُّ الحقيقيُّ — أرقامٌ مقيسةٌ مُث
     // 214 — `driver-register-single-statement.test.ts` (أربعُ حالات: سائقٌ جديدٌ برحلةٍ واحدة، إعادةُ التسجيل،
     // المسؤولُ لا يُنزَل، الذرّيّة).
     // زيادةٌ (LOAD-01 · توفّرُ السائقِ بجملةٍ واحدة · 2026-10-25): 215 — `driver-availability-single-statement.test.ts`.
-    expect(SKIP_REGISTRY).toHaveLength(215);
+    // زيادةٌ (LOAD-01 · C2 دمجُ قراءةِ لغةِ المرسلِ في حوارِ contact · 2026-10-25 · حزمةُ
+    // `load01-c2-contact-merged-read`): 216 — `driver-sender-context.test.ts` (خمسُ حالاتٍ:
+    // السائقُ المسجّلُ بلغتِهِ وملفِّهِ مطابقًا لقراءةِ `findByTelegramId` حرفيًّا، والمسجَّلُ بلا
+    // صفِّ سائقٍ تُصانُ لغتُهُ و`driver = null`، والغائبُ ⇒ `null` كما كانَ، وعقدُ الاستعلامِ
+    // موثّقٌ في نصِّهِ، ورحلةٌ واحدةٌ على عدّادِ postgres.js) — لقطةُ PostgreSQL ومشغِّلاتُها
+    // لا يُثبِتُها بديلٌ في الذاكرةِ.
+    expect(SKIP_REGISTRY).toHaveLength(216);
     // زيادةٌ (الدفعةُ 19 · تدقيقُ PR #595): 1689 — حالةُ سباقِ فتحِ الجلسةِ على PostgreSQL
     // حقيقيٍّ في `tracking-duty-and-trip-reader.test.ts` (تعملُ في وظيفةِ التكاملِ).
     // زيادةٌ (الدفعةُ 20): 1692 — حالاتُ الملفِّ الثلاث.
@@ -1037,7 +1043,8 @@ describe("السجلُّ الحقيقيُّ — أرقامٌ مقيسةٌ مُث
     // زيادةٌ (LOAD-01 · فحصُ الإبطالِ بأمرٍ واحد · 2026-10-25): 1727 — حالةُ `session-revocation-mget-real.test.ts`.
     // زيادةٌ (LOAD-01 · تسجيلُ السائقِ بجملةٍ واحدة · 2026-10-25): 1731 — حالاتُ `driver-register-single-statement.test.ts` الأربع.
     // زيادةٌ (LOAD-01 · توفّرُ السائقِ بجملةٍ واحدة · 2026-10-25): 1734 — حالاتُ `driver-availability-single-statement.test.ts` الثلاث.
-    expect(SKIP_REGISTRY.reduce((sum, entry) => sum + entry.skipped, 0)).toBe(1734);
+    // زيادةٌ (LOAD-01 · C2 دمجُ قراءةِ لغةِ المرسلِ · 2026-10-25): 1739 — حالاتُ `driver-sender-context.test.ts` الخمس.
+    expect(SKIP_REGISTRY.reduce((sum, entry) => sum + entry.skipped, 0)).toBe(1739);
   });
 
   it("لا تجاوزَ على مسارٍ حرجٍ بلا مُشغِّلٍ، وما لا مُشغِّلَ له مُعلَنٌ ببيانٍ", () => {
