@@ -57,7 +57,21 @@ jobs:
             --setenv=A_SHA="$A_SHA" --setenv=B_SHA="$B_SHA" --setenv=OFF_SHA="$OFF_SHA" --setenv=MIXED_RATE="$MIXED_RATE" --setenv=MIXED_SEED="$MIXED_SEED" --setenv=CONC="1500" --setenv=SMOKE_CONC="100" --setenv=CITIES="JED,MKK,RUH,TIF,MED" \
             bash /home/user/workspace/ceezr/deploy/capacity-run/b24-runner/seat-load01-c2-http-wait-probe.sh
 
-      - name: رفع الدليل (لا يُرفعُ إلا بنجاحِ تدقيقِ الأسرار)
+      - name: تحديد قابلية رفع الدليل (من علامة اجتياز التدقيق)
+        id: gatecheck
+        if: always()
+        run: |
+          if [ -f /home/user/load01c2-probe-out/AUDIT_PASSED ]; then
+            echo "mode=evidence" >> "$GITHUB_OUTPUT"
+          else
+            echo "mode=report" >> "$GITHUB_OUTPUT"
+          fi
+
+      # الدليلُ يُرفعُ في مساري النجاحِ والتوقفِ المُوثَّقِ كليهما إذا اجتازَ المحتوى النهائيُّ
+      # تدقيقَ الأسرارِ (AUDIT_PASSED) — فتوقُّفُ البوابةِ نتيجةٌ تشخيصيةٌ تُحفظُ لا تُستبدلُ؛
+      # وعندَ إخفاقِ التدقيقِ لا يُرفعُ إلا التقريرُ المنقَّحُ (الأثرُ الخامُ سقطَ في المقعدِ).
+      - name: رفع الدليل (نجاحٌ أو توقفٌ موثَّقٌ بعد تدقيقٍ نظيف)
+        if: always() && steps.gatecheck.outputs.mode == 'evidence'
         uses: actions/upload-artifact@v5
         with:
           name: load01c2-http-wait-probe
@@ -66,7 +80,7 @@ jobs:
           retention-days: 30
 
       - name: رفع تقرير الفشل المنقح (تدقيقُ الأسرارِ وحدَه)
-        if: failure()
+        if: always() && steps.gatecheck.outputs.mode == 'report'
         uses: actions/upload-artifact@v5
         with:
           name: load01c2-http-wait-probe-failure-report
