@@ -1,0 +1,2 @@
+{"t":"2026-10-26T08:51:25+00:00","event":"round.start","round":"load01c2-probe-COST-ON1-i71-M-1500","profile":[{"name":"wave-1500","sec":180,"conc":1500}],"drain_sec":180,"code_sha":"30c9dae6110b522628f8ac7e3194c92eb40952fd","code_dirty":0,"docs_dirty":0}
+{"t":"2026-10-26T08:51:25+00:00","event":"gateway.pid","pid":"10225"}
