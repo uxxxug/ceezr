@@ -55,5 +55,61 @@ if final_run; then echo "T3_PASS"; else echo "T3_FAIL: نظافةٌ نهائية
 grep -q "reason=verdict_mismatch" "$OUT/PROBE_STOP.txt" || { echo "T3_FAIL: سببُ التوقفِ الأصليِّ ضاعَ"; RC_TOTAL=1; }
 echo "T3_PASS (توقفٌ موثَّقٌ نظيفٌ: الحزمةُ تُحفظُ)"
 
+# ---------- 4–6) كتلةُ قرارِ الرفعِ الفعليةُ من سيرِ العملِ: العلامةُ القديمةُ لا تنجو ----------
+# تُقتطعُ كتلةُ «التدقيقِ النهائيِّ وقرارِ الرفعِ» من ملفِّ سيرِ العملِ نفسِهِ وتُشغَّل
+# بمتغيّراتِ بيئةٍ موجهةٍ — فتُختبرُ الكتلةُ المستعملةُ فعلًا لا سكربتٌ داخليٌّ وحدَهُ.
+WF_BLOCK=$(python3 - "$H/.github/workflows/load01-c2-http-wait-probe.yml" <<'PYWF'
+import sys, yaml
+wf = yaml.safe_load(open(sys.argv[1]))
+for step in wf['jobs']['seat']['steps']:
+    if step.get('name') == 'التدقيق النهائي وقرار الرفع':
+        print(step['run'])
+        break
+PYWF
+)
+[ -n "$WF_BLOCK" ] || { echo "T4_FAIL: كتلةُ القرارِ لم تُقتطعْ من سيرِ العملِ"; RC_TOTAL=1; }
+
+wf_run_block() { # OUTDIR FINAL_SCRIPT GITHUB_OUT ⇒ يعيدُ رمزَ الكتلةِ
+  local OUTD=$1 FINAL=$2 GHO=$3
+  set +e
+  PROBE_OUT=$OUTD PROBE_SECRETS="$TMP/secrets.env" \
+    PROBE_AUDIT_PY="$AUDIT" PROBE_FINAL=$FINAL GITHUB_OUTPUT=$GHO \
+    bash -c "$WF_BLOCK"
+  local RC=$?
+  set -e
+  return $RC
+}
+
+# T4: علامةٌ قديمةٌ + برنامجٌ نهائيٌّ يتعذّرُ تشغيلُهُ (ينهارُ قبلَ أيِّ شيءٍ) — لا رفعَ كاملَ
+OUTD=$TMP/wf-crash; mkdir -p "$OUTD"
+touch "$OUTD/AUDIT_PASSED"   # علامةٌ قديمةٌ مزروعةٌ
+printf '#!/usr/bin/env bash\nexit 2\n' > "$TMP/final-crash.sh"; chmod +x "$TMP/final-crash.sh"
+wf_run_block "$OUTD" "$TMP/final-crash.sh" "$TMP/gho4.txt" && RC4=0 || RC4=$?
+MODE4=$(grep -o 'mode=[a-z]*' "$TMP/gho4.txt" | head -1)
+[ "$RC4" -ne 0 ] || { echo "T4_FAIL: انهيارُ البرنامجِ النهائيِّ مُرِّرَ"; RC_TOTAL=1; }
+[ "$MODE4" = "mode=report" ] || { echo "T4_FAIL: وضعٌ $MODE4 معَ انهيارٍ — العلامةُ القديمةُ نجتْ"; RC_TOTAL=1; }
+[ ! -f "$OUTD/AUDIT_PASSED" ] || { echo "T4_FAIL: علامةٌ قديمةٌ بقيتْ — الإبطالُ في خطوةِ الاستدعاءِ مفقودٌ"; RC_TOTAL=1; }
+echo "T4_PASS (انهيارُ النهائيِّ: تقريرٌ فقط والعلامةُ القديمةُ أُبطلتْ)"
+
+# T5: برنامجٌ يخرجُ قبلَ حذفِ العلامةِ (محاكاةُ إصدارٍ معطوبٍ) — الإبطالُ في الخطوةِ يحمي
+OUTD=$TMP/wf-earlyexit; mkdir -p "$OUTD"
+touch "$OUTD/AUDIT_PASSED"
+printf '#!/usr/bin/env bash\nexit 1\n' > "$TMP/final-earlyexit.sh"; chmod +x "$TMP/final-earlyexit.sh"
+wf_run_block "$OUTD" "$TMP/final-earlyexit.sh" "$TMP/gho5.txt" && RC5=0 || RC5=$?
+MODE5=$(grep -o 'mode=[a-z]*' "$TMP/gho5.txt" | head -1)
+[ "$RC5" -ne 0 ] || { echo "T5_FAIL: خروجٌ معطوبٌ مُرِّرَ"; RC_TOTAL=1; }
+[ "$MODE5" = "mode=report" ] || { echo "T5_FAIL: وضعٌ $MODE5 معَ خروجٍ معطوبٍ"; RC_TOTAL=1; }
+[ ! -f "$OUTD/AUDIT_PASSED" ] || { echo "T5_FAIL: علامةٌ نجتْ منَ برنامجٍ لا يحذفُها"; RC_TOTAL=1; }
+echo "T5_PASS (خروجٌ قبلَ الحذفِ: الإبطالُ في الخطوةِ يمنعُ الرفعَ)"
+
+# T6: مقابسُ إيجابيٌّ: البرنامجُ الحقيقيُّ + شجرةٌ نظيفةٌ ⇒ رفعٌ كاملٌ
+OUTD=$TMP/wf-ok; mkdir -p "$OUTD/raw"; echo artifact > "$OUTD/raw/sentinel.txt"
+wf_run_block "$OUTD" "$RUNNER/probe-final-audit.sh" "$TMP/gho6.txt" && RC6=0 || RC6=$?
+MODE6=$(grep -o 'mode=[a-z]*' "$TMP/gho6.txt" | head -1)
+[ "$RC6" -eq 0 ] || { echo "T6_FAIL: نظافةٌ رُفضتْ"; RC_TOTAL=1; }
+[ "$MODE6" = "mode=evidence" ] || { echo "T6_FAIL: وضعٌ $MODE6 معَ نظافةٍ"; RC_TOTAL=1; }
+[ -f "$OUTD/AUDIT_PASSED" ] || { echo "T6_FAIL: لا علامةَ بعدَ نظافةٍ"; RC_TOTAL=1; }
+echo "T6_PASS (نظافةٌ: رفعٌ كاملٌ)"
+
 if [ $RC_TOTAL -ne 0 ]; then echo "FINAL_AUDIT_TEST_FAIL"; exit 1; fi
 echo "FINAL_AUDIT_TEST_OK — قرارُ الرفعِ منَ تدقيقٍ نهائيٍّ جديدٍ يُبطلُ ما قبلَهُ، والتسريبُ اللاحقُ يمنعُ الرفعَ، وتوقفُ البوابةِ النظيفُ يُحفظُ"
