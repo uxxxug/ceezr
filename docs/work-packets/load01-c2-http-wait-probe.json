@@ -15,9 +15,10 @@
     "deploy/capacity-run/load/lib.ts",
     "tests/unit/load-trace-httpreq.test.ts",
     "deploy/capacity-run/b24-runner/probe-gate.sh",
-    "deploy/capacity-run/b24-runner/probe-gate-stop.test.sh"
+    "deploy/capacity-run/b24-runner/probe-gate-stop.test.sh",
+    "deploy/capacity-run/b24-runner/probe-analyze-fail.test.sh"
   ],
-  "state": "تُنفيذُ المرحلةُ الثانيةُ (قبلَ أيِّ موجة): الأداةُ على الذراعينِ (عنصرُ العملِ السابقُ)، والمحلّلُ، والاختبارُ الذاتيُّ (9/9)، والمقعدُ، ومشغّلُ البوابةِ، واختبارُ مشغّلِ البوابةِ — بانتظارِ المراجعةِ النهائيةِ قبلَ تشغيلِ الموجاتِ",
+  "state": ["docs/SYSTEM_STATE.md"],
   "roadmap": ["ROADMAP.md"],
   "affected_docs": [
     "docs/evidence/capacity/LOAD01-C2-HTTP-WAIT-PROBE-20261026/PROTOCOL-load01-c2-http-wait-probe.md",

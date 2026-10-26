@@ -5,7 +5,7 @@
 # فلا موجةَ حكمٍ تبدأُ بعدَ إخفاقِ بوابةٍ. كذلك يطابقُ سلاسلَ الأحكامِ بينَ المحلّلِ
 # والمقعدِ (AA_PASS/COST_PASS) ويثبتُ أنَّ التحليلَ الفاشلَ يُوقفُ لا يُمرَّرُ.
 set -euo pipefail
-H=$(cd "$(dirname "$0")/../.." && pwd)   # جذرُ المستودعِ (b24-runner/..)
+H=$(cd "$(dirname "$0")/../../.." && pwd)   # جذرُ المستودعِ (b24-runner/../../..)
 RUNNER=$(cd "$(dirname "$0")" && pwd)
 TMP=$(mktemp -d /tmp/probe-gate-test-XXXXXX)
 GATE=$RUNNER/probe-gate.sh
@@ -69,6 +69,18 @@ ABBA_LINE=$(echo "$SEAT_SRC" | grep -n 'for SLOT in A1 B1 B2 A2 A3 B3 B4 A4' | h
   && [ "$AA_LINE" -lt "$ABBA_LINE" ] && [ "$COST_LINE" -lt "$ABBA_LINE" ] \
   || { echo "T5_FAIL: البوابتانِ ليستا قبلَ ABBA (aa=$AA_LINE cost=$COST_LINE abba=$ABBA_LINE)"; RC_TOTAL=1; }
 echo "T5_PASS"
+
+# ---------- 6) وضعُ التوقفِ المباشرُ --stop: سببٌ موثَّقٌ + تدقيقٌ + رمزُ 1 ----------
+rm -f "$OUT/PROBE_STOP.txt" "$OUT/wave-summary-stop.json" "$OUT/secret-audit.txt"
+set +e
+bash "$GATE" --stop "TEST_DIRECT_STOP" A/A "$OUT" "$SECRETS" "$TMP/audit.py" "$RUNNER" >"$TMP/stop.log" 2>&1
+RC=$?
+set -e
+[ "$RC" -ne 0 ] || { echo "T6_FAIL: --stop مرَّ"; RC_TOTAL=1; }
+grep -q "gate=A/A" "$OUT/PROBE_STOP.txt" && grep -q "reason=TEST_DIRECT_STOP" "$OUT/PROBE_STOP.txt" || { echo "T6_FAIL: سببُ التوقفِ غيرُ موثَّقٍ"; RC_TOTAL=1; }
+[ -s "$OUT/wave-summary-stop.json" ] || { echo "T6_FAIL: ملخصُ التوقفِ غائبٌ"; RC_TOTAL=1; }
+[ -s "$OUT/secret-audit.txt" ] || { echo "T6_FAIL: لا تدقيقَ في مسارِ --stop"; RC_TOTAL=1; }
+echo "T6_PASS"
 
 rm -rf "$TMP"
 if [ $RC_TOTAL -ne 0 ]; then echo "GATE_STOP_TEST_FAIL"; exit 1; fi

@@ -32,6 +32,7 @@ PA="$H/deploy/capacity-run/b24-runner/probe-analyze.py"
 log "اختبارٌ ذاتيٌّ للمحلّلِ على بياناتٍ مصغرةٍ معروفةِ النتائجِ (شرطُ ملحقِ البروتوكولِ)"
 python3 "$H/deploy/capacity-run/b24-runner/probe-analyze-selftest.py" || { echo "PROBE_ANALYZER_SELFTEST_FAIL — لا موجة"; exit 1; }
 bash "$H/deploy/capacity-run/b24-runner/probe-gate-stop.test.sh" || { echo "PROBE_GATE_STOP_TEST_FAIL — لا موجة"; exit 1; }
+bash "$H/deploy/capacity-run/b24-runner/probe-analyze-fail.test.sh" || { echo "PROBE_ANALYZE_FAIL_TEST_FAIL — لا موجة"; exit 1; }
 
 log "worktree اثنان: wt-acc (مسارُ التشغيلِ للذراعين، يبدأُ من A) وwt-ref (سجلُ b24-env.json وحده، على B)"
 git -C "$H" worktree add -f --detach "$W/wt-acc" "$A_SHA" >/dev/null 2>&1
@@ -184,12 +185,23 @@ for SLOT in AA1 AA2; do
   [ "$V" = VALID ] || { echo "WAVE_INVALID $SLOT — إيقافٌ قبلَ البوابةِ"; exit 1; }
   AA_IDX=$((AA_IDX+1))
 done
-python3 "$PA" aa "${WDIR[AA1]}" "${WDIR[AA2]}" "$OUT/aa-gate.json" >"$OUT/aa-gate.log" 2>&1 \
-  || { cat "$OUT/aa-gate.log"; echo "AA_GATE_ANALYZE_FAIL — توقفٌ"; exit 1; }
+rm -f "$OUT/aa-gate.json"   # لا JSON قديمَ يُقرأُ بعدَ إخفاقِ المحلّلِ أو قبلهُ
+if ! python3 "$PA" aa "${WDIR[AA1]}" "${WDIR[AA2]}" "$OUT/aa-gate.json" >"$OUT/aa-gate.log" 2>&1; then
+  cat "$OUT/aa-gate.log"
+  echo "AA_GATE_ANALYZE_FAIL — إخفاقُ المحلّلِ = غيابُ الحكمِ: توثيقُ التوقفِ وتدقيقُ الأسرارِ عبرَ مشغّلِ البوابةِ"
+  bash "$H/deploy/capacity-run/b24-runner/probe-gate.sh" --stop "AA_GATE_ANALYZE_FAIL" A/A "$OUT" "$B/secrets.env" "$H/deploy/capacity-run/b24-runner/seat-bin/b24-secret-audit.py" "$H/deploy/capacity-run/b24-runner" || true
+  exit 1
+fi
 bash "$H/deploy/capacity-run/b24-runner/probe-gate.sh" "$OUT/aa-gate.json" "إعادةُ_إنتاجٍ_ضمنَ_±δ" "A/A" "$OUT" "$B/secrets.env" "$H/deploy/capacity-run/b24-runner/seat-bin/b24-secret-audit.py" "$H/deploy/capacity-run/b24-runner" \
   || { echo "PROBE_STOP عندَ بوابةِ A/A — الموجاتُ اللاحقةُ لا تبدأ"; exit 1; }
 log "بوابةُ A/A مُجازةٌ — تُجمَّدُ حدودُ شرائحِ الوصولِ من AA1 قبلَ أيِّ موجةِ حكمٍ (ملحق §5)"
-python3 "$PA" strata "${WDIR[AA1]}" "$OUT/strata.json" >"$OUT/strata.log" 2>&1 || { cat "$OUT/strata.log"; echo "STRATA_FAIL — إيقاف"; exit 1; }
+rm -f "$OUT/strata.json"
+if ! python3 "$PA" strata "${WDIR[AA1]}" "$OUT/strata.json" >"$OUT/strata.log" 2>&1; then
+  cat "$OUT/strata.log"
+  echo "STRATA_FAIL — توثيقُ التوقفِ وتدقيقُ الأسرارِ عبرَ مشغّلِ البوابةِ"
+  bash "$H/deploy/capacity-run/b24-runner/probe-gate.sh" --stop "STRATA_FAIL" STRATA "$OUT" "$B/secrets.env" "$H/deploy/capacity-run/b24-runner/seat-bin/b24-secret-audit.py" "$H/deploy/capacity-run/b24-runner" || true
+  exit 1
+fi
 cat "$OUT/strata.json"
 
 log "فحصُ كلفةِ الأداةِ ON–OFF–OFF–ON (m5-$CONC) — ON = A+الأداة، OFF = A الأصليُّ (كلاهما بالرصدِ الأساسيِّ)"
@@ -205,7 +217,13 @@ for SLOT in COST-ON1 COST-OFF1 COST-OFF2 COST-ON2; do
   fi
   [ "$V" = VALID ] || { echo "WAVE_INVALID $SLOT — إيقافٌ قبلَ بوابةِ الكلفةِ"; exit 1; }
 done
-python3 "$PA" cost "${WDIR[COST-ON1]}" "${WDIR[COST-OFF1]}" "${WDIR[COST-OFF2]}" "${WDIR[COST-ON2]}" "$OUT/cost-gate.json" >"$OUT/cost-gate.log" 2>&1 || { cat "$OUT/cost-gate.log"; echo "COST_GATE_ANALYZE_FAIL — إيقاف"; exit 1; }
+rm -f "$OUT/cost-gate.json"   # لا JSON قديمَ يُقرأُ بعدَ إخفاقِ المحلّلِ أو قبلهُ
+if ! python3 "$PA" cost "${WDIR[COST-ON1]}" "${WDIR[COST-OFF1]}" "${WDIR[COST-OFF2]}" "${WDIR[COST-ON2]}" "$OUT/cost-gate.json" >"$OUT/cost-gate.log" 2>&1; then
+  cat "$OUT/cost-gate.log"
+  echo "COST_GATE_ANALYZE_FAIL — إخفاقُ المحلّلِ = غيابُ الحكمِ: توثيقُ التوقفِ وتدقيقُ الأسرارِ عبرَ مشغّلِ البوابةِ"
+  bash "$H/deploy/capacity-run/b24-runner/probe-gate.sh" --stop "COST_GATE_ANALYZE_FAIL" COST "$OUT" "$B/secrets.env" "$H/deploy/capacity-run/b24-runner/seat-bin/b24-secret-audit.py" "$H/deploy/capacity-run/b24-runner" || true
+  exit 1
+fi
 bash "$H/deploy/capacity-run/b24-runner/probe-gate.sh" "$OUT/cost-gate.json" "كلفةٌ_محدودةٌ_بـ±δ" "COST" "$OUT" "$B/secrets.env" "$H/deploy/capacity-run/b24-runner/seat-bin/b24-secret-audit.py" "$H/deploy/capacity-run/b24-runner" \
   || { echo "PROBE_STOP عندَ بوابةِ الكلفةِ — موجاتُ الحكمِ لا تبدأ"; exit 1; }
 echo "PRE_GATES_PASSED — الأداةُ كلفةً محدودةٌ بـ±δ، وإعادةُ الإنتاجِ ضمنَ ±δ (وصفُ البوابتينِ لا إثباتَ عدمِ ضررٍ عامًّا)"
@@ -235,7 +253,13 @@ for SLOT in A1 B1 B2 A2 A3 B3 B4 A4; do
 done
 
 log "تحليلُ الحكمِ المقترنِ (H1 شرائحُ مقترنةٌ + H2 انحدارُ نافذةِ التفريغِ) — البروتوكولُ §5–§6 وملحقُ §5"
-python3 "$PA" ab "${WDIR[A1]}" "${WDIR[B1]}" "${WDIR[B2]}" "${WDIR[A2]}" "${WDIR[A3]}" "${WDIR[B3]}" "${WDIR[B4]}" "${WDIR[A4]}" "$OUT/strata.json" "$OUT/ab-result.json" >"$OUT/ab-result.log" 2>&1 || { cat "$OUT/ab-result.log"; echo "AB_ANALYZE_FAIL"; exit 1; }
+rm -f "$OUT/ab-result.json"
+if ! python3 "$PA" ab "${WDIR[A1]}" "${WDIR[B1]}" "${WDIR[B2]}" "${WDIR[A2]}" "${WDIR[A3]}" "${WDIR[B3]}" "${WDIR[B4]}" "${WDIR[A4]}" "$OUT/strata.json" "$OUT/ab-result.json" >"$OUT/ab-result.log" 2>&1; then
+  cat "$OUT/ab-result.log"
+  echo "AB_ANALYZE_FAIL — توثيقُ التوقفِ وتدقيقُ الأسرارِ عبرَ مشغّلِ البوابةِ"
+  bash "$H/deploy/capacity-run/b24-runner/probe-gate.sh" --stop "AB_ANALYZE_FAIL" AB "$OUT" "$B/secrets.env" "$H/deploy/capacity-run/b24-runner/seat-bin/b24-secret-audit.py" "$H/deploy/capacity-run/b24-runner" || true
+  exit 1
+fi
 python3 - "$OUT/ab-result.json" <<'PY' || true
 import json,sys
 d=json.load(open(sys.argv[1]))
