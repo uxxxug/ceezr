@@ -1,0 +1,38 @@
+{
+ "mode": "cost",
+ "delta_ms": 15.0,
+ "detail": [
+  {
+   "wave": "ON1",
+   "dir": "load01c2-probe-COST-ON1-i71-M-1500",
+   "cost_metric_ms": 164.05467902711715,
+   "flush_windows": 32,
+   "input_hashes_file": "input-sha256sums.txt"
+  },
+  {
+   "wave": "OFF1",
+   "dir": "load01c2-probe-COST-OFF1-i72-M-1500",
+   "cost_metric_ms": 155.45710663852756,
+   "flush_windows": 33,
+   "input_hashes_file": "input-sha256sums.txt"
+  },
+  {
+   "wave": "OFF2",
+   "dir": "load01c2-probe-COST-OFF2-i73-M-1500",
+   "cost_metric_ms": 155.4946612281709,
+   "flush_windows": 32,
+   "input_hashes_file": "input-sha256sums.txt"
+  },
+  {
+   "wave": "ON2",
+   "dir": "load01c2-probe-COST-ON2-i74-M-1500",
+   "cost_metric_ms": 165.70884071929464,
+   "flush_windows": 34,
+   "input_hashes_file": "input-sha256sums.txt"
+  }
+ ],
+ "d1_ms": 8.597572388589583,
+ "d2_ms": 10.21417949112373,
+ "verdict": "كلفةٌ_محدودةٌ_بـ±δ",
+ "note": "أثرُ إضافةِ الأداةِ كاملةً (التنفيذُ والذاكرةُ والكتابةُ) على انتظارِ gatewayRequest لمسارِ rides — نافذةُ تفريغٍ، طورُ الحقنِ فقط."
+}

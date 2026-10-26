@@ -1,0 +1,247 @@
+{
+ "mode": "ab",
+ "delta_ms": 15.0,
+ "strata_meta": {
+  "mode": "strata",
+  "wave": "load01c2-probe-AA1-i70-M-1500",
+  "input_hashes_file": "input-sha256sums.txt",
+  "phase_epochs_ms": {
+   "start": 1793003887690,
+   "drain": 1793004067796,
+   "end": 1793004085014
+  },
+  "boundaries": {
+   "rides": [
+    19.6,
+    31.0
+   ],
+   "other": [
+    750.4,
+    818.2
+   ]
+  },
+  "injection_window_count": 36,
+  "drain_window_count": 3
+ },
+ "waves": [
+  "load01c2-probe-A1-i80-M-1500",
+  "load01c2-probe-B1-i81-M-1500",
+  "load01c2-probe-B2-i82-M-1500",
+  "load01c2-probe-A2-i83-M-1500",
+  "load01c2-probe-A3-i84-M-1500",
+  "load01c2-probe-B3-i85-M-1500",
+  "load01c2-probe-B4-i86-M-1500",
+  "load01c2-probe-A4-i87-M-1500"
+ ],
+ "input_hashes_file": "input-sha256sums.txt (في دليل كل موجة)",
+ "h1": {
+  "rides|injection|t0": {
+   "mass_of_requests": 0.0030556149405979905,
+   "reported": false,
+   "pairs": [
+    10.721281911674026,
+    17.574485344143,
+    12.062489705533409,
+    4.842443158645295
+   ],
+   "pair_count": 4,
+   "point_ms": 11.300175029998933,
+   "ci_ms": [
+    6.647454795367324,
+    15.861184486025756
+   ],
+   "rule": "دونَ_عتبةِ_الكتلة_لا_يُعرضُ_حكمُها"
+  },
+  "rides|injection|t1": {
+   "mass_of_requests": 0.009499740402528784,
+   "reported": false,
+   "pairs": [
+    26.085258349885294,
+    24.021218624562096,
+    33.71611322896098,
+    -14.362524840427682
+   ],
+   "pair_count": 4,
+   "point_ms": 17.36501634074517,
+   "ci_ms": [
+    -4.250579042849438,
+    31.292389577861258
+   ],
+   "rule": "دونَ_عتبةِ_الكتلة_لا_يُعرضُ_حكمُها"
+  },
+  "rides|injection|t2": {
+   "mass_of_requests": 0.015911797941544757,
+   "reported": false,
+   "pairs": [
+    12.848022128673762,
+    24.85856655133007,
+    18.41470505649869,
+    13.459484868934254
+   ],
+   "pair_count": 4,
+   "point_ms": 17.395194651359194,
+   "ci_ms": [
+    13.153753498804008,
+    22.008796130731117
+   ],
+   "rule": "دونَ_عتبةِ_الكتلة_لا_يُعرضُ_حكمُها"
+  },
+  "rides|drain|t0": {
+   "mass_of_requests": 0.0005634792169318633,
+   "reported": false,
+   "pairs": [
+    89.95814087301589,
+    7.840040631637294
+   ],
+   "pair_count": 2,
+   "point_ms": null,
+   "ci_ms": [
+    null,
+    null
+   ],
+   "rule": "غيرُ_قابلٍ_للحسم_نقصُ_الأزواجِ"
+  },
+  "rides|drain|t1": {
+   "mass_of_requests": 0.0005634792169318633,
+   "reported": false,
+   "pairs": [
+    35.02288169295559,
+    1.8423865791546348
+   ],
+   "pair_count": 2,
+   "point_ms": null,
+   "ci_ms": [
+    null,
+    null
+   ],
+   "rule": "غيرُ_قابلٍ_للحسم_نقصُ_الأزواجِ"
+  },
+  "rides|drain|t2": {
+   "mass_of_requests": 0.0015010842012033107,
+   "reported": false,
+   "pairs": [
+    178.0524623605218
+   ],
+   "pair_count": 1,
+   "point_ms": null,
+   "ci_ms": [
+    null,
+    null
+   ],
+   "rule": "غيرُ_قابلٍ_للحسم_نقصُ_الأزواجِ"
+  },
+  "other|injection|t0": {
+   "mass_of_requests": 0.22239715359008033,
+   "reported": true,
+   "pairs": [
+    17.962380716818927,
+    1.553292941720315,
+    -23.91498810762951,
+    18.94807487199006
+   ],
+   "pair_count": 4,
+   "point_ms": 3.6371901057249474,
+   "ci_ms": [
+    -17.547917845292055,
+    18.455227794404493
+   ],
+   "rule": "غيرُ_محسومٍ_على_الشرطيِّ_السطحيِّ_لتقاطعِ_الفاصلِ_عتبةَ_δ"
+  },
+  "other|injection|t1": {
+   "mass_of_requests": 0.1735699233423938,
+   "reported": true,
+   "pairs": [
+    66.27704529504837,
+    28.51535508467336,
+    -9.741861568631379,
+    -37.43887143828661
+   ],
+   "pair_count": 4,
+   "point_ms": 11.902916843200934,
+   "ci_ms": [
+    -23.590366503458995,
+    47.39620018986086
+   ],
+   "rule": "غيرُ_محسومٍ_على_الشرطيِّ_السطحيِّ_لتقاطعِ_الفاصلِ_عتبةَ_δ"
+  },
+  "other|injection|t2": {
+   "mass_of_requests": 0.48984515774363985,
+   "reported": true,
+   "pairs": [
+    20.041509367733426,
+    24.09094236589192,
+    13.264378403003974,
+    6.597286441211281
+   ],
+   "pair_count": 4,
+   "point_ms": 15.99852914446015,
+   "ci_ms": [
+    9.930832422107628,
+    22.066225866812673
+   ],
+   "rule": "غيرُ_محسومٍ_على_الشرطيِّ_السطحيِّ_لتقاطعِ_الفاصلِ_عتبةَ_δ"
+  },
+  "other|drain|t0": {
+   "mass_of_requests": 0.026451455272882753,
+   "reported": false,
+   "pairs": [
+    -37.623241063379496,
+    29.735706422022616,
+    201.47422149806943
+   ],
+   "pair_count": 3,
+   "point_ms": null,
+   "ci_ms": [
+    null,
+    null
+   ],
+   "rule": "غيرُ_قابلٍ_للحسم_نقصُ_الأزواجِ"
+  },
+  "other|drain|t1": {
+   "mass_of_requests": 0.03570839568762789,
+   "reported": false,
+   "pairs": [
+    113.36215321392459,
+    48.062071925384515,
+    105.91286723282606
+   ],
+   "pair_count": 3,
+   "point_ms": null,
+   "ci_ms": [
+    null,
+    null
+   ],
+   "rule": "غيرُ_قابلٍ_للحسم_نقصُ_الأزواجِ"
+  },
+  "other|drain|t2": {
+   "mass_of_requests": 0.006570870109641755,
+   "reported": false,
+   "pairs": [
+    -12.54182685525069
+   ],
+   "pair_count": 1,
+   "point_ms": null,
+   "ci_ms": [
+    null,
+    null
+   ],
+   "rule": "غيرُ_قابلٍ_للحسم_نقصُ_الأزواجِ"
+  }
+ },
+ "h2": {
+  "unit": "flush_window_5s_completion_attributed",
+  "drainer_variable": "Σ runSumMs لمساراتِ drainer:* (gatewayRequest) — استهلاكُ مقعد-ثانيةٍ لا إشغالٌ تزامنيّ",
+  "n_rows": 265,
+  "point_ms": 2.3772061163925513,
+  "ci_ms": [
+   -2.6470102319093014,
+   8.31760568201824
+  ],
+  "rule": "محسوم_بأنّ_الأثر_على_المتوسطِ_الشرطيِّ_محدودٌ_بـ±δ",
+  "bootstrap_attempts": 2000,
+  "bootstrap_failed": 0,
+  "drainer_zero_windows": 0,
+  "uninstrumented_drainer_waves": 0
+ },
+ "residual_note": "الأحكامُ تخصُّ المتوسطَ الشرطيَّ فقط؛ ذيلُ التوزيعِ بلا تفسيرٍ متبقٍّ لا يُفسَّر بهذه الدورة."
+}

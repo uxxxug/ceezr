@@ -1,0 +1,802 @@
+خريطةُ محتوياتِ أثرِ الأفعالِ — دورةُ LOAD-01-C2-HTTP-WAIT-PROBE
+التشغيل: 40292412972 · أثرُ الأفعال: 12642489981 · 795 ملفًّا · 277 MB
+بصمةُ SHA-256 للأثرِ: b5a465b54eb918daf2419624beb95231b84c026e89221f104f42734ef493b588
+بيانُ بصماتِ خامِّ الأثرِ الأصليُّ محفوظٌ داخلَ كلِّ موجةٍ (artifact-SHA256SUMS.txt — إعادةُ تسميةِ SHA256SUMS منَ الأثرِ).
+المحفوظُ في raw-summaries: 318 ملفًّا (ملخصاتُ الموجاتِ الستَّ عشرةَ) · غيرُ المحفوظِ: 477 (خامٌّ ثقيلٌ أو سجلُّ مشغِّلٍ)
+العمودُ الأوّلُ: SAVED = محفوظٌ في raw-summaries · NOT_SAVED = غيرُ محفوظٍ (السببُ في العمودِ الثالثِ) · OTHER = خارجَ جذرِ الموجاتِ
+---
+OTHER	AUDIT_PASSED	خارجَ جذرِ الموجاتِ (سجلُّ المشغِّلِ والتنسيقُ) — غيرُ محفوظٍ هنا، متاحٌ في أثرِ الأفعالِ
+OTHER	aa-gate.json	خارجَ جذرِ الموجاتِ (سجلُّ المشغِّلِ والتنسيقُ) — غيرُ محفوظٍ هنا، متاحٌ في أثرِ الأفعالِ
+OTHER	aa-gate.log	خارجَ جذرِ الموجاتِ (سجلُّ المشغِّلِ والتنسيقُ) — غيرُ محفوظٍ هنا، متاحٌ في أثرِ الأفعالِ
+OTHER	ab-result.json	خارجَ جذرِ الموجاتِ (سجلُّ المشغِّلِ والتنسيقُ) — غيرُ محفوظٍ هنا، متاحٌ في أثرِ الأفعالِ
+OTHER	ab-result.log	خارجَ جذرِ الموجاتِ (سجلُّ المشغِّلِ والتنسيقُ) — غيرُ محفوظٍ هنا، متاحٌ في أثرِ الأفعالِ
+OTHER	bun-install-wt-acc.log	خارجَ جذرِ الموجاتِ (سجلُّ المشغِّلِ والتنسيقُ) — غيرُ محفوظٍ هنا، متاحٌ في أثرِ الأفعالِ
+OTHER	cost-gate.json	خارجَ جذرِ الموجاتِ (سجلُّ المشغِّلِ والتنسيقُ) — غيرُ محفوظٍ هنا، متاحٌ في أثرِ الأفعالِ
+OTHER	cost-gate.log	خارجَ جذرِ الموجاتِ (سجلُّ المشغِّلِ والتنسيقُ) — غيرُ محفوظٍ هنا، متاحٌ في أثرِ الأفعالِ
+OTHER	final-audit-status.txt	خارجَ جذرِ الموجاتِ (سجلُّ المشغِّلِ والتنسيقُ) — غيرُ محفوظٍ هنا، متاحٌ في أثرِ الأفعالِ
+OTHER	final-secret-audit.txt	خارجَ جذرِ الموجاتِ (سجلُّ المشغِّلِ والتنسيقُ) — غيرُ محفوظٍ هنا، متاحٌ في أثرِ الأفعالِ
+OTHER	idle-b24/host-idle.jsonl	خارجَ جذرِ الموجاتِ (سجلُّ المشغِّلِ والتنسيقُ) — غيرُ محفوظٍ هنا، متاحٌ في أثرِ الأفعالِ
+OTHER	idle-b24/pg-probe-idle.jsonl	خارجَ جذرِ الموجاتِ (سجلُّ المشغِّلِ والتنسيقُ) — غيرُ محفوظٍ هنا، متاحٌ في أثرِ الأفعالِ
+OTHER	idle-b24/speed-probe-idle.jsonl	خارجَ جذرِ الموجاتِ (سجلُّ المشغِّلِ والتنسيقُ) — غيرُ محفوظٍ هنا، متاحٌ في أثرِ الأفعالِ
+OTHER	idle.log	خارجَ جذرِ الموجاتِ (سجلُّ المشغِّلِ والتنسيقُ) — غيرُ محفوظٍ هنا، متاحٌ في أثرِ الأفعالِ
+SAVED	load01c2-probe-A1-i80-M-1500/MANIFEST.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-A1-i80-M-1500/SHA256SUMS	محفوظٌ في raw-summaries باسمِ artifact-SHA256SUMS.txt (إعادةُ تسميةٍ لتفاديِ تعارضِ بيانِ الأدلةِ)
+SAVED	load01c2-probe-A1-i80-M-1500/arm-sha.txt	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-A1-i80-M-1500/arm.txt	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-A1-i80-M-1500/b24-env.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-A1-i80-M-1500/collect.out	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-A1-i80-M-1500/conn-samples.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-A1-i80-M-1500/db-audit-post.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-A1-i80-M-1500/db-audit-pre.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-A1-i80-M-1500/dispatch-trace.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-A1-i80-M-1500/gates.txt	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-A1-i80-M-1500/input-sha256sums.txt	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-A1-i80-M-1500/job-timeline.err	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+SAVED	load01c2-probe-A1-i80-M-1500/job-timeline.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-A1-i80-M-1500/load-events.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-A1-i80-M-1500/load-trace.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-A1-i80-M-1500/miniapp-load-events.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-A1-i80-M-1500/mixed-sent.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-A1-i80-M-1500/mixed-validity.txt	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-A1-i80-M-1500/mock-stats-post.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-A1-i80-M-1500/mock-stats-pre.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-A1-i80-M-1500/offers.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-A1-i80-M-1500/orders.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-A1-i80-M-1500/p4-decompose.err	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+SAVED	load01c2-probe-A1-i80-M-1500/p4-decompose.out.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-A1-i80-M-1500/pgss-full.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-A1-i80-M-1500/qual/inflight.json	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-A1-i80-M-1500/qual/post-diag.out	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-A1-i80-M-1500/qual/post-pg.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-A1-i80-M-1500/qual/post-speed.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-A1-i80-M-1500/qual/pre-host.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-A1-i80-M-1500/qual/pre-pg.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-A1-i80-M-1500/qual/pre-speed.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-A1-i80-M-1500/qual/preflight.json	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-A1-i80-M-1500/qual/wave-host.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-A1-i80-M-1500/qual/window.json	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+SAVED	load01c2-probe-A1-i80-M-1500/resources.jsonl	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-A1-i80-M-1500/rl-window.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-A1-i80-M-1500/sched-samples.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-A1-i80-M-1500/session-limit.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-A1-i80-M-1500/telegram-jobs.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-A1-i80-M-1500/timeline.jsonl	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-A1-i80-M-1500/tpl-active.txt	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-A1-i80-M-1500/update-jobs.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-A1-i80-M-1500/validity.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-A1-i80-M-1500/wave-report.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-A2-i83-M-1500/MANIFEST.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-A2-i83-M-1500/SHA256SUMS	محفوظٌ في raw-summaries باسمِ artifact-SHA256SUMS.txt (إعادةُ تسميةٍ لتفاديِ تعارضِ بيانِ الأدلةِ)
+SAVED	load01c2-probe-A2-i83-M-1500/arm-sha.txt	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-A2-i83-M-1500/arm.txt	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-A2-i83-M-1500/b24-env.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-A2-i83-M-1500/collect.out	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-A2-i83-M-1500/conn-samples.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-A2-i83-M-1500/db-audit-post.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-A2-i83-M-1500/db-audit-pre.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-A2-i83-M-1500/dispatch-trace.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-A2-i83-M-1500/gates.txt	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-A2-i83-M-1500/input-sha256sums.txt	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-A2-i83-M-1500/job-timeline.err	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+SAVED	load01c2-probe-A2-i83-M-1500/job-timeline.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-A2-i83-M-1500/load-events.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-A2-i83-M-1500/load-trace.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-A2-i83-M-1500/miniapp-load-events.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-A2-i83-M-1500/mixed-sent.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-A2-i83-M-1500/mixed-validity.txt	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-A2-i83-M-1500/mock-stats-post.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-A2-i83-M-1500/mock-stats-pre.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-A2-i83-M-1500/offers.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-A2-i83-M-1500/orders.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-A2-i83-M-1500/p4-decompose.err	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+SAVED	load01c2-probe-A2-i83-M-1500/p4-decompose.out.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-A2-i83-M-1500/pgss-full.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-A2-i83-M-1500/qual/inflight.json	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-A2-i83-M-1500/qual/post-diag.out	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-A2-i83-M-1500/qual/post-pg.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-A2-i83-M-1500/qual/post-speed.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-A2-i83-M-1500/qual/pre-host.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-A2-i83-M-1500/qual/pre-pg.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-A2-i83-M-1500/qual/pre-speed.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-A2-i83-M-1500/qual/preflight.json	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-A2-i83-M-1500/qual/wave-host.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-A2-i83-M-1500/qual/window.json	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+SAVED	load01c2-probe-A2-i83-M-1500/resources.jsonl	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-A2-i83-M-1500/rl-window.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-A2-i83-M-1500/sched-samples.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-A2-i83-M-1500/session-limit.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-A2-i83-M-1500/telegram-jobs.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-A2-i83-M-1500/timeline.jsonl	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-A2-i83-M-1500/tpl-active.txt	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-A2-i83-M-1500/update-jobs.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-A2-i83-M-1500/validity.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-A2-i83-M-1500/wave-report.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-A3-i84-M-1500/MANIFEST.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-A3-i84-M-1500/SHA256SUMS	محفوظٌ في raw-summaries باسمِ artifact-SHA256SUMS.txt (إعادةُ تسميةٍ لتفاديِ تعارضِ بيانِ الأدلةِ)
+SAVED	load01c2-probe-A3-i84-M-1500/arm-sha.txt	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-A3-i84-M-1500/arm.txt	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-A3-i84-M-1500/b24-env.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-A3-i84-M-1500/collect.out	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-A3-i84-M-1500/conn-samples.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-A3-i84-M-1500/db-audit-post.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-A3-i84-M-1500/db-audit-pre.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-A3-i84-M-1500/dispatch-trace.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-A3-i84-M-1500/gates.txt	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-A3-i84-M-1500/input-sha256sums.txt	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-A3-i84-M-1500/job-timeline.err	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+SAVED	load01c2-probe-A3-i84-M-1500/job-timeline.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-A3-i84-M-1500/load-events.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-A3-i84-M-1500/load-trace.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-A3-i84-M-1500/miniapp-load-events.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-A3-i84-M-1500/mixed-sent.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-A3-i84-M-1500/mixed-validity.txt	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-A3-i84-M-1500/mock-stats-post.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-A3-i84-M-1500/mock-stats-pre.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-A3-i84-M-1500/offers.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-A3-i84-M-1500/orders.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-A3-i84-M-1500/p4-decompose.err	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+SAVED	load01c2-probe-A3-i84-M-1500/p4-decompose.out.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-A3-i84-M-1500/pgss-full.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-A3-i84-M-1500/qual/inflight.json	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-A3-i84-M-1500/qual/post-diag.out	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-A3-i84-M-1500/qual/post-pg.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-A3-i84-M-1500/qual/post-speed.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-A3-i84-M-1500/qual/pre-host.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-A3-i84-M-1500/qual/pre-pg.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-A3-i84-M-1500/qual/pre-speed.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-A3-i84-M-1500/qual/preflight.json	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-A3-i84-M-1500/qual/wave-host.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-A3-i84-M-1500/qual/window.json	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+SAVED	load01c2-probe-A3-i84-M-1500/resources.jsonl	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-A3-i84-M-1500/rl-window.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-A3-i84-M-1500/sched-samples.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-A3-i84-M-1500/session-limit.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-A3-i84-M-1500/telegram-jobs.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-A3-i84-M-1500/timeline.jsonl	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-A3-i84-M-1500/tpl-active.txt	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-A3-i84-M-1500/update-jobs.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-A3-i84-M-1500/validity.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-A3-i84-M-1500/wave-report.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-A4-i87-M-1500/MANIFEST.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-A4-i87-M-1500/SHA256SUMS	محفوظٌ في raw-summaries باسمِ artifact-SHA256SUMS.txt (إعادةُ تسميةٍ لتفاديِ تعارضِ بيانِ الأدلةِ)
+SAVED	load01c2-probe-A4-i87-M-1500/arm-sha.txt	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-A4-i87-M-1500/arm.txt	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-A4-i87-M-1500/b24-env.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-A4-i87-M-1500/collect.out	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-A4-i87-M-1500/conn-samples.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-A4-i87-M-1500/db-audit-post.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-A4-i87-M-1500/db-audit-pre.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-A4-i87-M-1500/dispatch-trace.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-A4-i87-M-1500/gates.txt	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-A4-i87-M-1500/input-sha256sums.txt	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-A4-i87-M-1500/job-timeline.err	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+SAVED	load01c2-probe-A4-i87-M-1500/job-timeline.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-A4-i87-M-1500/load-events.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-A4-i87-M-1500/load-trace.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-A4-i87-M-1500/miniapp-load-events.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-A4-i87-M-1500/mixed-sent.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-A4-i87-M-1500/mixed-validity.txt	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-A4-i87-M-1500/mock-stats-post.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-A4-i87-M-1500/mock-stats-pre.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-A4-i87-M-1500/offers.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-A4-i87-M-1500/orders.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-A4-i87-M-1500/p4-decompose.err	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+SAVED	load01c2-probe-A4-i87-M-1500/p4-decompose.out.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-A4-i87-M-1500/pgss-full.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-A4-i87-M-1500/qual/inflight.json	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-A4-i87-M-1500/qual/post-diag.out	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-A4-i87-M-1500/qual/post-pg.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-A4-i87-M-1500/qual/post-speed.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-A4-i87-M-1500/qual/pre-host.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-A4-i87-M-1500/qual/pre-pg.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-A4-i87-M-1500/qual/pre-speed.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-A4-i87-M-1500/qual/preflight.json	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-A4-i87-M-1500/qual/wave-host.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-A4-i87-M-1500/qual/window.json	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+SAVED	load01c2-probe-A4-i87-M-1500/resources.jsonl	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-A4-i87-M-1500/rl-window.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-A4-i87-M-1500/sched-samples.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-A4-i87-M-1500/session-limit.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-A4-i87-M-1500/telegram-jobs.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-A4-i87-M-1500/timeline.jsonl	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-A4-i87-M-1500/tpl-active.txt	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-A4-i87-M-1500/update-jobs.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-A4-i87-M-1500/validity.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-A4-i87-M-1500/wave-report.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-AA1-i70-M-1500/MANIFEST.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-AA1-i70-M-1500/SHA256SUMS	محفوظٌ في raw-summaries باسمِ artifact-SHA256SUMS.txt (إعادةُ تسميةٍ لتفاديِ تعارضِ بيانِ الأدلةِ)
+SAVED	load01c2-probe-AA1-i70-M-1500/arm-sha.txt	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-AA1-i70-M-1500/arm.txt	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-AA1-i70-M-1500/b24-env.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-AA1-i70-M-1500/collect.out	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-AA1-i70-M-1500/conn-samples.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-AA1-i70-M-1500/db-audit-post.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-AA1-i70-M-1500/db-audit-pre.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-AA1-i70-M-1500/dispatch-trace.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-AA1-i70-M-1500/gates.txt	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-AA1-i70-M-1500/input-sha256sums.txt	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-AA1-i70-M-1500/job-timeline.err	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+SAVED	load01c2-probe-AA1-i70-M-1500/job-timeline.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-AA1-i70-M-1500/load-events.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-AA1-i70-M-1500/load-trace.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-AA1-i70-M-1500/miniapp-load-events.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-AA1-i70-M-1500/mixed-sent.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-AA1-i70-M-1500/mixed-validity.txt	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-AA1-i70-M-1500/mock-stats-post.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-AA1-i70-M-1500/mock-stats-pre.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-AA1-i70-M-1500/offers.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-AA1-i70-M-1500/orders.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-AA1-i70-M-1500/p4-decompose.err	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+SAVED	load01c2-probe-AA1-i70-M-1500/p4-decompose.out.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-AA1-i70-M-1500/pgss-full.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-AA1-i70-M-1500/qual/inflight.json	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-AA1-i70-M-1500/qual/post-diag.out	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-AA1-i70-M-1500/qual/post-pg.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-AA1-i70-M-1500/qual/post-speed.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-AA1-i70-M-1500/qual/pre-host.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-AA1-i70-M-1500/qual/pre-pg.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-AA1-i70-M-1500/qual/pre-speed.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-AA1-i70-M-1500/qual/preflight.json	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-AA1-i70-M-1500/qual/wave-host.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-AA1-i70-M-1500/qual/window.json	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+SAVED	load01c2-probe-AA1-i70-M-1500/resources.jsonl	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-AA1-i70-M-1500/rl-window.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-AA1-i70-M-1500/sched-samples.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-AA1-i70-M-1500/session-limit.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-AA1-i70-M-1500/telegram-jobs.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-AA1-i70-M-1500/timeline.jsonl	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-AA1-i70-M-1500/tpl-active.txt	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-AA1-i70-M-1500/update-jobs.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-AA1-i70-M-1500/validity.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-AA1-i70-M-1500/wave-report.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-AA2-i71-M-1500/MANIFEST.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-AA2-i71-M-1500/SHA256SUMS	محفوظٌ في raw-summaries باسمِ artifact-SHA256SUMS.txt (إعادةُ تسميةٍ لتفاديِ تعارضِ بيانِ الأدلةِ)
+SAVED	load01c2-probe-AA2-i71-M-1500/arm-sha.txt	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-AA2-i71-M-1500/arm.txt	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-AA2-i71-M-1500/b24-env.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-AA2-i71-M-1500/collect.out	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-AA2-i71-M-1500/conn-samples.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-AA2-i71-M-1500/db-audit-post.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-AA2-i71-M-1500/db-audit-pre.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-AA2-i71-M-1500/dispatch-trace.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-AA2-i71-M-1500/gates.txt	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-AA2-i71-M-1500/input-sha256sums.txt	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-AA2-i71-M-1500/job-timeline.err	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+SAVED	load01c2-probe-AA2-i71-M-1500/job-timeline.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-AA2-i71-M-1500/load-events.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-AA2-i71-M-1500/load-trace.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-AA2-i71-M-1500/miniapp-load-events.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-AA2-i71-M-1500/mixed-sent.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-AA2-i71-M-1500/mixed-validity.txt	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-AA2-i71-M-1500/mock-stats-post.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-AA2-i71-M-1500/mock-stats-pre.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-AA2-i71-M-1500/offers.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-AA2-i71-M-1500/orders.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-AA2-i71-M-1500/p4-decompose.err	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+SAVED	load01c2-probe-AA2-i71-M-1500/p4-decompose.out.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-AA2-i71-M-1500/pgss-full.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-AA2-i71-M-1500/qual/inflight.json	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-AA2-i71-M-1500/qual/post-diag.out	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-AA2-i71-M-1500/qual/post-pg.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-AA2-i71-M-1500/qual/post-speed.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-AA2-i71-M-1500/qual/pre-host.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-AA2-i71-M-1500/qual/pre-pg.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-AA2-i71-M-1500/qual/pre-speed.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-AA2-i71-M-1500/qual/preflight.json	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-AA2-i71-M-1500/qual/wave-host.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-AA2-i71-M-1500/qual/window.json	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+SAVED	load01c2-probe-AA2-i71-M-1500/resources.jsonl	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-AA2-i71-M-1500/rl-window.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-AA2-i71-M-1500/sched-samples.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-AA2-i71-M-1500/session-limit.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-AA2-i71-M-1500/telegram-jobs.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-AA2-i71-M-1500/timeline.jsonl	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-AA2-i71-M-1500/tpl-active.txt	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-AA2-i71-M-1500/update-jobs.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-AA2-i71-M-1500/validity.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-AA2-i71-M-1500/wave-report.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-B1-i81-M-1500/MANIFEST.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-B1-i81-M-1500/SHA256SUMS	محفوظٌ في raw-summaries باسمِ artifact-SHA256SUMS.txt (إعادةُ تسميةٍ لتفاديِ تعارضِ بيانِ الأدلةِ)
+SAVED	load01c2-probe-B1-i81-M-1500/arm-sha.txt	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-B1-i81-M-1500/arm.txt	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-B1-i81-M-1500/b24-env.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-B1-i81-M-1500/collect.out	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-B1-i81-M-1500/conn-samples.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-B1-i81-M-1500/db-audit-post.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-B1-i81-M-1500/db-audit-pre.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-B1-i81-M-1500/dispatch-trace.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-B1-i81-M-1500/gates.txt	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-B1-i81-M-1500/input-sha256sums.txt	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-B1-i81-M-1500/job-timeline.err	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+SAVED	load01c2-probe-B1-i81-M-1500/job-timeline.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-B1-i81-M-1500/load-events.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-B1-i81-M-1500/load-trace.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-B1-i81-M-1500/miniapp-load-events.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-B1-i81-M-1500/mixed-sent.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-B1-i81-M-1500/mixed-validity.txt	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-B1-i81-M-1500/mock-stats-post.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-B1-i81-M-1500/mock-stats-pre.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-B1-i81-M-1500/offers.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-B1-i81-M-1500/orders.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-B1-i81-M-1500/p4-decompose.err	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+SAVED	load01c2-probe-B1-i81-M-1500/p4-decompose.out.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-B1-i81-M-1500/pgss-full.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-B1-i81-M-1500/qual/inflight.json	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-B1-i81-M-1500/qual/post-diag.out	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-B1-i81-M-1500/qual/post-pg.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-B1-i81-M-1500/qual/post-speed.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-B1-i81-M-1500/qual/pre-host.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-B1-i81-M-1500/qual/pre-pg.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-B1-i81-M-1500/qual/pre-speed.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-B1-i81-M-1500/qual/preflight.json	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-B1-i81-M-1500/qual/wave-host.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-B1-i81-M-1500/qual/window.json	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+SAVED	load01c2-probe-B1-i81-M-1500/resources.jsonl	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-B1-i81-M-1500/rl-window.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-B1-i81-M-1500/sched-samples.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-B1-i81-M-1500/session-limit.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-B1-i81-M-1500/telegram-jobs.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-B1-i81-M-1500/timeline.jsonl	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-B1-i81-M-1500/tpl-active.txt	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-B1-i81-M-1500/update-jobs.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-B1-i81-M-1500/validity.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-B1-i81-M-1500/wave-report.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-B2-i82-M-1500/MANIFEST.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-B2-i82-M-1500/SHA256SUMS	محفوظٌ في raw-summaries باسمِ artifact-SHA256SUMS.txt (إعادةُ تسميةٍ لتفاديِ تعارضِ بيانِ الأدلةِ)
+SAVED	load01c2-probe-B2-i82-M-1500/arm-sha.txt	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-B2-i82-M-1500/arm.txt	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-B2-i82-M-1500/b24-env.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-B2-i82-M-1500/collect.out	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-B2-i82-M-1500/conn-samples.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-B2-i82-M-1500/db-audit-post.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-B2-i82-M-1500/db-audit-pre.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-B2-i82-M-1500/dispatch-trace.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-B2-i82-M-1500/gates.txt	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-B2-i82-M-1500/input-sha256sums.txt	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-B2-i82-M-1500/job-timeline.err	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+SAVED	load01c2-probe-B2-i82-M-1500/job-timeline.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-B2-i82-M-1500/load-events.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-B2-i82-M-1500/load-trace.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-B2-i82-M-1500/miniapp-load-events.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-B2-i82-M-1500/mixed-sent.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-B2-i82-M-1500/mixed-validity.txt	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-B2-i82-M-1500/mock-stats-post.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-B2-i82-M-1500/mock-stats-pre.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-B2-i82-M-1500/offers.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-B2-i82-M-1500/orders.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-B2-i82-M-1500/p4-decompose.err	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+SAVED	load01c2-probe-B2-i82-M-1500/p4-decompose.out.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-B2-i82-M-1500/pgss-full.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-B2-i82-M-1500/qual/inflight.json	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-B2-i82-M-1500/qual/post-diag.out	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-B2-i82-M-1500/qual/post-pg.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-B2-i82-M-1500/qual/post-speed.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-B2-i82-M-1500/qual/pre-host.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-B2-i82-M-1500/qual/pre-pg.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-B2-i82-M-1500/qual/pre-speed.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-B2-i82-M-1500/qual/preflight.json	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-B2-i82-M-1500/qual/wave-host.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-B2-i82-M-1500/qual/window.json	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+SAVED	load01c2-probe-B2-i82-M-1500/resources.jsonl	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-B2-i82-M-1500/rl-window.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-B2-i82-M-1500/sched-samples.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-B2-i82-M-1500/session-limit.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-B2-i82-M-1500/telegram-jobs.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-B2-i82-M-1500/timeline.jsonl	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-B2-i82-M-1500/tpl-active.txt	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-B2-i82-M-1500/update-jobs.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-B2-i82-M-1500/validity.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-B2-i82-M-1500/wave-report.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-B3-i85-M-1500/MANIFEST.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-B3-i85-M-1500/SHA256SUMS	محفوظٌ في raw-summaries باسمِ artifact-SHA256SUMS.txt (إعادةُ تسميةٍ لتفاديِ تعارضِ بيانِ الأدلةِ)
+SAVED	load01c2-probe-B3-i85-M-1500/arm-sha.txt	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-B3-i85-M-1500/arm.txt	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-B3-i85-M-1500/b24-env.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-B3-i85-M-1500/collect.out	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-B3-i85-M-1500/conn-samples.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-B3-i85-M-1500/db-audit-post.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-B3-i85-M-1500/db-audit-pre.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-B3-i85-M-1500/dispatch-trace.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-B3-i85-M-1500/gates.txt	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-B3-i85-M-1500/input-sha256sums.txt	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-B3-i85-M-1500/job-timeline.err	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+SAVED	load01c2-probe-B3-i85-M-1500/job-timeline.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-B3-i85-M-1500/load-events.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-B3-i85-M-1500/load-trace.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-B3-i85-M-1500/miniapp-load-events.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-B3-i85-M-1500/mixed-sent.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-B3-i85-M-1500/mixed-validity.txt	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-B3-i85-M-1500/mock-stats-post.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-B3-i85-M-1500/mock-stats-pre.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-B3-i85-M-1500/offers.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-B3-i85-M-1500/orders.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-B3-i85-M-1500/p4-decompose.err	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+SAVED	load01c2-probe-B3-i85-M-1500/p4-decompose.out.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-B3-i85-M-1500/pgss-full.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-B3-i85-M-1500/qual/inflight.json	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-B3-i85-M-1500/qual/post-diag.out	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-B3-i85-M-1500/qual/post-pg.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-B3-i85-M-1500/qual/post-speed.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-B3-i85-M-1500/qual/pre-host.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-B3-i85-M-1500/qual/pre-pg.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-B3-i85-M-1500/qual/pre-speed.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-B3-i85-M-1500/qual/preflight.json	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-B3-i85-M-1500/qual/wave-host.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-B3-i85-M-1500/qual/window.json	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+SAVED	load01c2-probe-B3-i85-M-1500/resources.jsonl	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-B3-i85-M-1500/rl-window.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-B3-i85-M-1500/sched-samples.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-B3-i85-M-1500/session-limit.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-B3-i85-M-1500/telegram-jobs.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-B3-i85-M-1500/timeline.jsonl	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-B3-i85-M-1500/tpl-active.txt	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-B3-i85-M-1500/update-jobs.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-B3-i85-M-1500/validity.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-B3-i85-M-1500/wave-report.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-B4-i86-M-1500/MANIFEST.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-B4-i86-M-1500/SHA256SUMS	محفوظٌ في raw-summaries باسمِ artifact-SHA256SUMS.txt (إعادةُ تسميةٍ لتفاديِ تعارضِ بيانِ الأدلةِ)
+SAVED	load01c2-probe-B4-i86-M-1500/arm-sha.txt	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-B4-i86-M-1500/arm.txt	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-B4-i86-M-1500/b24-env.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-B4-i86-M-1500/collect.out	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-B4-i86-M-1500/conn-samples.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-B4-i86-M-1500/db-audit-post.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-B4-i86-M-1500/db-audit-pre.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-B4-i86-M-1500/dispatch-trace.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-B4-i86-M-1500/gates.txt	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-B4-i86-M-1500/input-sha256sums.txt	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-B4-i86-M-1500/job-timeline.err	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+SAVED	load01c2-probe-B4-i86-M-1500/job-timeline.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-B4-i86-M-1500/load-events.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-B4-i86-M-1500/load-trace.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-B4-i86-M-1500/miniapp-load-events.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-B4-i86-M-1500/mixed-sent.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-B4-i86-M-1500/mixed-validity.txt	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-B4-i86-M-1500/mock-stats-post.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-B4-i86-M-1500/mock-stats-pre.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-B4-i86-M-1500/offers.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-B4-i86-M-1500/orders.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-B4-i86-M-1500/p4-decompose.err	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+SAVED	load01c2-probe-B4-i86-M-1500/p4-decompose.out.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-B4-i86-M-1500/pgss-full.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-B4-i86-M-1500/qual/inflight.json	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-B4-i86-M-1500/qual/post-diag.out	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-B4-i86-M-1500/qual/post-pg.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-B4-i86-M-1500/qual/post-speed.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-B4-i86-M-1500/qual/pre-host.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-B4-i86-M-1500/qual/pre-pg.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-B4-i86-M-1500/qual/pre-speed.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-B4-i86-M-1500/qual/preflight.json	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-B4-i86-M-1500/qual/wave-host.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-B4-i86-M-1500/qual/window.json	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+SAVED	load01c2-probe-B4-i86-M-1500/resources.jsonl	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-B4-i86-M-1500/rl-window.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-B4-i86-M-1500/sched-samples.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-B4-i86-M-1500/session-limit.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-B4-i86-M-1500/telegram-jobs.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-B4-i86-M-1500/timeline.jsonl	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-B4-i86-M-1500/tpl-active.txt	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-B4-i86-M-1500/update-jobs.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-B4-i86-M-1500/validity.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-B4-i86-M-1500/wave-report.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-COST-OFF1-i72-M-1500/MANIFEST.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-COST-OFF1-i72-M-1500/SHA256SUMS	محفوظٌ في raw-summaries باسمِ artifact-SHA256SUMS.txt (إعادةُ تسميةٍ لتفاديِ تعارضِ بيانِ الأدلةِ)
+SAVED	load01c2-probe-COST-OFF1-i72-M-1500/arm-sha.txt	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-COST-OFF1-i72-M-1500/arm.txt	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-COST-OFF1-i72-M-1500/b24-env.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-COST-OFF1-i72-M-1500/collect.out	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-COST-OFF1-i72-M-1500/conn-samples.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-COST-OFF1-i72-M-1500/db-audit-post.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-COST-OFF1-i72-M-1500/db-audit-pre.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-COST-OFF1-i72-M-1500/dispatch-trace.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-COST-OFF1-i72-M-1500/gates.txt	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-COST-OFF1-i72-M-1500/input-sha256sums.txt	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-COST-OFF1-i72-M-1500/job-timeline.err	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+SAVED	load01c2-probe-COST-OFF1-i72-M-1500/job-timeline.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-COST-OFF1-i72-M-1500/load-events.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-COST-OFF1-i72-M-1500/load-trace.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-COST-OFF1-i72-M-1500/miniapp-load-events.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-COST-OFF1-i72-M-1500/mixed-sent.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-COST-OFF1-i72-M-1500/mixed-validity.txt	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-COST-OFF1-i72-M-1500/mock-stats-post.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-COST-OFF1-i72-M-1500/mock-stats-pre.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-COST-OFF1-i72-M-1500/offers.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-COST-OFF1-i72-M-1500/orders.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-COST-OFF1-i72-M-1500/p4-decompose.err	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+SAVED	load01c2-probe-COST-OFF1-i72-M-1500/p4-decompose.out.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-COST-OFF1-i72-M-1500/pgss-full.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-COST-OFF1-i72-M-1500/qual/inflight.json	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-COST-OFF1-i72-M-1500/qual/post-diag.out	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-COST-OFF1-i72-M-1500/qual/post-pg.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-COST-OFF1-i72-M-1500/qual/post-speed.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-COST-OFF1-i72-M-1500/qual/pre-host.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-COST-OFF1-i72-M-1500/qual/pre-pg.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-COST-OFF1-i72-M-1500/qual/pre-speed.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-COST-OFF1-i72-M-1500/qual/preflight.json	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-COST-OFF1-i72-M-1500/qual/wave-host.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-COST-OFF1-i72-M-1500/qual/window.json	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+SAVED	load01c2-probe-COST-OFF1-i72-M-1500/resources.jsonl	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-COST-OFF1-i72-M-1500/rl-window.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-COST-OFF1-i72-M-1500/sched-samples.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-COST-OFF1-i72-M-1500/session-limit.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-COST-OFF1-i72-M-1500/telegram-jobs.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-COST-OFF1-i72-M-1500/timeline.jsonl	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-COST-OFF1-i72-M-1500/tpl-active.txt	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-COST-OFF1-i72-M-1500/update-jobs.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-COST-OFF1-i72-M-1500/validity.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-COST-OFF1-i72-M-1500/wave-report.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-COST-OFF2-i73-M-1500/MANIFEST.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-COST-OFF2-i73-M-1500/SHA256SUMS	محفوظٌ في raw-summaries باسمِ artifact-SHA256SUMS.txt (إعادةُ تسميةٍ لتفاديِ تعارضِ بيانِ الأدلةِ)
+SAVED	load01c2-probe-COST-OFF2-i73-M-1500/arm-sha.txt	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-COST-OFF2-i73-M-1500/arm.txt	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-COST-OFF2-i73-M-1500/b24-env.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-COST-OFF2-i73-M-1500/collect.out	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-COST-OFF2-i73-M-1500/conn-samples.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-COST-OFF2-i73-M-1500/db-audit-post.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-COST-OFF2-i73-M-1500/db-audit-pre.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-COST-OFF2-i73-M-1500/dispatch-trace.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-COST-OFF2-i73-M-1500/gates.txt	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-COST-OFF2-i73-M-1500/input-sha256sums.txt	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-COST-OFF2-i73-M-1500/job-timeline.err	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+SAVED	load01c2-probe-COST-OFF2-i73-M-1500/job-timeline.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-COST-OFF2-i73-M-1500/load-events.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-COST-OFF2-i73-M-1500/load-trace.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-COST-OFF2-i73-M-1500/miniapp-load-events.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-COST-OFF2-i73-M-1500/mixed-sent.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-COST-OFF2-i73-M-1500/mixed-validity.txt	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-COST-OFF2-i73-M-1500/mock-stats-post.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-COST-OFF2-i73-M-1500/mock-stats-pre.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-COST-OFF2-i73-M-1500/offers.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-COST-OFF2-i73-M-1500/orders.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-COST-OFF2-i73-M-1500/p4-decompose.err	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+SAVED	load01c2-probe-COST-OFF2-i73-M-1500/p4-decompose.out.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-COST-OFF2-i73-M-1500/pgss-full.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-COST-OFF2-i73-M-1500/qual/inflight.json	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-COST-OFF2-i73-M-1500/qual/post-diag.out	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-COST-OFF2-i73-M-1500/qual/post-pg.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-COST-OFF2-i73-M-1500/qual/post-speed.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-COST-OFF2-i73-M-1500/qual/pre-host.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-COST-OFF2-i73-M-1500/qual/pre-pg.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-COST-OFF2-i73-M-1500/qual/pre-speed.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-COST-OFF2-i73-M-1500/qual/preflight.json	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-COST-OFF2-i73-M-1500/qual/wave-host.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-COST-OFF2-i73-M-1500/qual/window.json	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+SAVED	load01c2-probe-COST-OFF2-i73-M-1500/resources.jsonl	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-COST-OFF2-i73-M-1500/rl-window.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-COST-OFF2-i73-M-1500/sched-samples.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-COST-OFF2-i73-M-1500/session-limit.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-COST-OFF2-i73-M-1500/telegram-jobs.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-COST-OFF2-i73-M-1500/timeline.jsonl	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-COST-OFF2-i73-M-1500/tpl-active.txt	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-COST-OFF2-i73-M-1500/update-jobs.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-COST-OFF2-i73-M-1500/validity.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-COST-OFF2-i73-M-1500/wave-report.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-COST-ON1-i71-M-1500/MANIFEST.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-COST-ON1-i71-M-1500/SHA256SUMS	محفوظٌ في raw-summaries باسمِ artifact-SHA256SUMS.txt (إعادةُ تسميةٍ لتفاديِ تعارضِ بيانِ الأدلةِ)
+SAVED	load01c2-probe-COST-ON1-i71-M-1500/arm-sha.txt	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-COST-ON1-i71-M-1500/arm.txt	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-COST-ON1-i71-M-1500/b24-env.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-COST-ON1-i71-M-1500/collect.out	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-COST-ON1-i71-M-1500/conn-samples.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-COST-ON1-i71-M-1500/db-audit-post.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-COST-ON1-i71-M-1500/db-audit-pre.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-COST-ON1-i71-M-1500/dispatch-trace.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-COST-ON1-i71-M-1500/gates.txt	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-COST-ON1-i71-M-1500/input-sha256sums.txt	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-COST-ON1-i71-M-1500/job-timeline.err	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+SAVED	load01c2-probe-COST-ON1-i71-M-1500/job-timeline.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-COST-ON1-i71-M-1500/load-events.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-COST-ON1-i71-M-1500/load-trace.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-COST-ON1-i71-M-1500/miniapp-load-events.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-COST-ON1-i71-M-1500/mixed-sent.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-COST-ON1-i71-M-1500/mixed-validity.txt	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-COST-ON1-i71-M-1500/mock-stats-post.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-COST-ON1-i71-M-1500/mock-stats-pre.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-COST-ON1-i71-M-1500/offers.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-COST-ON1-i71-M-1500/orders.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-COST-ON1-i71-M-1500/p4-decompose.err	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+SAVED	load01c2-probe-COST-ON1-i71-M-1500/p4-decompose.out.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-COST-ON1-i71-M-1500/pgss-full.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-COST-ON1-i71-M-1500/qual/inflight.json	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-COST-ON1-i71-M-1500/qual/post-diag.out	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-COST-ON1-i71-M-1500/qual/post-pg.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-COST-ON1-i71-M-1500/qual/post-speed.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-COST-ON1-i71-M-1500/qual/pre-host.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-COST-ON1-i71-M-1500/qual/pre-pg.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-COST-ON1-i71-M-1500/qual/pre-speed.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-COST-ON1-i71-M-1500/qual/preflight.json	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-COST-ON1-i71-M-1500/qual/wave-host.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-COST-ON1-i71-M-1500/qual/window.json	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+SAVED	load01c2-probe-COST-ON1-i71-M-1500/resources.jsonl	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-COST-ON1-i71-M-1500/rl-window.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-COST-ON1-i71-M-1500/sched-samples.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-COST-ON1-i71-M-1500/session-limit.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-COST-ON1-i71-M-1500/telegram-jobs.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-COST-ON1-i71-M-1500/timeline.jsonl	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-COST-ON1-i71-M-1500/tpl-active.txt	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-COST-ON1-i71-M-1500/update-jobs.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-COST-ON1-i71-M-1500/validity.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-COST-ON1-i71-M-1500/wave-report.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-COST-ON2-i74-M-1500/MANIFEST.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-COST-ON2-i74-M-1500/SHA256SUMS	محفوظٌ في raw-summaries باسمِ artifact-SHA256SUMS.txt (إعادةُ تسميةٍ لتفاديِ تعارضِ بيانِ الأدلةِ)
+SAVED	load01c2-probe-COST-ON2-i74-M-1500/arm-sha.txt	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-COST-ON2-i74-M-1500/arm.txt	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-COST-ON2-i74-M-1500/b24-env.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-COST-ON2-i74-M-1500/collect.out	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-COST-ON2-i74-M-1500/conn-samples.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-COST-ON2-i74-M-1500/db-audit-post.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-COST-ON2-i74-M-1500/db-audit-pre.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-COST-ON2-i74-M-1500/dispatch-trace.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-COST-ON2-i74-M-1500/gates.txt	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-COST-ON2-i74-M-1500/input-sha256sums.txt	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-COST-ON2-i74-M-1500/job-timeline.err	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+SAVED	load01c2-probe-COST-ON2-i74-M-1500/job-timeline.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-COST-ON2-i74-M-1500/load-events.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-COST-ON2-i74-M-1500/load-trace.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-COST-ON2-i74-M-1500/miniapp-load-events.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-COST-ON2-i74-M-1500/mixed-sent.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-COST-ON2-i74-M-1500/mixed-validity.txt	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-COST-ON2-i74-M-1500/mock-stats-post.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-COST-ON2-i74-M-1500/mock-stats-pre.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-COST-ON2-i74-M-1500/offers.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-COST-ON2-i74-M-1500/orders.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-COST-ON2-i74-M-1500/p4-decompose.err	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+SAVED	load01c2-probe-COST-ON2-i74-M-1500/p4-decompose.out.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-COST-ON2-i74-M-1500/pgss-full.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-COST-ON2-i74-M-1500/qual/inflight.json	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-COST-ON2-i74-M-1500/qual/post-diag.out	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-COST-ON2-i74-M-1500/qual/post-pg.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-COST-ON2-i74-M-1500/qual/post-speed.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-COST-ON2-i74-M-1500/qual/pre-host.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-COST-ON2-i74-M-1500/qual/pre-pg.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-COST-ON2-i74-M-1500/qual/pre-speed.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-COST-ON2-i74-M-1500/qual/preflight.json	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-COST-ON2-i74-M-1500/qual/wave-host.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-COST-ON2-i74-M-1500/qual/window.json	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+SAVED	load01c2-probe-COST-ON2-i74-M-1500/resources.jsonl	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-COST-ON2-i74-M-1500/rl-window.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-COST-ON2-i74-M-1500/sched-samples.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-COST-ON2-i74-M-1500/session-limit.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-COST-ON2-i74-M-1500/telegram-jobs.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-COST-ON2-i74-M-1500/timeline.jsonl	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-COST-ON2-i74-M-1500/tpl-active.txt	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-COST-ON2-i74-M-1500/update-jobs.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-COST-ON2-i74-M-1500/validity.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-COST-ON2-i74-M-1500/wave-report.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-S1-i90-M-100/MANIFEST.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-S1-i90-M-100/SHA256SUMS	محفوظٌ في raw-summaries باسمِ artifact-SHA256SUMS.txt (إعادةُ تسميةٍ لتفاديِ تعارضِ بيانِ الأدلةِ)
+SAVED	load01c2-probe-S1-i90-M-100/arm-sha.txt	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-S1-i90-M-100/arm.txt	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-S1-i90-M-100/b24-env.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-S1-i90-M-100/collect.out	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-S1-i90-M-100/conn-samples.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-S1-i90-M-100/db-audit-post.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-S1-i90-M-100/db-audit-pre.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-S1-i90-M-100/dispatch-trace.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-S1-i90-M-100/gates.txt	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-S1-i90-M-100/job-timeline.err	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+SAVED	load01c2-probe-S1-i90-M-100/job-timeline.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-S1-i90-M-100/load-events.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-S1-i90-M-100/load-trace.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-S1-i90-M-100/miniapp-load-events.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-S1-i90-M-100/mixed-sent.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-S1-i90-M-100/mixed-validity.txt	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-S1-i90-M-100/mock-stats-post.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-S1-i90-M-100/mock-stats-pre.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-S1-i90-M-100/offers.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-S1-i90-M-100/orders.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-S1-i90-M-100/p4-decompose.err	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+SAVED	load01c2-probe-S1-i90-M-100/p4-decompose.out.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-S1-i90-M-100/pgss-full.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-S1-i90-M-100/qual/inflight.json	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-S1-i90-M-100/qual/post-diag.out	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-S1-i90-M-100/qual/post-pg.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-S1-i90-M-100/qual/post-speed.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-S1-i90-M-100/qual/pre-host.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-S1-i90-M-100/qual/pre-pg.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-S1-i90-M-100/qual/pre-speed.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-S1-i90-M-100/qual/preflight.json	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-S1-i90-M-100/qual/wave-host.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-S1-i90-M-100/qual/window.json	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+SAVED	load01c2-probe-S1-i90-M-100/resources.jsonl	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-S1-i90-M-100/rl-window.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-S1-i90-M-100/sched-samples.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-S1-i90-M-100/session-limit.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-S1-i90-M-100/telegram-jobs.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-S1-i90-M-100/timeline.jsonl	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-S1-i90-M-100/tpl-active.txt	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-S1-i90-M-100/update-jobs.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-S1-i90-M-100/validity.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-S1-i90-M-100/wave-report.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-S2-i90-M-100/MANIFEST.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-S2-i90-M-100/SHA256SUMS	محفوظٌ في raw-summaries باسمِ artifact-SHA256SUMS.txt (إعادةُ تسميةٍ لتفاديِ تعارضِ بيانِ الأدلةِ)
+SAVED	load01c2-probe-S2-i90-M-100/arm-sha.txt	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-S2-i90-M-100/arm.txt	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-S2-i90-M-100/b24-env.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-S2-i90-M-100/collect.out	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-S2-i90-M-100/conn-samples.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-S2-i90-M-100/db-audit-post.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-S2-i90-M-100/db-audit-pre.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-S2-i90-M-100/dispatch-trace.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-S2-i90-M-100/gates.txt	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-S2-i90-M-100/job-timeline.err	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+SAVED	load01c2-probe-S2-i90-M-100/job-timeline.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-S2-i90-M-100/load-events.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-S2-i90-M-100/load-trace.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-S2-i90-M-100/miniapp-load-events.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-S2-i90-M-100/mixed-sent.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-S2-i90-M-100/mixed-validity.txt	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-S2-i90-M-100/mock-stats-post.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-S2-i90-M-100/mock-stats-pre.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-S2-i90-M-100/offers.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-S2-i90-M-100/orders.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-S2-i90-M-100/p4-decompose.err	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+SAVED	load01c2-probe-S2-i90-M-100/p4-decompose.out.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-S2-i90-M-100/pgss-full.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-S2-i90-M-100/qual/inflight.json	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-S2-i90-M-100/qual/post-diag.out	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-S2-i90-M-100/qual/post-pg.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-S2-i90-M-100/qual/post-speed.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-S2-i90-M-100/qual/pre-host.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-S2-i90-M-100/qual/pre-pg.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-S2-i90-M-100/qual/pre-speed.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-S2-i90-M-100/qual/preflight.json	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-S2-i90-M-100/qual/wave-host.jsonl	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+NOT_SAVED	load01c2-probe-S2-i90-M-100/qual/window.json	مخرجُ تشغيلٍ خامٌّ (سجلُّ عرَضٍ أو أخطاءِ خطوةٍ) — يبقى في أثرِ الأفعالِ
+SAVED	load01c2-probe-S2-i90-M-100/resources.jsonl	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-S2-i90-M-100/rl-window.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+NOT_SAVED	load01c2-probe-S2-i90-M-100/sched-samples.jsonl.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-S2-i90-M-100/session-limit.json	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-S2-i90-M-100/telegram-jobs.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-S2-i90-M-100/timeline.jsonl	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-S2-i90-M-100/tpl-active.txt	محفوظٌ في raw-summaries
+NOT_SAVED	load01c2-probe-S2-i90-M-100/update-jobs.csv.gz	خامٌّ ثقيلٌ (سجلُّ خامٍّ مضغوطٌ) — يبقى في أثرِ الأفعالِ ذاتَ الثلاثينَ يومًا
+SAVED	load01c2-probe-S2-i90-M-100/validity.json	محفوظٌ في raw-summaries
+SAVED	load01c2-probe-S2-i90-M-100/wave-report.json	محفوظٌ في raw-summaries
+OTHER	seat-env.txt	خارجَ جذرِ الموجاتِ (سجلُّ المشغِّلِ والتنسيقُ) — غيرُ محفوظٍ هنا، متاحٌ في أثرِ الأفعالِ
+OTHER	secret-audit.txt	خارجَ جذرِ الموجاتِ (سجلُّ المشغِّلِ والتنسيقُ) — غيرُ محفوظٍ هنا، متاحٌ في أثرِ الأفعالِ
+OTHER	seq-probe-A1-i80.log	خارجَ جذرِ الموجاتِ (سجلُّ المشغِّلِ والتنسيقُ) — غيرُ محفوظٍ هنا، متاحٌ في أثرِ الأفعالِ
+OTHER	seq-probe-A2-i83.log	خارجَ جذرِ الموجاتِ (سجلُّ المشغِّلِ والتنسيقُ) — غيرُ محفوظٍ هنا، متاحٌ في أثرِ الأفعالِ
+OTHER	seq-probe-A3-i84.log	خارجَ جذرِ الموجاتِ (سجلُّ المشغِّلِ والتنسيقُ) — غيرُ محفوظٍ هنا، متاحٌ في أثرِ الأفعالِ
+OTHER	seq-probe-A4-i87.log	خارجَ جذرِ الموجاتِ (سجلُّ المشغِّلِ والتنسيقُ) — غيرُ محفوظٍ هنا، متاحٌ في أثرِ الأفعالِ
+OTHER	seq-probe-AA1-i70.log	خارجَ جذرِ الموجاتِ (سجلُّ المشغِّلِ والتنسيقُ) — غيرُ محفوظٍ هنا، متاحٌ في أثرِ الأفعالِ
+OTHER	seq-probe-AA2-i71.log	خارجَ جذرِ الموجاتِ (سجلُّ المشغِّلِ والتنسيقُ) — غيرُ محفوظٍ هنا، متاحٌ في أثرِ الأفعالِ
+OTHER	seq-probe-B1-i81.log	خارجَ جذرِ الموجاتِ (سجلُّ المشغِّلِ والتنسيقُ) — غيرُ محفوظٍ هنا، متاحٌ في أثرِ الأفعالِ
+OTHER	seq-probe-B2-i82.log	خارجَ جذرِ الموجاتِ (سجلُّ المشغِّلِ والتنسيقُ) — غيرُ محفوظٍ هنا، متاحٌ في أثرِ الأفعالِ
+OTHER	seq-probe-B3-i85.log	خارجَ جذرِ الموجاتِ (سجلُّ المشغِّلِ والتنسيقُ) — غيرُ محفوظٍ هنا، متاحٌ في أثرِ الأفعالِ
+OTHER	seq-probe-B4-i86.log	خارجَ جذرِ الموجاتِ (سجلُّ المشغِّلِ والتنسيقُ) — غيرُ محفوظٍ هنا، متاحٌ في أثرِ الأفعالِ
+OTHER	seq-probe-COST-OFF1-i72.log	خارجَ جذرِ الموجاتِ (سجلُّ المشغِّلِ والتنسيقُ) — غيرُ محفوظٍ هنا، متاحٌ في أثرِ الأفعالِ
+OTHER	seq-probe-COST-OFF2-i73.log	خارجَ جذرِ الموجاتِ (سجلُّ المشغِّلِ والتنسيقُ) — غيرُ محفوظٍ هنا، متاحٌ في أثرِ الأفعالِ
+OTHER	seq-probe-COST-ON1-i71.log	خارجَ جذرِ الموجاتِ (سجلُّ المشغِّلِ والتنسيقُ) — غيرُ محفوظٍ هنا، متاحٌ في أثرِ الأفعالِ
+OTHER	seq-probe-COST-ON2-i74.log	خارجَ جذرِ الموجاتِ (سجلُّ المشغِّلِ والتنسيقُ) — غيرُ محفوظٍ هنا، متاحٌ في أثرِ الأفعالِ
+OTHER	seq-probe-S1-i90.log	خارجَ جذرِ الموجاتِ (سجلُّ المشغِّلِ والتنسيقُ) — غيرُ محفوظٍ هنا، متاحٌ في أثرِ الأفعالِ
+OTHER	seq-probe-S2-i90.log	خارجَ جذرِ الموجاتِ (سجلُّ المشغِّلِ والتنسيقُ) — غيرُ محفوظٍ هنا، متاحٌ في أثرِ الأفعالِ
+OTHER	setup-env-B.log	خارجَ جذرِ الموجاتِ (سجلُّ المشغِّلِ والتنسيقُ) — غيرُ محفوظٍ هنا، متاحٌ في أثرِ الأفعالِ
+OTHER	setup-env.log	خارجَ جذرِ الموجاتِ (سجلُّ المشغِّلِ والتنسيقُ) — غيرُ محفوظٍ هنا، متاحٌ في أثرِ الأفعالِ
+OTHER	strata.json	خارجَ جذرِ الموجاتِ (سجلُّ المشغِّلِ والتنسيقُ) — غيرُ محفوظٍ هنا، متاحٌ في أثرِ الأفعالِ
+OTHER	strata.log	خارجَ جذرِ الموجاتِ (سجلُّ المشغِّلِ والتنسيقُ) — غيرُ محفوظٍ هنا، متاحٌ في أثرِ الأفعالِ
+OTHER	svc-status.txt	خارجَ جذرِ الموجاتِ (سجلُّ المشغِّلِ والتنسيقُ) — غيرُ محفوظٍ هنا، متاحٌ في أثرِ الأفعالِ
+OTHER	tpl-active-pre.txt	خارجَ جذرِ الموجاتِ (سجلُّ المشغِّلِ والتنسيقُ) — غيرُ محفوظٍ هنا، متاحٌ في أثرِ الأفعالِ
+OTHER	tpl-active-probe-A1-i80.txt	خارجَ جذرِ الموجاتِ (سجلُّ المشغِّلِ والتنسيقُ) — غيرُ محفوظٍ هنا، متاحٌ في أثرِ الأفعالِ
+OTHER	tpl-active-probe-A2-i83.txt	خارجَ جذرِ الموجاتِ (سجلُّ المشغِّلِ والتنسيقُ) — غيرُ محفوظٍ هنا، متاحٌ في أثرِ الأفعالِ
+OTHER	tpl-active-probe-A3-i84.txt	خارجَ جذرِ الموجاتِ (سجلُّ المشغِّلِ والتنسيقُ) — غيرُ محفوظٍ هنا، متاحٌ في أثرِ الأفعالِ
+OTHER	tpl-active-probe-A4-i87.txt	خارجَ جذرِ الموجاتِ (سجلُّ المشغِّلِ والتنسيقُ) — غيرُ محفوظٍ هنا، متاحٌ في أثرِ الأفعالِ
+OTHER	tpl-active-probe-AA1-i70.txt	خارجَ جذرِ الموجاتِ (سجلُّ المشغِّلِ والتنسيقُ) — غيرُ محفوظٍ هنا، متاحٌ في أثرِ الأفعالِ
+OTHER	tpl-active-probe-AA2-i71.txt	خارجَ جذرِ الموجاتِ (سجلُّ المشغِّلِ والتنسيقُ) — غيرُ محفوظٍ هنا، متاحٌ في أثرِ الأفعالِ
+OTHER	tpl-active-probe-B1-i81.txt	خارجَ جذرِ الموجاتِ (سجلُّ المشغِّلِ والتنسيقُ) — غيرُ محفوظٍ هنا، متاحٌ في أثرِ الأفعالِ
+OTHER	tpl-active-probe-B2-i82.txt	خارجَ جذرِ الموجاتِ (سجلُّ المشغِّلِ والتنسيقُ) — غيرُ محفوظٍ هنا، متاحٌ في أثرِ الأفعالِ
+OTHER	tpl-active-probe-B3-i85.txt	خارجَ جذرِ الموجاتِ (سجلُّ المشغِّلِ والتنسيقُ) — غيرُ محفوظٍ هنا، متاحٌ في أثرِ الأفعالِ
+OTHER	tpl-active-probe-B4-i86.txt	خارجَ جذرِ الموجاتِ (سجلُّ المشغِّلِ والتنسيقُ) — غيرُ محفوظٍ هنا، متاحٌ في أثرِ الأفعالِ
+OTHER	tpl-active-probe-COST-OFF1-i72.txt	خارجَ جذرِ الموجاتِ (سجلُّ المشغِّلِ والتنسيقُ) — غيرُ محفوظٍ هنا، متاحٌ في أثرِ الأفعالِ
+OTHER	tpl-active-probe-COST-OFF2-i73.txt	خارجَ جذرِ الموجاتِ (سجلُّ المشغِّلِ والتنسيقُ) — غيرُ محفوظٍ هنا، متاحٌ في أثرِ الأفعالِ
+OTHER	tpl-active-probe-COST-ON1-i71.txt	خارجَ جذرِ الموجاتِ (سجلُّ المشغِّلِ والتنسيقُ) — غيرُ محفوظٍ هنا، متاحٌ في أثرِ الأفعالِ
+OTHER	tpl-active-probe-COST-ON2-i74.txt	خارجَ جذرِ الموجاتِ (سجلُّ المشغِّلِ والتنسيقُ) — غيرُ محفوظٍ هنا، متاحٌ في أثرِ الأفعالِ
+OTHER	tpl-active-probe-S1-i90.txt	خارجَ جذرِ الموجاتِ (سجلُّ المشغِّلِ والتنسيقُ) — غيرُ محفوظٍ هنا، متاحٌ في أثرِ الأفعالِ
+OTHER	tpl-active-probe-S2-i90.txt	خارجَ جذرِ الموجاتِ (سجلُّ المشغِّلِ والتنسيقُ) — غيرُ محفوظٍ هنا، متاحٌ في أثرِ الأفعالِ
+OTHER	tpl-fingerprint-A.txt	خارجَ جذرِ الموجاتِ (سجلُّ المشغِّلِ والتنسيقُ) — غيرُ محفوظٍ هنا، متاحٌ في أثرِ الأفعالِ
+OTHER	tpl-fingerprint-B.txt	خارجَ جذرِ الموجاتِ (سجلُّ المشغِّلِ والتنسيقُ) — غيرُ محفوظٍ هنا، متاحٌ في أثرِ الأفعالِ
+OTHER	tpl-fingerprint.txt	خارجَ جذرِ الموجاتِ (سجلُّ المشغِّلِ والتنسيقُ) — غيرُ محفوظٍ هنا، متاحٌ في أثرِ الأفعالِ
+OTHER	tpl-idxset-A.txt	خارجَ جذرِ الموجاتِ (سجلُّ المشغِّلِ والتنسيقُ) — غيرُ محفوظٍ هنا، متاحٌ في أثرِ الأفعالِ
+OTHER	tpl-idxset-B.txt	خارجَ جذرِ الموجاتِ (سجلُّ المشغِّلِ والتنسيقُ) — غيرُ محفوظٍ هنا، متاحٌ في أثرِ الأفعالِ
+OTHER	validity.json	خارجَ جذرِ الموجاتِ (سجلُّ المشغِّلِ والتنسيقُ) — غيرُ محفوظٍ هنا، متاحٌ في أثرِ الأفعالِ
+OTHER	wave-summary.json	خارجَ جذرِ الموجاتِ (سجلُّ المشغِّلِ والتنسيقُ) — غيرُ محفوظٍ هنا، متاحٌ في أثرِ الأفعالِ

@@ -1,0 +1,746 @@
+[
+ {
+  "wave": "load01c2-probe-A1-i80-M-1500",
+  "rows": {
+   "httpreq": 171437,
+   "httpreq_with_id": 171437,
+   "httpreq_dup_ids": 0,
+   "pseat": 207321,
+   "pseat_rows_with_id": 207321,
+   "pseat_noid": 0,
+   "pseat_unmatched_rows": 0,
+   "http_call": 104126,
+   "http_call_dup_ids": 0,
+   "http_call_matched": 104126
+  },
+  "httpreq_with_gate": 158102,
+  "seat_stats": {
+   "other|out": {
+    "n": 1,
+    "wait_mean": 0.0,
+    "wait_p95": 0.0,
+    "hold_mean": 4.14,
+    "hold_p95": 4.14
+   },
+   "other|inj": {
+    "n": 176327,
+    "wait_mean": 174.67,
+    "wait_p95": 283.74,
+    "hold_mean": 4.04,
+    "hold_p95": 8.94
+   },
+   "rides|inj": {
+    "n": 9454,
+    "wait_mean": 158.17,
+    "wait_p95": 276.08,
+    "hold_mean": 6.26,
+    "hold_p95": 16.91
+   },
+   "other|drain": {
+    "n": 20321,
+    "wait_mean": 117.22,
+    "wait_p95": 229.55,
+    "hold_mean": 3.57,
+    "hold_p95": 7.78
+   },
+   "rides|drain": {
+    "n": 1218,
+    "wait_mean": 122.83,
+    "wait_p95": 210.18,
+    "hold_mean": 7.46,
+    "hold_p95": 18.73
+   }
+  },
+  "rides_request_stages": {
+   "inj": {
+    "n": 4727,
+    "gateWait_mean": 156.41,
+    "gateWait_p95": 274.32,
+    "gateHold_mean": 10.52,
+    "server_mean": 169.47,
+    "server_p95": 288.69
+   },
+   "drain": {
+    "n": 609,
+    "gateWait_mean": 121.76,
+    "gateWait_p95": 209.2,
+    "gateHold_mean": 13.03,
+    "server_mean": 136.99,
+    "server_p95": 222.97
+   }
+  },
+  "client_server_gap": {
+   "rides": {
+    "n": 5336,
+    "mean": 29.54,
+    "p50": 3.11,
+    "p95": 180.59
+   },
+   "other": {
+    "n": 98790,
+    "mean": 63.18,
+    "p50": 5.01,
+    "p95": 306.76
+   }
+  },
+  "tail_same_requests": {
+   "note": "أعلى 5% بزمنِ العميلِ لمسارِ rides — المراحلُ للطلباتِ نفسِها",
+   "n": 266,
+   "client_elapsed_mean": 603.49,
+   "gateWait_mean": 282.29,
+   "gateHold_mean": 12.27,
+   "server_mean": 297.39
+  }
+ },
+ {
+  "wave": "load01c2-probe-B1-i81-M-1500",
+  "rows": {
+   "httpreq": 167837,
+   "httpreq_with_id": 167837,
+   "httpreq_dup_ids": 0,
+   "pseat": 201845,
+   "pseat_rows_with_id": 201845,
+   "pseat_noid": 0,
+   "pseat_unmatched_rows": 0,
+   "http_call": 101721,
+   "http_call_dup_ids": 0,
+   "http_call_matched": 101721
+  },
+  "httpreq_with_gate": 154909,
+  "seat_stats": {
+   "other|out": {
+    "n": 1,
+    "wait_mean": 0.0,
+    "wait_p95": 0.0,
+    "hold_mean": 3.34,
+    "hold_p95": 3.34
+   },
+   "other|inj": {
+    "n": 176355,
+    "wait_mean": 199.74,
+    "wait_p95": 300.2,
+    "hold_mean": 4.12,
+    "hold_p95": 9.02
+   },
+   "rides|inj": {
+    "n": 9546,
+    "wait_mean": 172.83,
+    "wait_p95": 288.52,
+    "hold_mean": 6.22,
+    "hold_p95": 16.41
+   },
+   "rides|drain": {
+    "n": 750,
+    "wait_mean": 168.15,
+    "wait_p95": 312.37,
+    "hold_mean": 7.71,
+    "hold_p95": 20.08
+   },
+   "other|drain": {
+    "n": 15193,
+    "wait_mean": 149.35,
+    "wait_p95": 302.52,
+    "hold_mean": 3.95,
+    "hold_p95": 8.82
+   }
+  },
+  "rides_request_stages": {
+   "inj": {
+    "n": 4769,
+    "gateWait_mean": 171.61,
+    "gateWait_p95": 283.56,
+    "gateHold_mean": 10.41,
+    "server_mean": 184.56,
+    "server_p95": 299.59
+   },
+   "drain": {
+    "n": 379,
+    "gateWait_mean": 167.04,
+    "gateWait_p95": 303.16,
+    "gateHold_mean": 13.36,
+    "server_mean": 182.98,
+    "server_p95": 321.63
+   }
+  },
+  "client_server_gap": {
+   "rides": {
+    "n": 5148,
+    "mean": 66.59,
+    "p50": 3.86,
+    "p95": 395.65
+   },
+   "other": {
+    "n": 96573,
+    "mean": 118.43,
+    "p50": 14.85,
+    "p95": 486.92
+   }
+  },
+  "tail_same_requests": {
+   "note": "أعلى 5% بزمنِ العميلِ لمسارِ rides — المراحلُ للطلباتِ نفسِها",
+   "n": 257,
+   "client_elapsed_mean": 871.92,
+   "gateWait_mean": 266.48,
+   "gateHold_mean": 12.4,
+   "server_mean": 281.66
+  }
+ },
+ {
+  "wave": "load01c2-probe-B2-i82-M-1500",
+  "rows": {
+   "httpreq": 165182,
+   "httpreq_with_id": 165182,
+   "httpreq_dup_ids": 0,
+   "pseat": 197427,
+   "pseat_rows_with_id": 197427,
+   "pseat_noid": 0,
+   "pseat_unmatched_rows": 0,
+   "http_call": 98871,
+   "http_call_dup_ids": 0,
+   "http_call_matched": 98871
+  },
+  "httpreq_with_gate": 151899,
+  "seat_stats": {
+   "other|out": {
+    "n": 1,
+    "wait_mean": 0.0,
+    "wait_p95": 0.0,
+    "hold_mean": 3.45,
+    "hold_p95": 3.45
+   },
+   "other|inj": {
+    "n": 173513,
+    "wait_mean": 205.23,
+    "wait_p95": 307.06,
+    "hold_mean": 4.21,
+    "hold_p95": 9.14
+   },
+   "rides|inj": {
+    "n": 9275,
+    "wait_mean": 172.83,
+    "wait_p95": 296.41,
+    "hold_mean": 6.3,
+    "hold_p95": 16.66
+   },
+   "other|drain": {
+    "n": 13915,
+    "wait_mean": 156.53,
+    "wait_p95": 284.43,
+    "hold_mean": 4.13,
+    "hold_p95": 9.31
+   },
+   "rides|drain": {
+    "n": 723,
+    "wait_mean": 178.89,
+    "wait_p95": 305.95,
+    "hold_mean": 8.18,
+    "hold_p95": 21.71
+   }
+  },
+  "rides_request_stages": {
+   "inj": {
+    "n": 4628,
+    "gateWait_mean": 172.59,
+    "gateWait_p95": 295.73,
+    "gateHold_mean": 10.45,
+    "server_mean": 185.7,
+    "server_p95": 313.36
+   },
+   "drain": {
+    "n": 371,
+    "gateWait_mean": 182.15,
+    "gateWait_p95": 306.09,
+    "gateHold_mean": 14.43,
+    "server_mean": 199.33,
+    "server_p95": 329.59
+   }
+  },
+  "client_server_gap": {
+   "rides": {
+    "n": 4999,
+    "mean": 85.46,
+    "p50": 3.79,
+    "p95": 500.44
+   },
+   "other": {
+    "n": 93872,
+    "mean": 137.09,
+    "p50": 18.42,
+    "p95": 546.87
+   }
+  },
+  "tail_same_requests": {
+   "note": "أعلى 5% بزمنِ العميلِ لمسارِ rides — المراحلُ للطلباتِ نفسِها",
+   "n": 249,
+   "client_elapsed_mean": 1041.71,
+   "gateWait_mean": 282.54,
+   "gateHold_mean": 13.37,
+   "server_mean": 299.41
+  }
+ },
+ {
+  "wave": "load01c2-probe-A2-i83-M-1500",
+  "rows": {
+   "httpreq": 164934,
+   "httpreq_with_id": 164934,
+   "httpreq_dup_ids": 0,
+   "pseat": 199956,
+   "pseat_rows_with_id": 199956,
+   "pseat_noid": 0,
+   "pseat_unmatched_rows": 0,
+   "http_call": 99980,
+   "http_call_dup_ids": 0,
+   "http_call_matched": 99980
+  },
+  "httpreq_with_gate": 153272,
+  "seat_stats": {
+   "other|out": {
+    "n": 1,
+    "wait_mean": 0.0,
+    "wait_p95": 0.0,
+    "hold_mean": 4.06,
+    "hold_p95": 4.06
+   },
+   "other|inj": {
+    "n": 172195,
+    "wait_mean": 184.82,
+    "wait_p95": 298.87,
+    "hold_mean": 4.14,
+    "hold_p95": 9.26
+   },
+   "rides|inj": {
+    "n": 9256,
+    "wait_mean": 154.98,
+    "wait_p95": 285.65,
+    "hold_mean": 6.19,
+    "hold_p95": 16.56
+   },
+   "other|drain": {
+    "n": 17508,
+    "wait_mean": 102.78,
+    "wait_p95": 194.46,
+    "hold_mean": 3.73,
+    "hold_p95": 8.31
+   },
+   "rides|drain": {
+    "n": 996,
+    "wait_mean": 117.1,
+    "wait_p95": 213.69,
+    "hold_mean": 7.07,
+    "hold_p95": 17.59
+   }
+  },
+  "rides_request_stages": {
+   "inj": {
+    "n": 4625,
+    "gateWait_mean": 152.99,
+    "gateWait_p95": 282.81,
+    "gateHold_mean": 10.39,
+    "server_mean": 166.0,
+    "server_p95": 298.88
+   },
+   "drain": {
+    "n": 501,
+    "gateWait_mean": 117.73,
+    "gateWait_p95": 230.27,
+    "gateHold_mean": 12.23,
+    "server_mean": 132.61,
+    "server_p95": 248.56
+   }
+  },
+  "client_server_gap": {
+   "rides": {
+    "n": 5126,
+    "mean": 32.42,
+    "p50": 3.55,
+    "p95": 169.07
+   },
+   "other": {
+    "n": 94854,
+    "mean": 71.69,
+    "p50": 5.88,
+    "p95": 320.08
+   }
+  },
+  "tail_same_requests": {
+   "note": "أعلى 5% بزمنِ العميلِ لمسارِ rides — المراحلُ للطلباتِ نفسِها",
+   "n": 256,
+   "client_elapsed_mean": 624.39,
+   "gateWait_mean": 275.74,
+   "gateHold_mean": 13.04,
+   "server_mean": 291.65
+  }
+ },
+ {
+  "wave": "load01c2-probe-A3-i84-M-1500",
+  "rows": {
+   "httpreq": 155072,
+   "httpreq_with_id": 155072,
+   "httpreq_dup_ids": 0,
+   "pseat": 189106,
+   "pseat_rows_with_id": 189106,
+   "pseat_noid": 0,
+   "pseat_unmatched_rows": 0,
+   "http_call": 92954,
+   "http_call_dup_ids": 0,
+   "http_call_matched": 92954
+  },
+  "httpreq_with_gate": 145786,
+  "seat_stats": {
+   "other|out": {
+    "n": 1,
+    "wait_mean": 0.0,
+    "wait_p95": 0.0,
+    "hold_mean": 3.2,
+    "hold_p95": 3.2
+   },
+   "other|inj": {
+    "n": 167400,
+    "wait_mean": 189.92,
+    "wait_p95": 313.14,
+    "hold_mean": 4.3,
+    "hold_p95": 9.81
+   },
+   "rides|inj": {
+    "n": 8893,
+    "wait_mean": 153.42,
+    "wait_p95": 299.68,
+    "hold_mean": 6.21,
+    "hold_p95": 16.91
+   },
+   "other|drain": {
+    "n": 12247,
+    "wait_mean": 111.23,
+    "wait_p95": 247.71,
+    "hold_mean": 3.72,
+    "hold_p95": 8.94
+   },
+   "rides|drain": {
+    "n": 565,
+    "wait_mean": 115.38,
+    "wait_p95": 255.45,
+    "hold_mean": 7.01,
+    "hold_p95": 19.07
+   }
+  },
+  "rides_request_stages": {
+   "inj": {
+    "n": 4442,
+    "gateWait_mean": 152.6,
+    "gateWait_p95": 298.96,
+    "gateHold_mean": 10.36,
+    "server_mean": 165.56,
+    "server_p95": 317.7
+   },
+   "drain": {
+    "n": 287,
+    "gateWait_mean": 119.33,
+    "gateWait_p95": 259.36,
+    "gateHold_mean": 12.31,
+    "server_mean": 134.32,
+    "server_p95": 280.37
+   }
+  },
+  "client_server_gap": {
+   "rides": {
+    "n": 4729,
+    "mean": 33.6,
+    "p50": 3.24,
+    "p95": 202.3
+   },
+   "other": {
+    "n": 88225,
+    "mean": 76.12,
+    "p50": 5.43,
+    "p95": 355.5
+   }
+  },
+  "tail_same_requests": {
+   "note": "أعلى 5% بزمنِ العميلِ لمسارِ rides — المراحلُ للطلباتِ نفسِها",
+   "n": 236,
+   "client_elapsed_mean": 669.54,
+   "gateWait_mean": 298.53,
+   "gateHold_mean": 13.29,
+   "server_mean": 315.04
+  }
+ },
+ {
+  "wave": "load01c2-probe-B3-i85-M-1500",
+  "rows": {
+   "httpreq": 173738,
+   "httpreq_with_id": 173738,
+   "httpreq_dup_ids": 0,
+   "pseat": 214435,
+   "pseat_rows_with_id": 214435,
+   "pseat_noid": 0,
+   "pseat_unmatched_rows": 0,
+   "http_call": 110962,
+   "http_call_dup_ids": 0,
+   "http_call_matched": 110962
+  },
+  "httpreq_with_gate": 163934,
+  "seat_stats": {
+   "other|out": {
+    "n": 1,
+    "wait_mean": 0.0,
+    "wait_p95": 0.0,
+    "hold_mean": 3.58,
+    "hold_p95": 3.58
+   },
+   "other|inj": {
+    "n": 185764,
+    "wait_mean": 190.35,
+    "wait_p95": 300.43,
+    "hold_mean": 3.92,
+    "hold_p95": 8.68
+   },
+   "rides|inj": {
+    "n": 10230,
+    "wait_mean": 158.29,
+    "wait_p95": 285.15,
+    "hold_mean": 6.02,
+    "hold_p95": 16.17
+   },
+   "other|drain": {
+    "n": 17588,
+    "wait_mean": 184.27,
+    "wait_p95": 305.44,
+    "hold_mean": 3.91,
+    "hold_p95": 8.89
+   },
+   "rides|drain": {
+    "n": 852,
+    "wait_mean": 205.04,
+    "wait_p95": 319.48,
+    "hold_mean": 8.09,
+    "hold_p95": 21.08
+   }
+  },
+  "rides_request_stages": {
+   "inj": {
+    "n": 5115,
+    "gateWait_mean": 156.52,
+    "gateWait_p95": 282.01,
+    "gateHold_mean": 10.16,
+    "server_mean": 169.17,
+    "server_p95": 299.02
+   },
+   "drain": {
+    "n": 426,
+    "gateWait_mean": 203.31,
+    "gateWait_p95": 296.62,
+    "gateHold_mean": 13.97,
+    "server_mean": 219.95,
+    "server_p95": 318.75
+   }
+  },
+  "client_server_gap": {
+   "rides": {
+    "n": 5541,
+    "mean": 79.74,
+    "p50": 3.88,
+    "p95": 436.47
+   },
+   "other": {
+    "n": 105421,
+    "mean": 140.78,
+    "p50": 22.92,
+    "p95": 537.17
+   }
+  },
+  "tail_same_requests": {
+   "note": "أعلى 5% بزمنِ العميلِ لمسارِ rides — المراحلُ للطلباتِ نفسِها",
+   "n": 277,
+   "client_elapsed_mean": 977.33,
+   "gateWait_mean": 285.68,
+   "gateHold_mean": 14.54,
+   "server_mean": 303.41
+  }
+ },
+ {
+  "wave": "load01c2-probe-B4-i86-M-1500",
+  "rows": {
+   "httpreq": 174876,
+   "httpreq_with_id": 174876,
+   "httpreq_dup_ids": 0,
+   "pseat": 211737,
+   "pseat_rows_with_id": 211737,
+   "pseat_noid": 0,
+   "pseat_unmatched_rows": 0,
+   "http_call": 107953,
+   "http_call_dup_ids": 0,
+   "http_call_matched": 107953
+  },
+  "httpreq_with_gate": 161697,
+  "seat_stats": {
+   "other|out": {
+    "n": 1,
+    "wait_mean": 0.0,
+    "wait_p95": 0.0,
+    "hold_mean": 4.12,
+    "hold_p95": 4.12
+   },
+   "other|inj": {
+    "n": 184259,
+    "wait_mean": 190.54,
+    "wait_p95": 296.11,
+    "hold_mean": 3.96,
+    "hold_p95": 8.76
+   },
+   "rides|inj": {
+    "n": 10092,
+    "wait_mean": 163.7,
+    "wait_p95": 283.27,
+    "hold_mean": 6.04,
+    "hold_p95": 16.1
+   },
+   "other|drain": {
+    "n": 16515,
+    "wait_mean": 124.7,
+    "wait_p95": 260.0,
+    "hold_mean": 3.62,
+    "hold_p95": 8.13
+   },
+   "rides|drain": {
+    "n": 870,
+    "wait_mean": 140.18,
+    "wait_p95": 259.32,
+    "hold_mean": 7.04,
+    "hold_p95": 17.71
+   }
+  },
+  "rides_request_stages": {
+   "inj": {
+    "n": 5046,
+    "gateWait_mean": 162.43,
+    "gateWait_p95": 280.15,
+    "gateHold_mean": 10.15,
+    "server_mean": 175.03,
+    "server_p95": 296.93
+   },
+   "drain": {
+    "n": 435,
+    "gateWait_mean": 142.22,
+    "gateWait_p95": 263.22,
+    "gateHold_mean": 12.17,
+    "server_mean": 156.75,
+    "server_p95": 280.33
+   }
+  },
+  "client_server_gap": {
+   "rides": {
+    "n": 5481,
+    "mean": 73.13,
+    "p50": 3.72,
+    "p95": 377.85
+   },
+   "other": {
+    "n": 102472,
+    "mean": 118.39,
+    "p50": 12.67,
+    "p95": 476.9
+   }
+  },
+  "tail_same_requests": {
+   "note": "أعلى 5% بزمنِ العميلِ لمسارِ rides — المراحلُ للطلباتِ نفسِها",
+   "n": 274,
+   "client_elapsed_mean": 952.05,
+   "gateWait_mean": 276.21,
+   "gateHold_mean": 12.46,
+   "server_mean": 291.78
+  }
+ },
+ {
+  "wave": "load01c2-probe-A4-i87-M-1500",
+  "rows": {
+   "httpreq": 163417,
+   "httpreq_with_id": 163417,
+   "httpreq_dup_ids": 0,
+   "pseat": 203183,
+   "pseat_rows_with_id": 203183,
+   "pseat_noid": 0,
+   "pseat_unmatched_rows": 0,
+   "http_call": 102456,
+   "http_call_dup_ids": 0,
+   "http_call_matched": 102456
+  },
+  "httpreq_with_gate": 155844,
+  "seat_stats": {
+   "other|out": {
+    "n": 1,
+    "wait_mean": 0.0,
+    "wait_p95": 0.0,
+    "hold_mean": 3.38,
+    "hold_p95": 3.38
+   },
+   "other|inj": {
+    "n": 177543,
+    "wait_mean": 181.5,
+    "wait_p95": 295.08,
+    "hold_mean": 4.05,
+    "hold_p95": 9.16
+   },
+   "rides|inj": {
+    "n": 9584,
+    "wait_mean": 153.58,
+    "wait_p95": 290.67,
+    "hold_mean": 6.26,
+    "hold_p95": 17.45
+   },
+   "other|drain": {
+    "n": 15261,
+    "wait_mean": 103.34,
+    "wait_p95": 264.5,
+    "hold_mean": 3.6,
+    "hold_p95": 8.31
+   },
+   "rides|drain": {
+    "n": 794,
+    "wait_mean": 111.96,
+    "wait_p95": 245.06,
+    "hold_mean": 7.44,
+    "hold_p95": 19.81
+   }
+  },
+  "rides_request_stages": {
+   "inj": {
+    "n": 4792,
+    "gateWait_mean": 153.33,
+    "gateWait_p95": 289.75,
+    "gateHold_mean": 10.52,
+    "server_mean": 166.56,
+    "server_p95": 304.54
+   },
+   "drain": {
+    "n": 397,
+    "gateWait_mean": 112.71,
+    "gateWait_p95": 262.42,
+    "gateHold_mean": 12.79,
+    "server_mean": 128.04,
+    "server_p95": 280.57
+   }
+  },
+  "client_server_gap": {
+   "rides": {
+    "n": 5189,
+    "mean": 31.54,
+    "p50": 3.41,
+    "p95": 191.73
+   },
+   "other": {
+    "n": 97267,
+    "mean": 71.41,
+    "p50": 7.6,
+    "p95": 328.34
+   }
+  },
+  "tail_same_requests": {
+   "note": "أعلى 5% بزمنِ العميلِ لمسارِ rides — المراحلُ للطلباتِ نفسِها",
+   "n": 259,
+   "client_elapsed_mean": 595.25,
+   "gateWait_mean": 287.62,
+   "gateHold_mean": 12.51,
+   "server_mean": 303.5
+  }
+ }
+]

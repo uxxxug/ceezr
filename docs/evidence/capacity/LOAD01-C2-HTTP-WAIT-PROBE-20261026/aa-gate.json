@@ -1,0 +1,38 @@
+{
+ "mode": "aa",
+ "waves": [
+  "load01c2-probe-AA1-i70-M-1500",
+  "load01c2-probe-AA2-i71-M-1500"
+ ],
+ "delta_ms": 15.0,
+ "input_hashes_file": "input-sha256sums.txt (في دليل كل موجة)",
+ "metrics": {
+  "rides_conditional_mean": {
+   "AA1_conditional_mean_ms": 164.44691836875216,
+   "AA2_conditional_mean_ms": 166.88918245022813,
+   "windows_with_data": [
+    34,
+    34
+   ],
+   "A_minus_A_ms": 2.442264081475969,
+   "rule": "إعادةُ_إنتاجٍ_ضمنَ_±δ"
+  },
+  "descriptive_rides_injection": [
+   164.44691836875216,
+   166.88918245022813
+  ],
+  "descriptive_rides_drain": [
+   94.85505424616535,
+   89.20448587761676
+  ],
+  "descriptive_other_injection": [
+   187.48699730660152,
+   187.0022839991966
+  ],
+  "descriptive_other_drain": [
+   138.606017903676,
+   106.18568295686669
+  ]
+ },
+ "verdict": "إعادةُ_إنتاجٍ_ضمنَ_±δ"
+}
