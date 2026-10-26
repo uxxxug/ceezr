@@ -9,24 +9,38 @@
   1. من `load-events.jsonl.gz` لكلِّ موجةٍ: سطورُ `http_call` الفرديةُ لمسارِ `rides_create`
      (gen=genA) — العمودُ الذي يربطُهُ المحلّلُ بالطلباتِ الخادميةِ.
   2. إعادةُ حسابِ p95/p99 بنفسِ طريقةِ `PathRecorder.latencyPercentiles` في
-     `deploy/capacity-run/load/lib.ts` (المؤشرُ floor(q·n) المقصوصُ على الطولِ).
-  3. مقارنةُ ذلكَ بقيمِ P1/P6a في `wave-report.json` (المأخوذةِ من آخرِ سطرِ
-     `latency_percentiles` لِgenA) — التطابقُ التامُّ يثبتُ أنَّ المجسّينِ على المجتمعِ
-     نفسِهِ لا على عملياتٍ مستقلةٍ.
-  4. تركيبُ العيّنةِ: توزيعُ رموزِ الحالةِ، وحصةُ الصفوفِ بلا معرّفِ طلبٍ، ومدىُ أعلى 5%
-     (الذيلُ الذي تسألُ عنهُ الدورةُ) — فلا يُخلطُ الذيلُ الناجحُ بذيلِ أخطاءٍ.
+     `deploy/capacity-run/load/lib.ts` (المؤشرُ floor(q·n) المقصوصُ على الطولِ)، وبمقارنةٍ
+     مركّبةٍ: المئينانِ **وعددُ العيّنةِ (n)** مقابلَ آخرِ سطرِ `latency_percentiles`.
+  3. مقارنةُ ذلكَ بقيمِ P1/P6a في `wave-report.json` — التطابقُ عندَ دقّةِ التقريرِ (1ms).
+  4. تركيبُ العيّنةِ: توزيعُ رموزِ الحالةِ (بما فيه حالةُ 0 للفاشلِ شبكيًّا — مسارُ الخطأِ
+     يمرُّ عبرَ httpLatency وhttpCallLog معًا)، وحصةُ الصفوفِ بلا معرّفِ طلبٍ، وتغطيةُ
+     الأطوارِ (حقنٌ/تصريفٌ) من أحداثِ الأطوارِ في `miniapp-load-events.jsonl.gz`، وذيلُ
+     أعلى 5% (بالمراتبِ لا بالعتبةِ — فلا تُضمُّ متعادلاتٌ خارجَ الشريحةِ).
 
-المدخلاتُ اللازمةُ لإعادةِ الإنتاجِ: خامُ الموجاتِ (`load-events.jsonl.gz` لكلِّ موجةٍ)
-من أثرِ أفعالِ التشغيلِ 40292412972 (احتفاظُ 30 يومًا من 2026-10-26) — ملخصاتُ
-الأرشيفِ (318 ملفًّا) لا تحملُ هذا الخامَّ؛ الناتجُ المحفوظُ هنا هو البرهانُ الباقي.
+المدخلاتُ اللازمةُ لإعادةِ الإنتاجِ: خامُ الموجاتِ (`load-events.jsonl.gz` و
+`miniapp-load-events.jsonl.gz`) — محفوظةٌ عيناتُها المستخدمةُ في أرشيفِ الدورةِ
+(`docs/evidence/archive/LOAD01-PROBE-BOUNDARY-AUDIT-20261026/samples/`)، والأصلُ الكاملُ
+في أثرِ أفعالِ التشغيلِ 40292412972 (احتفاظُ 30 يومًا من 2026-10-26).
 """
 from __future__ import annotations
 
 import gzip
 import json
+import math
 import os
 import sys
 from collections import Counter
+
+USAGE = "الاستعمالُ: analyze-probe-boundary.py <دليلُ خامِّ الموجاتِ> <دليلُ ملخصاتِ الأرشيفِ>"
+
+
+def js_round(x: float) -> int:
+    """تدويرُ JavaScript (Math.round) للقيمِ غيرِ السالبةِ: نصفٌ إلى الأعلى —
+    لا تدويرُ بايثونَ المصرفيُّ إلى الزوجِ (round(452.5)=452 هناك و453 هنا)."""
+    if x < 0:
+        raise ValueError("تدويرُ السوالبِ غيرُ مطلوبٍ هنا")
+    return math.floor(x + 0.5)
+
 
 # نفسُ قصِّ المئينِ في lib.ts: sorted[min(len-1, floor(q*n))]
 def percentile(sorted_vals: list[float], q: float) -> float:
@@ -40,75 +54,117 @@ def parse_report_value(text: str) -> int:
     return int(text.rstrip("ms"))
 
 
-def wave_audit(events_path: str, report_path: str) -> dict:
-    rows: list[dict] = []
-    with gzip.open(events_path, "rt", encoding="utf-8") as f:
+def epoch_ms(iso: str) -> int:
+    import datetime
+    return int(datetime.datetime.fromisoformat(iso.replace("Z", "+00:00")).timestamp() * 1000)
+
+
+def read_jsonl_gz(path: str) -> tuple[list[dict], int]:
+    """قراءةُ سطرٍ سطرٍ معَ عدِّ الأسطرِ غيرِ القابلةِ للقراءةِ (لا تُخفى بصمتًا)."""
+    rows, bad = [], 0
+    with gzip.open(path, "rt", encoding="utf-8") as f:
         for line in f:
             try:
-                d = json.loads(line)
+                rows.append(json.loads(line))
             except json.JSONDecodeError:
-                continue
-            if (
-                d.get("event") == "http_call"
-                and d.get("gen") == "genA"
-                and d.get("label") == "rides_create"
-            ):
-                rows.append(d)
+                bad += 1
+    return rows, bad
+
+
+def wave_audit(events_path: str, phases_path: str, report_path: str) -> dict:
+    rows, bad_lines = read_jsonl_gz(events_path)
+    calls = [d for d in rows if d.get("event") == "http_call" and d.get("gen") == "genA"
+             and d.get("label") == "rides_create"]
+    lp_rows = [d for d in rows if d.get("event") == "latency_percentiles" and d.get("gen") == "genA"]
+
     report = json.load(open(report_path, encoding="utf-8"))
     perf = {r["id"]: r["value"] for r in report["perf"]}
     p1 = parse_report_value(perf["P1"])
     p6a = parse_report_value(perf["P6a"])
 
-    elapsed = sorted(r["elapsedMs"] for r in rows)
+    elapsed = sorted(r["elapsedMs"] for r in calls)
     p95 = percentile(elapsed, 0.95)
     p99 = percentile(elapsed, 0.99)
-    top5 = elapsed[int(len(elapsed) * 0.95):]
+    # ذيلُ أعلى 5% بالمراتبِ (آخرُ 5% منَ العيّنةِ المرتّبةِ) — لا بعتبةِ >= فتُضمُّ متعادلاتٌ
+    top5_rows = calls_sorted = sorted(calls, key=lambda r: r["elapsedMs"])[int(len(calls) * 0.95):]
 
-    status_all = Counter(r["status"] for r in rows)
-    status_top5 = Counter(
-        r["status"] for r in rows if r["elapsedMs"] >= top5[0]
-    )
-    # قيمُ wave-report مدوّرةٌ إلى الملّي ثانيةِ (Math.round)، وسطورُ http_call
-    # محفوظةٌ بدقةِ 0.01ms — فالمقارنةُ على المدوّرِ، والفرقُ الخامُ يُحفظُ للتوثيقِ.
+    # المركّبُ: آخرُ سطرِ مئيناتٍ في السجلِّ نفسِه (ما يقرؤهُ تقريرُ الموجةِ)
+    last_lp = (lp_rows[-1].get("rides_create") if lp_rows else None) or {}
+    lp_n = last_lp.get("n")
+
+    # أحداثُ المولّدِ (الأطوارُ ونتائجُ السيناريوهاتِ) من ملفِ أحداثِ الأطوارِ
+    phase_rows, _ = read_jsonl_gz(phases_path)
+    # وسيناريوهاتُ المولّدِ: كلُّ سيناريو متحقّقٍ بدأ بإنشاءِ رحلةٍ واحدٍ لا إعادةَ —
+    # فتطابقُ عدّها معَ n يسدُّ الطريقَ الثالثَ (لا رفضَ ولا إعادةَ محاولةٍ).
+    verified = sum(1 for d in phase_rows
+                   if d.get("event") == "scenario.outcome" and d.get("kind") == "verified")
+
+    # الأطوارُ: حقنٌ [start, drain) وتصريفٌ [drain, end)
+    ph = {d["event"]: epoch_ms(d["t"]) for d in phase_rows if str(d.get("event", "")).startswith("phase.")}
+    inj = drain = outside = 0
+    if {"phase.start", "phase.drain_start", "phase.end"} <= set(ph):
+        for r in calls:
+            t = epoch_ms(r["t"])
+            if ph["phase.start"] <= t < ph["phase.drain_start"]:
+                inj += 1
+            elif ph["phase.drain_start"] <= t <= ph["phase.end"]:
+                drain += 1
+            else:
+                outside += 1
+
+    status_all = Counter(r["status"] for r in calls)
     return {
         "wave": os.path.basename(os.path.dirname(events_path)),
-        "n_rides_create_calls": len(rows),
+        "n_rides_create_calls": len(calls),
+        "unreadable_lines": bad_lines,
         "status_all": dict(sorted(status_all.items())),
-        "rows_without_request_id": sum(1 for r in rows if not r.get("requestId")),
+        "rows_without_request_id": sum(1 for r in calls if not r.get("requestId")),
+        "phase_coverage": {"injection": inj, "drain": drain, "outside_phases": outside},
         "since_start_span_ms": (
-            [min(r["sinceStartMs"] for r in rows), max(r["sinceStartMs"] for r in rows)]
-            if rows else None
+            [min(r["sinceStartMs"] for r in calls), max(r["sinceStartMs"] for r in calls)]
+            if calls else None
         ),
         "p95_recomputed_ms": p95,
         "P1_report_ms": p1,
-        "p95_diff_ms": p95 - p1,
         "p99_recomputed_ms": p99,
         "P6a_report_ms": p6a,
-        "p99_diff_ms": p99 - p6a,
-        "top5_status": dict(sorted(status_top5.items())),
-        "top5_elapsed_range_ms": [top5[0], top5[-1]] if top5 else None,
-        "exact_match": round(p95) == p1 and round(p99) == p6a,
+        "last_latency_percentiles_row": {"n": lp_n, "p95": last_lp.get("p95"), "p99": last_lp.get("p99")},
+        "n_matches_lp_row": lp_n == len(calls),
+        "verified_scenarios": verified,
+        "n_matches_verified_scenarios": verified == len(calls),
+        "report_precision_match": js_round(p95) == p1 and js_round(p99) == p6a,
+        "top5_status": dict(sorted(Counter(r["status"] for r in top5_rows).items())),
+        "top5_elapsed_range_ms": [top5_rows[0]["elapsedMs"], top5_rows[-1]["elapsedMs"]] if top5_rows else None,
     }
 
 
 def main(argv: list[str]) -> int:
     if len(argv) != 3:
-        print("الاستعمالُ: analyze-probe-boundary.py <دليلُ خامِّ الموجاتِ> <دليلُ ملخصاتِ الأرشيفِ>", file=sys.stderr)
+        print(USAGE, file=sys.stderr)
         return 2
     waves_dir, summaries_dir = argv[1], argv[2]
     out = {"method_note": __doc__.split("\n")[0], "waves": []}
-    all_exact = True
+    all_ok = True
+    found = 0
     for name in sorted(os.listdir(waves_dir)):
         events = os.path.join(waves_dir, name, "load-events.jsonl.gz")
+        phases = os.path.join(waves_dir, name, "miniapp-load-events.jsonl.gz")
         report = os.path.join(summaries_dir, name, "wave-report.json")
-        if not (os.path.isfile(events) and os.path.isfile(report)):
-            continue
-        w = wave_audit(events, report)
+        if not (os.path.isfile(events) and os.path.isfile(phases) and os.path.isfile(report)):
+            continue  # ليست موجةَ قياسٍ (تُحصى الموجاتُ المعثورُ عليها ويُشترطُ >0)
+        w = wave_audit(events, phases, report)
         out["waves"].append(w)
-        all_exact = all_exact and w["exact_match"]
-    out["all_waves_exact_match"] = all_exact
+        found += 1
+        all_ok = all_ok and w["report_precision_match"] and w["n_matches_lp_row"] \
+            and w["n_matches_verified_scenarios"] and w["unreadable_lines"] == 0 \
+            and w["phase_coverage"]["outside_phases"] == 0
+    if found == 0:
+        print("✗ لم تُعثر على أيِّ موجةِ قياسٍ — المدخلاتُ ناقصةٌ", file=sys.stderr)
+        return 3
+    out["waves_found"] = found
+    out["all_waves_match_at_report_precision"] = all_ok
     print(json.dumps(out, ensure_ascii=False, indent=1))
-    return 0 if all_exact else 1
+    return 0 if all_ok else 1
 
 
 if __name__ == "__main__":

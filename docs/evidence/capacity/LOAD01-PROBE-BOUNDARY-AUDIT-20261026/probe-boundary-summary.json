@@ -4,211 +4,308 @@
   {
    "wave": "load01c2-probe-A1-i80-M-1500",
    "n_rides_create_calls": 5336,
+   "unreadable_lines": 0,
    "status_all": {
     "200": 5336
    },
    "rows_without_request_id": 0,
+   "phase_coverage": {
+    "injection": 4727,
+    "drain": 609,
+    "outside_phases": 0
+   },
    "since_start_span_ms": [
     2995,
     198055
    ],
    "p95_recomputed_ms": 453.45,
    "P1_report_ms": 453,
-   "p95_diff_ms": 0.44999999999998863,
    "p99_recomputed_ms": 689.45,
    "P6a_report_ms": 689,
-   "p99_diff_ms": 0.4500000000000455,
+   "last_latency_percentiles_row": {
+    "n": 5336,
+    "p95": 453,
+    "p99": 689
+   },
+   "n_matches_lp_row": true,
+   "verified_scenarios": 5336,
+   "n_matches_verified_scenarios": true,
+   "report_precision_match": true,
    "top5_status": {
     "200": 267
    },
    "top5_elapsed_range_ms": [
     453.45,
     992.7
-   ],
-   "exact_match": true
+   ]
   },
   {
    "wave": "load01c2-probe-A2-i83-M-1500",
    "n_rides_create_calls": 5126,
+   "unreadable_lines": 0,
    "status_all": {
     "200": 5126
    },
    "rows_without_request_id": 0,
+   "phase_coverage": {
+    "injection": 4625,
+    "drain": 501,
+    "outside_phases": 0
+   },
    "since_start_span_ms": [
     2942,
     196127
    ],
    "p95_recomputed_ms": 474.47,
    "P1_report_ms": 474,
-   "p95_diff_ms": 0.4700000000000273,
    "p99_recomputed_ms": 746.74,
    "P6a_report_ms": 747,
-   "p99_diff_ms": -0.2599999999999909,
+   "last_latency_percentiles_row": {
+    "n": 5126,
+    "p95": 474,
+    "p99": 747
+   },
+   "n_matches_lp_row": true,
+   "verified_scenarios": 5126,
+   "n_matches_verified_scenarios": true,
+   "report_precision_match": true,
    "top5_status": {
     "200": 257
    },
    "top5_elapsed_range_ms": [
     474.47,
     1094.45
-   ],
-   "exact_match": true
+   ]
   },
   {
    "wave": "load01c2-probe-A3-i84-M-1500",
    "n_rides_create_calls": 4729,
+   "unreadable_lines": 0,
    "status_all": {
     "200": 4729
    },
    "rows_without_request_id": 0,
+   "phase_coverage": {
+    "injection": 4442,
+    "drain": 287,
+    "outside_phases": 0
+   },
    "since_start_span_ms": [
     3058,
     190895
    ],
    "p95_recomputed_ms": 489.42,
    "P1_report_ms": 489,
-   "p95_diff_ms": 0.4200000000000159,
    "p99_recomputed_ms": 697.06,
    "P6a_report_ms": 697,
-   "p99_diff_ms": 0.05999999999994543,
+   "last_latency_percentiles_row": {
+    "n": 4729,
+    "p95": 489,
+    "p99": 697
+   },
+   "n_matches_lp_row": true,
+   "verified_scenarios": 4729,
+   "n_matches_verified_scenarios": true,
+   "report_precision_match": true,
    "top5_status": {
     "200": 237
    },
    "top5_elapsed_range_ms": [
     489.42,
     1271.11
-   ],
-   "exact_match": true
+   ]
   },
   {
    "wave": "load01c2-probe-A4-i87-M-1500",
    "n_rides_create_calls": 5189,
+   "unreadable_lines": 0,
    "status_all": {
     "200": 5189
    },
    "rows_without_request_id": 0,
+   "phase_coverage": {
+    "injection": 4792,
+    "drain": 397,
+    "outside_phases": 0
+   },
    "since_start_span_ms": [
     2985,
     193496
    ],
    "p95_recomputed_ms": 494.43,
    "P1_report_ms": 494,
-   "p95_diff_ms": 0.4300000000000068,
    "p99_recomputed_ms": 620.8,
    "P6a_report_ms": 621,
-   "p99_diff_ms": -0.20000000000004547,
+   "last_latency_percentiles_row": {
+    "n": 5189,
+    "p95": 494,
+    "p99": 621
+   },
+   "n_matches_lp_row": true,
+   "verified_scenarios": 5189,
+   "n_matches_verified_scenarios": true,
+   "report_precision_match": true,
    "top5_status": {
     "200": 260
    },
    "top5_elapsed_range_ms": [
     494.43,
     985.41
-   ],
-   "exact_match": true
+   ]
   },
   {
    "wave": "load01c2-probe-B1-i81-M-1500",
    "n_rides_create_calls": 5148,
+   "unreadable_lines": 0,
    "status_all": {
     "200": 5148
    },
    "rows_without_request_id": 0,
+   "phase_coverage": {
+    "injection": 4769,
+    "drain": 379,
+    "outside_phases": 0
+   },
    "since_start_span_ms": [
     3143,
     194274
    ],
    "p95_recomputed_ms": 688.74,
    "P1_report_ms": 689,
-   "p95_diff_ms": -0.2599999999999909,
    "p99_recomputed_ms": 1105.73,
    "P6a_report_ms": 1106,
-   "p99_diff_ms": -0.2699999999999818,
+   "last_latency_percentiles_row": {
+    "n": 5148,
+    "p95": 689,
+    "p99": 1106
+   },
+   "n_matches_lp_row": true,
+   "verified_scenarios": 5148,
+   "n_matches_verified_scenarios": true,
+   "report_precision_match": true,
    "top5_status": {
     "200": 258
    },
    "top5_elapsed_range_ms": [
     688.74,
     1537.71
-   ],
-   "exact_match": true
+   ]
   },
   {
    "wave": "load01c2-probe-B2-i82-M-1500",
    "n_rides_create_calls": 4999,
+   "unreadable_lines": 0,
    "status_all": {
     "200": 4999
    },
    "rows_without_request_id": 0,
+   "phase_coverage": {
+    "injection": 4628,
+    "drain": 371,
+    "outside_phases": 0
+   },
    "since_start_span_ms": [
     3043,
     193832
    ],
    "p95_recomputed_ms": 802.91,
    "P1_report_ms": 803,
-   "p95_diff_ms": -0.09000000000003183,
    "p99_recomputed_ms": 1215.55,
    "P6a_report_ms": 1216,
-   "p99_diff_ms": -0.4500000000000455,
+   "last_latency_percentiles_row": {
+    "n": 4999,
+    "p95": 803,
+    "p99": 1216
+   },
+   "n_matches_lp_row": true,
+   "verified_scenarios": 4999,
+   "n_matches_verified_scenarios": true,
+   "report_precision_match": true,
    "top5_status": {
     "200": 250
    },
    "top5_elapsed_range_ms": [
     802.91,
     1565.8
-   ],
-   "exact_match": true
+   ]
   },
   {
    "wave": "load01c2-probe-B3-i85-M-1500",
    "n_rides_create_calls": 5541,
+   "unreadable_lines": 0,
    "status_all": {
     "200": 5541
    },
    "rows_without_request_id": 0,
+   "phase_coverage": {
+    "injection": 5115,
+    "drain": 426,
+    "outside_phases": 0
+   },
    "since_start_span_ms": [
     2959,
     196579
    ],
    "p95_recomputed_ms": 699.22,
    "P1_report_ms": 699,
-   "p95_diff_ms": 0.22000000000002728,
    "p99_recomputed_ms": 1350.4,
    "P6a_report_ms": 1350,
-   "p99_diff_ms": 0.40000000000009095,
+   "last_latency_percentiles_row": {
+    "n": 5541,
+    "p95": 699,
+    "p99": 1350
+   },
+   "n_matches_lp_row": true,
+   "verified_scenarios": 5541,
+   "n_matches_verified_scenarios": true,
+   "report_precision_match": true,
    "top5_status": {
     "200": 278
    },
    "top5_elapsed_range_ms": [
     699.22,
     1591.61
-   ],
-   "exact_match": true
+   ]
   },
   {
    "wave": "load01c2-probe-B4-i86-M-1500",
    "n_rides_create_calls": 5481,
+   "unreadable_lines": 0,
    "status_all": {
     "200": 5481
    },
    "rows_without_request_id": 0,
+   "phase_coverage": {
+    "injection": 5046,
+    "drain": 435,
+    "outside_phases": 0
+   },
    "since_start_span_ms": [
     2987,
     192725
    ],
    "p95_recomputed_ms": 643.19,
    "P1_report_ms": 643,
-   "p95_diff_ms": 0.19000000000005457,
    "p99_recomputed_ms": 1226.37,
    "P6a_report_ms": 1226,
-   "p99_diff_ms": 0.36999999999989086,
+   "last_latency_percentiles_row": {
+    "n": 5481,
+    "p95": 643,
+    "p99": 1226
+   },
+   "n_matches_lp_row": true,
+   "verified_scenarios": 5481,
+   "n_matches_verified_scenarios": true,
+   "report_precision_match": true,
    "top5_status": {
     "200": 275
    },
    "top5_elapsed_range_ms": [
     643.19,
     1561.39
-   ],
-   "exact_match": true
+   ]
   }
  ],
- "all_waves_exact_match": true
+ "waves_found": 8,
+ "all_waves_match_at_report_precision": true
 }

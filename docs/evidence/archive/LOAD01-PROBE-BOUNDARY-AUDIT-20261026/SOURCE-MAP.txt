@@ -1,0 +1,25 @@
+خريطةُ مصدرِ عيناتِ تدقيقِ حدودِ المجسّاتِ — LOAD01-PROBE-BOUNDARY-AUDIT (2026-10-26)
+المصدرُ: أثرُ أفعالِ التشغيلِ 40292412972 (دورةُ LOAD01-C2-HTTP-WAIT-PROBE)
+بصمةُ SHA-256 للأثرِ: b5a465b54eb918daf2419624beb95231b84c026e89221f104f42734ef493b588
+(الأثرُ الكاملُ 795 ملفًّا · خريطتُهُ في ../LOAD01-C2-HTTP-WAIT-PROBE-20261026/artifact-map.txt)
+
+الذراعانِ المقيسانِ (ملفاتُ الأداةِ الأربعُ متطابقةٌ حرفيًّا بينَهما — بصماتُ الملفاتِ):
+  A = 30c9dae6110b522628f8ac7e3194c92eb40952fd
+  B = 3697d7a0802472d55f1b00cffe75e10488a721e3
+  apps/gateway/src/background/load-trace.ts  (SHA-256 مقتطع: 1c367427 في الذراعينِ)
+  deploy/capacity-run/load/lib.ts            (3fa03413 في الذراعينِ)
+  deploy/capacity-run/load/miniapp-load.ts   (377327ec في الذراعينِ)
+  deploy/capacity-run/load/wave-report.ts    (1eae14d3 في الذراعينِ)
+
+محتوى samples/<wave>/:
+  load-events.jsonl.gz        — سطورُ http_call لمسارِ rides_create (genA) كما هيَ منَ الخامِّ
+                                (لا تحويلَ ولا تدويرَ) + سطرُ latency_percentiles النهائيُّ لـgenA
+  miniapp-load-events.jsonl.gz — أحداثُ الأطوارِ (phase.start/drain_start/end) +
+                                سيناريوهاتُ scenario.outcome المتحقّقةُ (kind=verified)
+
+هذهِ هيَ المدخلاتُ الدنيا الكافيةُ لإعادةِ تشغيلِ المحلّلِ:
+  python3 docs/evidence/capacity/LOAD01-PROBE-BOUNDARY-AUDIT-20261026/analyze-probe-boundary.py \
+    docs/evidence/archive/LOAD01-PROBE-BOUNDARY-AUDIT-20261026/samples \
+    docs/evidence/archive/LOAD01-C2-HTTP-WAIT-PROBE-20261026/raw-summaries
+(خرجُها مطابقٌ حرفيًّا لـ probe-boundary-summary.json المحفوظِ في دليلِ الدورةِ — تحققٌ منقولٌ.)
+ما ليسَ هنا: باقي مساراتِ http_call وغيرِها منَ الخامِّ — في أثرِ الأفعالِ (احتفاظُ 30 يومًا).
