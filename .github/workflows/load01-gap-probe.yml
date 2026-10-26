@@ -1,0 +1,113 @@
+name: LOAD-01 · دورة فصل فجوة العميل/الخادم (مقعد 4 vCPU)
+
+# تجربةُ قياسٍ على فرعِ القياسِ وحدَه ولا تُدمَج. PROTOCOL-load01-gap-probe.md (PR #671) وملحقُه 1
+# مثبَّتانِ قبلَ أيِّ موجةٍ. أربعَ عشرةَ موجةً ببواباتِ تمهيدٍ توقفُ لا تُخفِّف:
+# AA1/AA2 (70/71) ← بوابةُ A/A (حدودُ httpgap وttfb/body) ← COST ON–OFF–OFF–ON (71–74) ← بوابةُ الكلفةِ
+# ← ABBA 80–87 ← gap-analyze ab. gatewayRequest 5 وIMMEDIATE_REDISPATCH_LIMIT 50 دونَ تغيير.
+# لا قاعدةَ إنتاج، لا Render، لا تيليجرامَ حقيقي. الحكمُ تشخيصيٌّ فقط: لا ادّعاءَ سعةٍ.
+
+on:
+  push:
+    branches: [exp/load01-gap-probe]
+    paths:
+      - deploy/capacity-run/b24-runner/seat-load01-gap-probe.sh
+      - deploy/capacity-run/b24-runner/gap-analyze.py
+      - deploy/capacity-run/b24-runner/gap-analyze-selftest.py
+      - docs/evidence/capacity/LOAD01-GAP-PROBE-20261026/PROTOCOL-ANNEX-1.md
+      - .github/workflows/load01-gap-probe.yml
+
+permissions:
+  contents: read
+
+env:
+  # ملحق 1 §1: A′ = ذراعُ C2 ‏A (30c9dae6) + أداةُ #671، ‏B′ = ذراعُ C2 ‏B (3697d7a0) + الأداةُ نفسُها،
+  # OFF = ذراعُ C2 ‏A بلا أداةِ الفجوةِ (30c9dae6)؛ B_C2 لفحصِ أنَّ فرقَ B′ عنْ أصلِهِ هوَ الأداةُ وحدَها.
+  A_SHA: 3bead32764ab0dd632aa9e1eebb7eb1aa29d693b
+  B_SHA: 50efec83f6caf677fd0d9e2a1b01833ff0e03b83
+  OFF_SHA: 30c9dae6110b522628f8ac7e3194c92eb40952fd
+  B_C2_SHA: 3697d7a0802472d55f1b00cffe75e10488a721e3
+  MIXED_RATE: "20"
+  MIXED_SEED: "1"
+
+jobs:
+  seat:
+    name: "gap-probe (14 waves, gates first)"
+    runs-on: ubuntu-26.04
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: تجهيز المقعد
+        run: sudo bash deploy/capacity-run/b24-runner/provision-root.sh
+
+      - name: نسخة المستودع للمستخدم user
+        run: |
+          sudo cp -a "$GITHUB_WORKSPACE" /home/user/workspace/ceezr
+          sudo chown -R user:user /home/user/workspace/ceezr
+          for X in "$A_SHA" "$B_SHA" "$OFF_SHA" "$B_C2_SHA"; do sudo -u user git -C /home/user/workspace/ceezr cat-file -e "$X^{commit}"; done
+
+      - name: المقعد والموجات (داخل ceezrseat.slice)
+        run: |
+          sudo systemd-run --quiet --wait --pipe --collect --slice=ceezrseat.slice \
+            --uid=user --gid=user -p LimitNOFILE=65536 -p WorkingDirectory=/home/user \
+            --setenv=A_SHA="$A_SHA" --setenv=B_SHA="$B_SHA" --setenv=OFF_SHA="$OFF_SHA" --setenv=B_C2_SHA="$B_C2_SHA" --setenv=MIXED_RATE="$MIXED_RATE" --setenv=MIXED_SEED="$MIXED_SEED" --setenv=CONC="1500" --setenv=CITIES="JED,MKK,RUH,TIF,MED" \
+            bash /home/user/workspace/ceezr/deploy/capacity-run/b24-runner/seat-load01-gap-probe.sh
+
+      # قرارُ الرفعِ منَ تدقيقٍ نهائيٍّ جديدٍ بعدَ انتهاءِ المقعدِ (دائمًا) يُبطلُ أيَّ تصريحٍ
+      # سابقٍ — علامةُ بوابةٍ أو ختامٍ سابقٍ لا تُجيزُ رفعَ محتوىً لاحقٍ لم يجتزْ تدقيقًا.
+      - name: التدقيق النهائي وقرار الرفع
+        id: gatecheck
+        if: always()
+        env:
+          PROBE_OUT: /home/user/load01gap-probe-out
+          PROBE_SECRETS: /srv/ceezr-cap-20261016/secrets.env
+          PROBE_AUDIT_PY: /home/user/workspace/ceezr/deploy/capacity-run/b24-runner/seat-bin/b24-secret-audit.py
+          PROBE_FINAL: /home/user/workspace/ceezr/deploy/capacity-run/b24-runner/probe-final-audit.sh
+        run: |
+          set +e
+          # إبطالُ أيِّ تصريحٍ سابقٍ في خطوةِ الاستدعاءِ نفسِها قبلَ أيِّ شيءٍ آخر —
+          # فلا تنجوَ علامةٌ قديمةٌ ولو تعذّرَ تشغيلُ البرنامجِ النهائيِّ نفسُهُ.
+          sudo rm -f "$PROBE_OUT/AUDIT_PASSED"
+          sudo bash "$PROBE_FINAL" "$PROBE_OUT" "$PROBE_SECRETS" "$PROBE_AUDIT_PY"
+          RC=$?
+          set -e
+          # الافتراضي تقريرٌ منقَّحٌ؛ الرفعُ الكاملُ لا يجوزُ إلا برمزِ 0 **و** علامةٍ جديدةٍ
+          if [ "$RC" -eq 0 ] && [ -f "$PROBE_OUT/AUDIT_PASSED" ]; then
+            MODE=evidence
+          else
+            MODE=report
+          fi
+          echo "mode=$MODE" >> "$GITHUB_OUTPUT"
+          # تقريرُ حالةٍ منقَّحٌ جديدٌ لهذهِ المحاولةِ نفسِها — مستقلٌّ عنْ قدرةِ البرنامجِ
+          # النهائيِّ على البدءِ (يتضمّنُ رمزَ الخروجِ وهلْ أُنتجَ تقريرُهُ)؛ لا يُنسخُ فيهِ
+          # مخرجاتٌ عشوائيةٌ قد تحملُ أسرارًا — أرقامٌ وقرارٌ فقط.
+          printf 'final_audit_exit=%s\nfinal_report_produced=%s\ndecision=%s\ndate_utc=%s\n' \
+            "$RC" "$([ -s "$PROBE_OUT/final-secret-audit.txt" ] && echo yes || echo no)" "$MODE" "$(date -Is)" \
+            | sudo tee "$PROBE_OUT/final-audit-status.txt" >/dev/null
+          # إخفاقُ التدقيقِ النهائيِّ إخفاقٌ في حالةِ التشغيلِ (خطواتُ الرفعِ تعملُ دائمًا)
+          exit $RC
+
+      # الدليلُ يُرفعُ في مساري النجاحِ والتوقفِ المُوثَّقِ كليهما إذا اجتازَ المحتوى النهائيُّ
+      # تدقيقَ الأسرارِ (AUDIT_PASSED) — فتوقُّفُ البوابةِ نتيجةٌ تشخيصيةٌ تُحفظُ لا تُستبدلُ؛
+      # وعندَ إخفاقِ التدقيقِ لا يُرفعُ إلا التقريرُ المنقَّحُ (الأثرُ الخامُ سقطَ في المقعدِ).
+      - name: رفع الدليل (نجاحٌ أو توقفٌ موثَّقٌ بعد تدقيقٍ نظيف)
+        if: always() && steps.gatecheck.outputs.mode == 'evidence'
+        uses: actions/upload-artifact@v5
+        with:
+          name: load01gap-probe
+          path: /home/user/load01gap-probe-out/
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: رفع تقرير الفشل المنقح (تقريرُ التدقيقِ النهائيِّ أولًا)
+        if: always() && steps.gatecheck.outputs.mode == 'report'
+        uses: actions/upload-artifact@v5
+        with:
+          name: load01gap-probe-failure-report
+          path: |
+            /home/user/load01gap-probe-out/final-audit-status.txt
+            /home/user/load01gap-probe-out/final-secret-audit.txt
+            /home/user/load01gap-probe-out/secret-audit.txt
+          if-no-files-found: ignore

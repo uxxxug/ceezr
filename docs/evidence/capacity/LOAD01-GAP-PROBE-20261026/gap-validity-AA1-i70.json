@@ -1,0 +1,16 @@
+{
+ "wave": "load01gap-probe-AA1-i70-M-1500",
+ "valid": true,
+ "reasons": [],
+ "counts": {
+  "rides_http_call": 9300,
+  "latency_percentiles_n": 9300,
+  "verified": 9300,
+  "httpgap_rides": 9300,
+  "httpreq_rides": 9300,
+  "httpgap_other_routes": 251311,
+  "linked": 9300,
+  "ok_but_gap_hole": 0
+ },
+ "note": "الربطُ الفرديُّ يُطبَّقُ على مسارِ rides (مجالُ δ)؛ سطورُ المساراتِ الأخرى معدودةٌ وصفيًّا (ملحق 1 §3)."
+}
