@@ -247,6 +247,7 @@ async function call(path: string, init: Parameters<typeof http>[1] = {}): Promis
     const result = await http(path, init);
     rec.httpEnd(result);
     rec.httpLatency(callLabel(path), result.elapsedMs);
+    rec.httpCallLog(callLabel(path), result);
     return result;
   } catch (error) {
     rec.httpEnd({

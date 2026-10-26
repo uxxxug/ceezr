@@ -48,6 +48,84 @@ function p95(values: number[]): number | null {
   return sorted[Math.min(sorted.length - 1, Math.floor(0.95 * sorted.length))] ?? null;
 }
 
+/**
+ * `LOAD-01` (تشخيصُ انتظارِ HTTP، 2026-10-26) — قسمٌ وصفيٌّ من أثرِ الربطِ الطلبيِّ
+ * (`load-trace.jsonl`: صفوفُ `httpreq`/`pseat`/`arr1s`) لا بوّابةٌ ولا حكمٌ: قراءةٌ
+ * انسيابيةٌ سطرًا سطرًا (الأثرُ كبيرٌ) تُلخِّصُ لكلِّ مسارٍ عددَ الطلباتِ ومئيناتِ
+ * الزمنِ الخادميِّ وانتظارِ المقعدِ، ونسبةَ الطلباتِ المربوطةِ بمعرّفٍ، وعددَ حجوزاتِ
+ * المقعدِ المنسوبةِ (`pseat`)، ووصولَ الثانيةِ (`arr1s`). غيابُ الأثرِ = غيابُ القسمِ
+ * (لا فشلًا) — القياسُ خلفَ `DISPATCH_TRACE_FILE` اختياريٌّ أصلًا.
+ */
+function readTraceDiag(
+  tracePath: string,
+  clientCalls: { requestId: unknown; label: unknown }[],
+): Record<string, unknown> | null {
+  if (!existsSync(tracePath)) return null;
+  const perRoute = new Map<
+    string,
+    { n: number; serverMs: number[]; gateWaitMs: number[]; gateHoldMs: number[]; withId: number }
+  >();
+  const idSet = new Set<string>();
+  let pseatRows = 0;
+  const arr = new Map<string, number>();
+  for (const line of readFileSync(tracePath, "utf8").split("\n")) {
+    if (line.trim() === "") continue;
+    let d: Record<string, unknown>;
+    try {
+      d = JSON.parse(line) as Record<string, unknown>;
+    } catch {
+      continue;
+    }
+    if (d.k === "httpreq") {
+      const route = String(d.route ?? "?");
+      let r = perRoute.get(route);
+      if (r === undefined) {
+        r = { n: 0, serverMs: [], gateWaitMs: [], gateHoldMs: [], withId: 0 };
+        perRoute.set(route, r);
+      }
+      r.n += 1;
+      if (typeof d.requestId === "string") {
+        r.withId += 1;
+        idSet.add(d.requestId);
+      }
+      r.serverMs.push(Number(d.serverMs ?? 0));
+      r.gateWaitMs.push(Number(d.gateWaitMs ?? 0));
+      r.gateHoldMs.push(Number(d.gateHoldMs ?? 0));
+    } else if (d.k === "pseat") {
+      pseatRows += 1;
+    } else if (d.k === "arr1s") {
+      const key = `${d.cls}|${d.name}`;
+      arr.set(key, (arr.get(key) ?? 0) + Number(d.n ?? 0));
+    }
+  }
+  const q = (v: number[], p: number): number | null =>
+    v.length === 0
+      ? null
+      : ([...v].sort((a, b) => a - b)[Math.min(v.length - 1, Math.floor(p * v.length))] ?? null);
+  const linked = clientCalls.filter(
+    (c) => typeof c.requestId === "string" && idSet.has(c.requestId as string),
+  ).length;
+  return {
+    httpreq: [...perRoute.entries()].map(([route, r]) => ({
+      route,
+      n: r.n,
+      withRequestId: r.withId,
+      serverP50Ms: q(r.serverMs, 0.5),
+      serverP95Ms: q(r.serverMs, 0.95),
+      gateWaitP50Ms: q(r.gateWaitMs, 0.5),
+      gateWaitP95Ms: q(r.gateWaitMs, 0.95),
+      gateHoldP95Ms: q(r.gateHoldMs, 0.95),
+    })),
+    pseatRows,
+    arr1s: [...arr.entries()].map(([key, n]) => {
+      const [cls, ...rest] = key.split("|");
+      return { cls, name: rest.join("|"), n };
+    }),
+    clientCalls: clientCalls.length,
+    clientCallsLinked: linked,
+  };
+}
+
 function main() {
   const events = readJsonl(`${EV}/miniapp-load-events.jsonl`);
   const loadRows = readJsonl(`${EV}/load-events.jsonl`);
@@ -270,6 +348,12 @@ function main() {
     pass: ratioNet <= 0.01,
   });
 
+  // عمودُ العميلِ: سطورُ http_call الفردّيّةُ (لا تجمعُ) من load-events.jsonl.
+  const clientCalls = loadRows
+    .filter((r) => r.event === "http_call")
+    .map((r) => ({ requestId: r.requestId, label: r.label }));
+  const traceDiag = readTraceDiag(`${EV}/load-trace.jsonl`, clientCalls);
+
   const failed = [...gates, ...perf].filter((r) => !r.pass);
   const report = {
     runDir: RUN_DIR,
@@ -280,6 +364,7 @@ function main() {
     gates,
     perf,
     auditViolations: audit.violations,
+    ...(traceDiag === null ? {} : { diag: traceDiag }),
   };
   console.log(JSON.stringify(report, null, 2));
   process.exit(failed.length === 0 ? 0 : 1);
