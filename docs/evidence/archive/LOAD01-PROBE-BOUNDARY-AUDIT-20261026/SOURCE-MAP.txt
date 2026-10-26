@@ -19,17 +19,18 @@
 # 2. تطابقُ ملفاتِ القياسِ بينَ الذراعين (بالمقارنةِ الحرفيّةِ)
 
 ملفاتُ القياسِ الأربعةُ (ثلاثةٌ في مولّدِ الحملِ وواحدٌ خادميّ) **متطابقةٌ حرفيًّا بينَ
-ذراعَي `30c9dae6` و`369d7a0`** — قورنت بالمحتوى (بصمة SHA-256 للملفِ، لا لمسارِهِ):
+ذراعَي `30c9dae6…` و`3697d7a0…`** — قورنت بالمحتوى لا بالمسارِ، بطريقةِ
+`git show "<head>:<path>" | sha256sum` لكلِّ رأسٍ منَ الجدولِ أعلاه (‏`pipefail`
+مفعّلٌ). النتيجةُ — بصمةُ SHA-256 للمحتوى **واحدةٌ في الذراعينِ لكلِّ ملفٍّ**:
 
 - `deploy/capacity-run/load/lib.ts` — ساعةُ العميلِ والمئيناتُ وعمودُ http_call
+  `3fa03413def4f348d76ece594f53396d8784a1a891f6738af27bf12ee1d79228`
 - `deploy/capacity-run/load/miniapp-load.ts` — نداءُ إنشاءِ الرحلةِ (بلا إعادةِ محاولةٍ)
+  `377327ec97484f796327768faca6a28b191f423ade25f9266e1caa325e8c51af`
 - `deploy/capacity-run/load/wave-report.ts` — اختيارُ آخرِ سطرِ مئيناتٍ للتقريرِ
+  `1eae14d3475dec8d189b4a627a89e128ac68989039fd4e65c679ac6bad335b53`
 - `apps/gateway/src/background/load-trace.ts` — **خادميّ**: ساعةُ serverMs وسطورُ httpreq/pseat
-
-نتيجةُ المقارنةِ: بصمةُ كلِّ ملفٍّ واحدةٌ في الذراعينِ (قيمُها في
-`../capacity/LOAD01-PROBE-BOUNDARY-AUDIT-20261026/probe-boundary-summary.json` تحت
-`files`، وقيمُها الكاملةُ تُقرأُ بـ
-`git ls-tree -r <head> <path>` لكلِّ رأسٍ منَ الجدولِ أعلاه).
+  `1c367427cf9434615892fe72ddb8fa66cbfbfa4e083413683ff3e192513dc364`
 
 # 3. عيّناتُ إعادةِ الإنتاجِ (هذا الأرشيف)
 
@@ -59,9 +60,13 @@ cd docs/evidence/capacity/LOAD01-PROBE-BOUNDARY-AUDIT-20261026
 PYTHONDONTWRITEBYTECODE=1 python3 analyze-probe-boundary-selftest.py   # PASS
 PYTHONDONTWRITEBYTECODE=1 python3 analyze-probe-boundary.py \
   ../../archive/LOAD01-PROBE-BOUNDARY-AUDIT-20261026/samples \
-  ../../archive/LOAD01-C2-HTTP-WAIT-PROBE-20261026/raw-summaries        # تطابقٌ 8/8
-# ثم حاجزُ بياناتِ الأدلةِ مباشرةً (لا __pycache__ بينهما):
-cd ../../.. && bun scripts/check-evidence-manifests.ts
+  ../../archive/LOAD01-C2-HTTP-WAIT-PROBE-20261026/raw-summaries \
+  > /tmp/probe-boundary-repro.json                                # تطابقٌ 8/8
+# إثباتُ التطابقِ الحرفيّ معَ المخرجِ المحفوظِ:
+cmp /tmp/probe-boundary-repro.json probe-boundary-summary.json
+# ثم حاجزُ بياناتِ الأدلةِ مباشرةً (لا __pycache__ بينهما)؛
+# هذا الدليلُ على عمقِ أربعةٍ من جذرِ المستودعِ فيجبُ الصعودُ أربعَ مراتٍ:
+cd ../../../.. && bun scripts/check-evidence-manifests.ts
 ```
 
 مخرجُ المحلّلِ المحفوظُ `probe-boundary-summary.json` في دليلِ الدورةِ **أُعيدَ إنتاجُهُ
