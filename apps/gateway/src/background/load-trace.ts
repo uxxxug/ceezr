@@ -168,7 +168,10 @@ export function createLoadTrace(file: string | undefined): LoadTrace | null {
     }
     // pseat: حجزُ مقعدٍ فردّيٌّ منسوبٌ إلى معرّفِ الطلبِ (المارِّ فعلًا في سياقِ الارتباطِ
     // الجاري — لا معرّفٌ جديد) بفواصلِهِ المشتقّةِ، للنطاقاتِ الـHTTP وحدها.
-    if (store?.path.startsWith("http:")) {
+    // **txQuery لا يُسجَّلُ فردًّا**: استعلامُ المعاملةِ لا يحجزُ مقعدًا جديدًا — احتجازُه
+    // داخلٌ في احتجازِ المعاملةِ الأصلِ (كعدّادِ الحجزِ وarr1s المقعدِ)؛ تسجيلُهُ يَعُدُّ
+    // حجوزاتٍ غيرَ موجودةٍ ويُفسِدُ المصالحةَ معَ إجمالياتِ المسارِ.
+    if (t.kind !== "txQuery" && store?.path.startsWith("http:")) {
       const rid = currentRequestId();
       if (rid !== undefined) {
         const now = Date.now();

@@ -240,7 +240,10 @@ function ev(event: string, data: Record<string, unknown> = {}) {
 
 /** كلُّ نداءٍ يمرُّ عبرَ العدّادِ: تزامنُ السيناريوهاتِ وطلباتُ HTTP قيدَ التنفيذِ
  *  مفكّكانِ — فلا يُخلطانِ في مقياسٍ واحدٍ. */
-async function call(path: string, init: Parameters<typeof http>[1] = {}): Promise<HttpResult> {
+export async function call(
+  path: string,
+  init: Parameters<typeof http>[1] = {},
+): Promise<HttpResult> {
   rec.httpStart();
   const callStartedAt = performance.now();
   try {
@@ -266,7 +269,7 @@ async function call(path: string, init: Parameters<typeof http>[1] = {}): Promis
 
 /** تسميةُ النداءِ لمقياسِ زمنِ الاستجابةِ: المساراتُ الديناميكيةُ تُطبَّعُ
  *  (معرّفُ العرض/الطلب/الخطوة) فتُجمعُ العيّناتُ في صنفٍ واحدٍ قابلٍ للحكمِ. */
-function callLabel(path: string): string {
+export function callLabel(path: string): string {
   return path
     .replace(/\/v1\/rides\/[^/]+\/candidate/, "rides_candidate")
     .replace(/\/v1\/driver\/offers\/[^/]+\/accept/, "driver_offer_accept")

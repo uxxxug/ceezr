@@ -56,7 +56,7 @@ function p95(values: number[]): number | null {
  * المقعدِ المنسوبةِ (`pseat`)، ووصولَ الثانيةِ (`arr1s`). غيابُ الأثرِ = غيابُ القسمِ
  * (لا فشلًا) — القياسُ خلفَ `DISPATCH_TRACE_FILE` اختياريٌّ أصلًا.
  */
-function readTraceDiag(
+export function readTraceDiag(
   tracePath: string,
   clientCalls: { requestId: unknown; label: unknown }[],
 ): Record<string, unknown> | null {
@@ -370,4 +370,4 @@ function main() {
   process.exit(failed.length === 0 ? 0 : 1);
 }
 
-main();
+if (import.meta.main) main();

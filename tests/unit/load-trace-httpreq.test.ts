@@ -18,14 +18,10 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Hono } from "hono";
 import type postgres from "postgres";
 import { enableLoadPathScope } from "../../apps/gateway/src/background/load-path-scope.ts";
 import { createLoadTrace } from "../../apps/gateway/src/background/load-trace.ts";
-import {
-  createRequestIdMiddleware,
-  REQUEST_ID_HEADER,
-} from "../../apps/gateway/src/observability/request-id.ts";
+import { createServer } from "../../apps/gateway/src/server.ts";
 import { withQueryDeadline } from "../../packages/infrastructure/db/query-deadline.ts";
 import { runWithCorrelation } from "../../packages/infrastructure/observability/correlation.ts";
 
@@ -209,86 +205,122 @@ describe("LOAD-01 — httpreq/pseat/arr1s خلف DISPATCH_TRACE_FILE", () => {
     expect(seatArr).toHaveLength(2);
     expect(seatArr.every((r) => Number(r.at) === S)).toBe(true); // الثانيةُ الصحيحةُ لا غيرُها
     expect(seatArr.every((r) => Number(r.n) === 1)).toBe(true); // كلٌّ مرةً واحدةً — لا مضاعفةَ
-    // المستهلكُ (readTraceDiag) يجمعُ الصفوفَ: المجموعُ 2 لا أكثرَ ولا أقلَّ.
-    const consumed = seatArr.reduce((s, r) => s + Number(r.n), 0);
-    expect(consumed).toBe(2);
+    // المستهلكُ الفعليُّ (readTraceDiag — قارئُ تقريرِ الموجةِ) يقرأُ الملفَّ ويجمعُ الصفوفَ:
+    // لا إعادةَ تنفيذٍ للجمعِ داخلَ الاختبارِ. الصفّانِ يُجمَعانِ في مفتاحٍ واحدٍ بقيمةِ 2.
+    const { readTraceDiag } = await import("../../deploy/capacity-run/load/wave-report.ts");
+    const diag = readTraceDiag(`${file}.load.jsonl`, []) as {
+      arr1s: { cls: string; name: string; n: number }[];
+    } | null;
+    expect(diag).not.toBeNull();
+    const consumed = diag?.arr1s.filter((a) => a.cls === "seat") ?? [];
+    expect(consumed).toHaveLength(1);
+    expect(consumed[0]?.name).toBe("ceezr:gatewayRequest");
+    expect(consumed[0]?.n).toBe(2); // مرةً واحدةً لكلٍّ — لا فقدَ ولا مضاعفةَ ولا استبدالَ
   }, 20_000);
 
-  test("الربطُ عبرَ الوسيطِ الحقيقيِّ: http_call ← httpreq ← pseat بمعرّفٍ واحدٍ ومصالحةُ الحجوزاتِ المؤهّلةِ", async () => {
-    const file = join(mkdtempSync(join(tmpdir(), "hr5-")), "trace");
+  test("السلسلةُ عبرَ التطبيقِ والوسيطِ والنداءِ الحقيقيِّ: http_call ← httpreq ← pseat ومصالحةٌ كاملةٌ", async () => {
+    const file = join(mkdtempSync(join(tmpdir(), "hr6-")), "trace");
     const trace = createLoadTrace(file);
     if (trace === null) throw new Error("الأثرُ معطّل");
-    const sql = withQueryDeadline(lazySql(30), {
+    const runDir = mkdtempSync(join(tmpdir(), "hc3-"));
+    mkdirSync(`${runDir}/evidence`, { recursive: true });
+    // معاملةٌ تحجزُ مقعدًا واحدًا (kind=tx) واستعلاماتُها الداخليّةُ (txQuery) لا تحجزُ مقعدًا.
+    const txInner = lazySql(15);
+    const root = lazySql(25);
+    (root as unknown as Record<string, unknown>).begin = async (fn: (s: unknown) => unknown) =>
+      fn(txInner);
+    const sql = withQueryDeadline(root, {
       deadlineMs: 5_000,
       slots: 2,
       label: "ceezr:gatewayRequest",
     });
-    // التطبيقُ والوسيطُ الحقيقيّانِ: الوسيطُ يولّدُ المعرّفَ ويربطُ السياقَ ويُلحقُ الرأسَ — كما في server.ts،
-    // والدخولُ عبرَ inRoute كما في index.ts — لا runWithCorrelation يدويٍّ ولا معرّفٍ مُمرَّرٍ.
-    const app = new Hono();
-    app.use(createRequestIdMiddleware());
-    app.post("/v1/rides", async (c) => {
-      await (sql`select 1` as unknown as Promise<unknown>);
-      return c.json({ ok: true });
+    // التطبيقُ الحقيقيُّ عبرَ createServer — بوسيطِ المعرّفِ الحقيقيِّ — ومُعالجُ الويبهوكِ
+    // يشغّلُ المعاملةَ عبرَ الـsql المُلفوفِ داخلَ سياقِ الطلبِ.
+    const app = createServer({
+      health: { now: () => new Date(0), startedAt: new Date(0), env: {} },
+      webhook: {
+        webhookSecret: "test-webhook-secret",
+        handler: {
+          handle: async () => {
+            await (sql.begin(async (tx) => {
+              await (tx`select 1` as unknown as Promise<unknown>);
+              await (tx`select 2` as unknown as Promise<unknown>);
+            }) as unknown as Promise<unknown>);
+            return true;
+          },
+        },
+      },
     });
-    const response = await trace.inRoute("/v1/rides", "POST", async () =>
-      app.fetch(new Request("http://gateway/v1/rides", { method: "POST" })),
-    );
-    const rid = response.headers.get(REQUEST_ID_HEADER);
-    expect(rid).toBeTruthy(); // الوسيطُ الحقيقيُّ ولّدَهُ وألحقَهُ
-    // عمودُ العميلِ: http_call بمعرّفِ الردِّ الفعليِّ — كما يقرؤُهُ المولّدُ منَ الرأسِ.
-    const runDir = mkdtempSync(join(tmpdir(), "hc2-"));
-    mkdirSync(`${runDir}/evidence`, { recursive: true });
+    // كما في index.ts: inRoute يلفُّ fetch التطبيقِ. الخادمُ الحقيقيُّ يصغي على قاعدةِ BASE
+    // الافتراضيّةِ (54300) فيصلُهُ نداءُ العميلِ الحقيقيُّ عبرَ الشبكةِ.
+    const server = Bun.serve({
+      port: 54300,
+      fetch: (req) => {
+        const { pathname } = new URL(req.url);
+        return trace.inRoute(pathname, req.method, async () => app.fetch(req));
+      },
+    });
     const prevRun = process.env.RUN_DIR;
     const prevTrace = process.env.DISPATCH_TRACE_FILE;
     process.env.RUN_DIR = runDir;
     process.env.DISPATCH_TRACE_FILE = file;
-    const { PathRecorder } = await import("../../deploy/capacity-run/load/lib.ts");
-    const rec = new PathRecorder({ path: "miniapp_http", gen: "genT" });
-    rec.httpCallLog("rides_create", {
-      status: response.status,
-      ok: response.ok,
-      is429: false,
-      elapsedMs: 100,
-      body: null,
-      networkError: null,
-      requestId: rid,
+    // نداءُ العميلِ الحقيقيُّ للمولّدِ: http يستخرجُ X-Request-Id منَ رأسِ الردِّ، وcall
+    // يكتبُ صفَّ http_call بنفسِهِ — لا HttpResult يدويٌّ ولا معرّفٌ مُمرَّرٌ.
+    const { call } = await import("../../deploy/capacity-run/load/miniapp-load.ts");
+    const result = await call("/webhook/telegram/rider", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-telegram-bot-api-secret-token": "test-webhook-secret",
+      },
+      body: { update_id: 1, message: {} },
     });
     await trace.stop();
     if (prevRun === undefined) delete process.env.RUN_DIR;
     else process.env.RUN_DIR = prevRun;
     if (prevTrace === undefined) delete process.env.DISPATCH_TRACE_FILE;
     else process.env.DISPATCH_TRACE_FILE = prevTrace;
-    // السلسلةُ كاملةً بمعرّفٍ واحدٍ: http_call ← httpreq ← pseat
+    server.stop(true);
+    // السلسلةُ كاملةً بمعرّفٍ واحدٍ ولّدَهُ الوسيطُ الحقيقيُّ واستخرجَهُ العميلُ الحقيقيُّ.
+    expect(result.status).toBe(200);
+    expect(result.requestId).toBeTruthy();
     const all = rows(file);
     const httpreq = all.filter((r) => r.k === "httpreq");
     expect(httpreq).toHaveLength(1);
-    expect(httpreq[0]?.requestId).toBe(rid); // من رأسِ الردِّ الفعليِّ الذي ولّدَهُ الوسيطُ
+    expect(httpreq[0]?.requestId).toBe(result.requestId);
+    expect(Number(httpreq[0]?.gateAcquisitions)).toBe(1); // المعاملةُ حجزت؛ الداخليّةُ لا تحجزُ
     const pseat = all.filter((r) => r.k === "pseat");
-    expect(pseat).toHaveLength(1);
-    expect(pseat[0]?.requestId).toBe(rid); // انسابَ عبرَ سياقِ الارتباطِ الذي أنشأَهُ الوسيطُ الحقيقيُّ
-    expect(pseat[0]?.path).toBe("http:POST /v1/rides");
+    expect(pseat).toHaveLength(1); // حجزُ المعاملةِ (tx) وحده — لا txQuery
+    expect(pseat[0]?.kind).toBe("tx");
+    expect(pseat[0]?.requestId).toBe(result.requestId); // انسابَ عبرَ سياقِ الوسيطِ الحقيقيِّ
+    expect(pseat[0]?.path).toBe("http:POST /webhook/telegram/rider");
     const callLines = readFileSync(`${runDir}/evidence/load-events.jsonl`, "utf8")
       .split("\n")
       .filter((l) => l !== "");
-    const httpCall = callLines.map((l) => JSON.parse(l) as Record<string, unknown>);
+    const httpCall = callLines
+      .map((l) => JSON.parse(l) as Record<string, unknown>)
+      .filter((r) => r.event === "http_call");
     expect(httpCall).toHaveLength(1);
-    expect(httpCall[0]?.requestId).toBe(rid);
-    // المصالحةُ بحسبِ التجمّعِ والنوعِ: كلُّ حجزٍ مؤهّلٍ للنطاقِ الـHTTP (غيرِ txQuery) مسجّلٌ فردًّا
-    // منسوبًا — عددُ pseat = مجموعُ حجوزاتِ المسارِ في pagg لكلِّ (pool, kind).
+    expect(httpCall[0]?.requestId).toBe(result.requestId); // كتبَهُ نداءُ العميلِ الحقيقيُّ
+    // المصالحةُ الكاملةُ بالاتجاهينِ: مفاتيحُ (pool, kind) في pseat == مفاتيحُ pagg
+    // المؤهّلةُ (غيرِ txQuery) تمامًا — لا مفتاحًا زائدًا في أيٍّ من الجهتينِ — والأعدادُ متساويةٌ.
     const pagg = all.filter(
-      (r) => r.k === "pagg" && r.path === "http:POST /v1/rides" && r.kind !== "txQuery",
+      (r) => r.k === "pagg" && r.path === "http:POST /webhook/telegram/rider",
     );
-    expect(pagg).toHaveLength(1);
-    const byKey = new Map<string, number>();
+    const eligible = pagg.filter((g) => g.kind !== "txQuery");
+    expect(eligible.length).toBeGreaterThan(0);
+    const pseatBy = new Map<string, number>();
     for (const p of pseat) {
       const k = `${p.pool}|${p.kind}`;
-      byKey.set(k, (byKey.get(k) ?? 0) + 1);
+      pseatBy.set(k, (pseatBy.get(k) ?? 0) + 1);
     }
-    for (const g of pagg) {
-      expect(byKey.get(`${g.pool}|${g.kind}`)).toBe(Number(g.n));
+    const eligibleBy = new Map<string, number>();
+    for (const g of eligible) {
+      const k = `${g.pool}|${g.kind}`;
+      eligibleBy.set(k, (eligibleBy.get(k) ?? 0) + Number(g.n));
     }
-  });
+    expect([...pseatBy.entries()].sort()).toEqual([...eligibleBy.entries()].sort());
+  }, 20_000);
 });
 
 describe("LOAD-01 — عمودُ العميلِ (http_call)", () => {
