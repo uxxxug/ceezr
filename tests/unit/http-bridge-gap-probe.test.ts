@@ -8,9 +8,13 @@
  * لدلالةِ الطوابعِ، لا دليلًا على أثرِ A/B ولا السعةِ. وتُفحصُ مساراتُ النقصِ: بلا
  * جسمٍ، بلا معرّفِ طلبٍ، إغلاقٌ مبكرٌ، وبلا `onGap` أصلًا.
  */
-import http from "node:http";
+
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { createHttpBridge, type HttpGapTiming } from "../../apps/gateway/src/realtime/http-bridge.ts";
+import http from "node:http";
+import {
+  createHttpBridge,
+  type HttpGapTiming,
+} from "../../apps/gateway/src/realtime/http-bridge.ts";
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
