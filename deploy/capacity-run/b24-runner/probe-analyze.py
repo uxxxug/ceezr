@@ -77,6 +77,12 @@ class Wave:
         ev = os.path.join(wave_dir, "miniapp-load-events.jsonl")
         tr = os.path.join(wave_dir, "load-trace.jsonl")
         self.input_hashes = {"events": sha256_file(ev), "trace": sha256_file(tr)}
+        # بصماتُ المدخلاتِ تُكتبُ في ملفٍّ باسمٍ يُعلنُ نفسَه (sha256sums) لا داخلَ ملفاتِ
+        # الحُكمِ: سلسلةُ 64-سداسيّةً داخلَ JSON تُوقِفُ تدقيقَ الأسرارِ (نمطُ base64 الطويلِ)،
+        # واسمُ الملفِّ يقعُ في إعفاءِ "بصماتِ السجلِّ" المشروعِ — معَ بقاءِ الفحصِ الحرفيِّ عليه.
+        with open(os.path.join(wave_dir, "input-sha256sums.txt"), "w", encoding="utf-8") as hf:
+            for _label, _p in (("events", ev), ("trace", tr)):
+                hf.write(f"{self.input_hashes[_label]}  {os.path.basename(_p)}\n")
         phases = {}
         for row in read_jsonl(ev):
             if row.get("event") in ("phase.start", "phase.drain_start", "phase.end"):
@@ -287,7 +293,7 @@ class Strata:
             boundaries[c] = (lo, hi)  # التطابقُ يُدمجُ في شريحتينِ (انظر in_stratum)
         meta = {
             "wave": wave.name,
-            "input_hashes": wave.input_hashes,
+            "input_hashes_file": "input-sha256sums.txt",
             "injection_windows": {c: len(wave.windows("injection")) for c in ("rides", "other")},
         }
         return cls(boundaries, meta)
@@ -354,7 +360,7 @@ def mode_strata(wave_dir, out_path):
     payload = {
         "mode": "strata",
         "wave": w.name,
-        "input_hashes": w.input_hashes,
+        "input_hashes_file": "input-sha256sums.txt",
         "phase_epochs_ms": {"start": w.t0, "drain": w.drain0, "end": w.end0},
         "boundaries": {c: (None if s.boundaries[c][0] == MIN else s.boundaries[c][0],
                            None if s.boundaries[c][1] == MAX else s.boundaries[c][1])
@@ -384,7 +390,7 @@ def mode_aa(aa1_dir, aa2_dir, out_path):
         "mode": "aa",
         "waves": [w1.name, w2.name],
         "delta_ms": DELTA_MS,
-        "input_hashes": [w1.input_hashes, w2.input_hashes],
+        "input_hashes_file": "input-sha256sums.txt (في دليل كل موجة)",
         "metrics": {},
     }
     a1, n1 = w1.conditional_mean("injection", "rides")
@@ -424,7 +430,7 @@ def mode_cost(on1_dir, off1_dir, off2_dir, on2_dir, out_path):
         v, nw = w.cost_metric()
         vals.append(v)
         detail.append({"wave": nm, "dir": w.name, "cost_metric_ms": v,
-                      "flush_windows": nw, "input_hashes": w.input_hashes})
+                      "flush_windows": nw, "input_hashes_file": "input-sha256sums.txt"})
     d1 = None if (vals[0] is None or vals[1] is None) else vals[0] - vals[1]
     d2 = None if (vals[2] is None or vals[3] is None) else vals[3] - vals[2]
     rule = None
@@ -509,7 +515,7 @@ def mode_ab(wave_dirs, out_path, strata_path):
         "mode": "ab", "delta_ms": DELTA_MS,
         "strata_meta": strata.meta,
         "waves": [w.name for w in waves],
-        "input_hashes": [w.input_hashes for w in waves],
+        "input_hashes_file": "input-sha256sums.txt (في دليل كل موجة)",
         "h1": {}, "h2": {},
     }
     # ---------- H1 ----------
