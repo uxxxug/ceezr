@@ -57,15 +57,24 @@ jobs:
             --setenv=A_SHA="$A_SHA" --setenv=B_SHA="$B_SHA" --setenv=OFF_SHA="$OFF_SHA" --setenv=MIXED_RATE="$MIXED_RATE" --setenv=MIXED_SEED="$MIXED_SEED" --setenv=CONC="1500" --setenv=SMOKE_CONC="100" --setenv=CITIES="JED,MKK,RUH,TIF,MED" \
             bash /home/user/workspace/ceezr/deploy/capacity-run/b24-runner/seat-load01-c2-http-wait-probe.sh
 
-      - name: تحديد قابلية رفع الدليل (من علامة اجتياز التدقيق)
+      # قرارُ الرفعِ منَ تدقيقٍ نهائيٍّ جديدٍ بعدَ انتهاءِ المقعدِ (دائمًا) يُبطلُ أيَّ تصريحٍ
+      # سابقٍ — علامةُ بوابةٍ أو ختامٍ سابقٍ لا تُجيزُ رفعَ محتوىً لاحقٍ لم يجتزْ تدقيقًا.
+      - name: التدقيق النهائي وقرار الرفع
         id: gatecheck
         if: always()
         run: |
+          set +e
+          sudo bash /home/user/workspace/ceezr/deploy/capacity-run/b24-runner/probe-final-audit.sh \
+            /home/user/load01c2-probe-out /srv/ceezr-cap-20261016/secrets.env \
+            /home/user/workspace/ceezr/deploy/capacity-run/b24-runner/seat-bin/b24-secret-audit.py
+          RC=$?
+          set -e
           if [ -f /home/user/load01c2-probe-out/AUDIT_PASSED ]; then
             echo "mode=evidence" >> "$GITHUB_OUTPUT"
           else
             echo "mode=report" >> "$GITHUB_OUTPUT"
           fi
+          exit 0
 
       # الدليلُ يُرفعُ في مساري النجاحِ والتوقفِ المُوثَّقِ كليهما إذا اجتازَ المحتوى النهائيُّ
       # تدقيقَ الأسرارِ (AUDIT_PASSED) — فتوقُّفُ البوابةِ نتيجةٌ تشخيصيةٌ تُحفظُ لا تُستبدلُ؛

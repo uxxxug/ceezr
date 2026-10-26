@@ -82,11 +82,11 @@ grep -q "gate=A/A" "$OUT/PROBE_STOP.txt" && grep -q "reason=TEST_DIRECT_STOP" "$
 [ -s "$OUT/secret-audit.txt" ] || { echo "T6_FAIL: لا تدقيقَ في مسارِ --stop"; RC_TOTAL=1; }
 echo "T6_PASS"
 
-# ---------- 7) حكمٌ مرفوضٌ + تدقيقٌ نظيف: توقفٌ موثَّقٌ معَ حفظِ الدليلِ ----------
+# ---------- 7) حكمٌ مرفوضٌ + تدقيقٌ نظيف: توقفٌ موثَّقٌ، والبوابةُ لا تمنحُ تصريحَ رفعٍ ----------
 mkdir -p "$OUT/raw"; echo wave-artifact > "$OUT/raw/sentinel.txt"
 if gate_run "$OUT/aa-bad.json" "$AA_PASS" A/A; then echo "T7_FAIL: بوابةٌ فاشلةٌ مُرِّرت"; RC_TOTAL=1; else echo "T7_PASS"; fi
 grep -q "reason=verdict_mismatch" "$OUT/PROBE_STOP.txt" || { echo "T7_FAIL: سببُ التوقفِ خاطئٌ"; RC_TOTAL=1; }
-[ -f "$OUT/AUDIT_PASSED" ] || { echo "T7_FAIL: لا علامةَ اجتيازِ تدقيقٍ — سيرُ العملِ لن يرفعَ الدليلَ"; RC_TOTAL=1; }
+[ ! -f "$OUT/AUDIT_PASSED" ] || { echo "T7_FAIL: البوابةُ منحتْ علامةَ رفعٍ — القرارُ للتدقيقِ النهائيِّ وحدَهُ"; RC_TOTAL=1; }
 [ -f "$OUT/raw/sentinel.txt" ] || { echo "T7_FAIL: أثرٌ خامٌ حُذفَ معَ تدقيقٍ نظيفٍ"; RC_TOTAL=1; }
 
 # ---------- 8) تدقيقٌ فاشل: توقفٌ منظّمٌ بسببهِ + لا علامةَ رفعٍ + سقوطُ الأثرِ الخامِّ ----------

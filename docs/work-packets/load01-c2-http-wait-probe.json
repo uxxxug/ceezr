@@ -18,7 +18,9 @@
     "deploy/capacity-run/b24-runner/probe-gate-stop.test.sh",
     "deploy/capacity-run/b24-runner/probe-analyze-fail.test.sh",
     "deploy/capacity-run/b24-runner/probe-audit-clean.test.sh",
-    ".github/workflows/load01-c2-http-wait-probe.yml"
+    ".github/workflows/load01-c2-http-wait-probe.yml",
+    "deploy/capacity-run/b24-runner/probe-final-audit.sh",
+    "deploy/capacity-run/b24-runner/probe-final-audit.test.sh"
   ],
   "state": ["docs/SYSTEM_STATE.md"],
   "roadmap": ["ROADMAP.md"],

@@ -34,6 +34,7 @@ python3 "$H/deploy/capacity-run/b24-runner/probe-analyze-selftest.py" || { echo 
 bash "$H/deploy/capacity-run/b24-runner/probe-gate-stop.test.sh" || { echo "PROBE_GATE_STOP_TEST_FAIL — لا موجة"; exit 1; }
 bash "$H/deploy/capacity-run/b24-runner/probe-analyze-fail.test.sh" || { echo "PROBE_ANALYZE_FAIL_TEST_FAIL — لا موجة"; exit 1; }
 bash "$H/deploy/capacity-run/b24-runner/probe-audit-clean.test.sh" || { echo "PROBE_AUDIT_CLEAN_TEST_FAIL — لا موجة"; exit 1; }
+bash "$H/deploy/capacity-run/b24-runner/probe-final-audit.test.sh" || { echo "PROBE_FINAL_AUDIT_TEST_FAIL — لا موجة"; exit 1; }
 
 log "worktree اثنان: wt-acc (مسارُ التشغيلِ للذراعين، يبدأُ من A) وwt-ref (سجلُ b24-env.json وحده، على B)"
 git -C "$H" worktree add -f --detach "$W/wt-acc" "$A_SHA" >/dev/null 2>&1
@@ -289,5 +290,4 @@ if [ $SA_RC -ne 0 ]; then
   exit 1
 fi
 echo "SECRET_AUDIT_CLEAN"
-touch "$OUT/AUDIT_PASSED"   # علامةُ اجتيازِ التدقيقِ: يرفعُ سيرُ العملِ الدليلَ في مساري النجاحِ والتوقفِ المُوثَّقِ
 log DONE

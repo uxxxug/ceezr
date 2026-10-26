@@ -109,7 +109,7 @@ OUT=$TMP/out-wrong; mkdir -p "$OUT"
 MOCK_FAIL=wrongverdict MOCK_AA_PASS="$AA_PASS" MOCK_AA_VERDICT="قابليةُ_إعادةِ_الإنتاجِ_غيرُ_مثبتة" run_block "$OUT" wrongverdict >"$OUT/run.log" 2>&1 && RC=0 || RC=$?
 [ "$RC" -ne 0 ] || { echo "D_FAIL: حكمٌ خاطئٌ مُرِّرَ"; RC_TOTAL=1; }
 grep -q "reason=verdict_mismatch" "$OUT/PROBE_STOP.txt" || { echo "D_FAIL: سببُ التوقفِ (verdict_mismatch) غيرُ موثَّقٍ"; RC_TOTAL=1; }
-[ -f "$OUT/AUDIT_PASSED" ] || { echo "D_FAIL: لا علامةَ اجتيازِ تدقيقٍ — الدليلُ لن يُرفعَ"; RC_TOTAL=1; }
+[ ! -f "$OUT/AUDIT_PASSED" ] || { echo "D_FAIL: مسارُ البوابةِ منحَ علامةَ رفعٍ — القرارُ للتدقيقِ النهائيِّ"; RC_TOTAL=1; }
 [ -s "$OUT/aa-gate.json" ] || { echo "D_FAIL: ملفُّ الحكمِ المرفوضِ لم يُحفَظْ كدليلٍ"; RC_TOTAL=1; }
 grep -q "GATE_A/A_VERDICT قابليةُ_إعادةِ_الإنتاجِ_غيرُ_مثبتة" "$OUT/run.log" || { echo "D_FAIL: الحكمُ المرفوضُ غيرُ ظاهرٍ في السجلِّ"; RC_TOTAL=1; }
 grep -q "PRE_GATES_PASSED" "$OUT/run.log" && { echo "D_FAIL: PRE_GATES_PASSED بعدَ رفضٍ"; RC_TOTAL=1; }
