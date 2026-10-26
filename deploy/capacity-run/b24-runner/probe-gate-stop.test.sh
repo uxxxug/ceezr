@@ -18,7 +18,7 @@ OUT=$TMP/out; mkdir -p "$OUT"
 RC_TOTAL=0
 
 gate_run() { # FILE EXPECTED LABEL ⇒ يطبعُ النتيجةَ ويعيدُ رمزَ البوابةِ
-  rm -f "$OUT/PROBE_STOP.txt" "$OUT/wave-summary-stop.json" "$OUT/secret-audit.txt"
+  rm -f "$OUT/PROBE_STOP.txt" "$OUT/wave-summary-stop.json" "$OUT/secret-audit.txt" "$OUT/AUDIT_PASSED"
   set +e
   bash "$GATE" "$1" "$2" "$3" "$OUT" "$SECRETS" "$TMP/audit.py" "$RUNNER" >"$TMP/gate.log" 2>&1
   local RC=$?
@@ -71,7 +71,7 @@ ABBA_LINE=$(echo "$SEAT_SRC" | grep -n 'for SLOT in A1 B1 B2 A2 A3 B3 B4 A4' | h
 echo "T5_PASS"
 
 # ---------- 6) وضعُ التوقفِ المباشرُ --stop: سببٌ موثَّقٌ + تدقيقٌ + رمزُ 1 ----------
-rm -f "$OUT/PROBE_STOP.txt" "$OUT/wave-summary-stop.json" "$OUT/secret-audit.txt"
+rm -f "$OUT/PROBE_STOP.txt" "$OUT/wave-summary-stop.json" "$OUT/secret-audit.txt" "$OUT/AUDIT_PASSED"
 set +e
 bash "$GATE" --stop "TEST_DIRECT_STOP" A/A "$OUT" "$SECRETS" "$TMP/audit.py" "$RUNNER" >"$TMP/stop.log" 2>&1
 RC=$?
@@ -81,6 +81,21 @@ grep -q "gate=A/A" "$OUT/PROBE_STOP.txt" && grep -q "reason=TEST_DIRECT_STOP" "$
 [ -s "$OUT/wave-summary-stop.json" ] || { echo "T6_FAIL: ملخصُ التوقفِ غائبٌ"; RC_TOTAL=1; }
 [ -s "$OUT/secret-audit.txt" ] || { echo "T6_FAIL: لا تدقيقَ في مسارِ --stop"; RC_TOTAL=1; }
 echo "T6_PASS"
+
+# ---------- 7) حكمٌ مرفوضٌ + تدقيقٌ نظيف: توقفٌ موثَّقٌ، والبوابةُ لا تمنحُ تصريحَ رفعٍ ----------
+mkdir -p "$OUT/raw"; echo wave-artifact > "$OUT/raw/sentinel.txt"
+if gate_run "$OUT/aa-bad.json" "$AA_PASS" A/A; then echo "T7_FAIL: بوابةٌ فاشلةٌ مُرِّرت"; RC_TOTAL=1; else echo "T7_PASS"; fi
+grep -q "reason=verdict_mismatch" "$OUT/PROBE_STOP.txt" || { echo "T7_FAIL: سببُ التوقفِ خاطئٌ"; RC_TOTAL=1; }
+[ ! -f "$OUT/AUDIT_PASSED" ] || { echo "T7_FAIL: البوابةُ منحتْ علامةَ رفعٍ — القرارُ للتدقيقِ النهائيِّ وحدَهُ"; RC_TOTAL=1; }
+[ -f "$OUT/raw/sentinel.txt" ] || { echo "T7_FAIL: أثرٌ خامٌ حُذفَ معَ تدقيقٍ نظيفٍ"; RC_TOTAL=1; }
+
+# ---------- 8) تدقيقٌ فاشل: توقفٌ منظّمٌ بسببهِ + لا علامةَ رفعٍ + سقوطُ الأثرِ الخامِّ ----------
+SECRET_VAL=$(grep INTERNAL_SIGNAL_SECRET "$SECRETS" | cut -d= -f2)
+mkdir -p "$OUT/raw"; echo "$SECRET_VAL" > "$OUT/raw/leak.txt"
+if gate_run "$OUT/aa-ok.json" "$AA_PASS" A/A; then echo "T8_FAIL: تدقيقٌ فاشلٌ مُرِّرَ"; RC_TOTAL=1; else echo "T8_PASS"; fi
+grep -q "reason=SECRET_AUDIT_FAIL" "$OUT/PROBE_STOP.txt" || { echo "T8_FAIL: سببُ إخفاقِ التدقيقِ غيرُ مسجَّلٍ"; RC_TOTAL=1; }
+[ ! -f "$OUT/AUDIT_PASSED" ] || { echo "T8_FAIL: علامةُ رفعٍ معَ تدقيقٍ فاشلٍ"; RC_TOTAL=1; }
+[ ! -d "$OUT/raw" ] || { echo "T8_FAIL: أثرٌ خامٌ بقيَ معَ تدقيقٍ فاشلٍ"; RC_TOTAL=1; }
 
 rm -rf "$TMP"
 if [ $RC_TOTAL -ne 0 ]; then echo "GATE_STOP_TEST_FAIL"; exit 1; fi

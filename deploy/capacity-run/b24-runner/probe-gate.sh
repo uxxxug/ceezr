@@ -12,15 +12,20 @@
 # الاستدعاءُ: probe-gate.sh <gate.json> <expected_verdict> <label> <OUT_dir> <secrets_env> <audit_py> <runner_dir>
 set -euo pipefail
 
-audit_run() { # <secrets> <audit_py> <OUT> <label> ⇒ 0 إذا نظيفَ، 1 وإلا (معَ حذفِ الأثرِ الخامِّ)
+audit_run() { # <secrets> <audit_py> <OUT> <label> ⇒ 0 إذا نظيفَ، 1 وإلا (توقفٌ منظّمٌ + حذفُ الأثرِ الخامِّ)
   local SECRETS=$1 AUDIT_PY=$2 OUT=$3 LABEL=$4 SA_RC=0
   python3 "$AUDIT_PY" "$SECRETS" "$OUT" >"$OUT/secret-audit.txt" 2>&1 || SA_RC=$?
   cat "$OUT/secret-audit.txt"
   if [ $SA_RC -ne 0 ]; then
     echo "SECRET_AUDIT_FAIL (عندَ $LABEL)"
+    # توقفٌ منظّمٌ مسجَّلٌ قبلَ الخروجِ (كما أيِّ سببِ توقفٍ آخر) + سقوطُ الأثرِ الخامِّ
+    printf 'gate=%s\nreason=SECRET_AUDIT_FAIL\nstopped_at_utc=%s\n' "$LABEL" "$(date -Is)" > "$OUT/PROBE_STOP.txt"
+    printf '{"stopped_gate":"%s","reason":"SECRET_AUDIT_FAIL","date_utc":"%s"}\n' "$LABEL" "$(date -Is)" > "$OUT/wave-summary-stop.json"
     rm -rf "$OUT/raw"
     return 1
   fi
+  # البوابةُ لا تمنحُ تصريحَ رفعٍ: قرارُ الرفعِ يصدرُهُ التدقيقُ النهائيُّ بعدَ انتهاءِ
+  # المقعدِ (probe-final-audit.sh) — علامةُ بوابةٍ سابقةٍ لا تُجيزُ رفعَ محتوىً لاحقٍ.
   return 0
 }
 
@@ -30,7 +35,7 @@ if [ "${1:-}" = "--stop" ]; then
   echo "PROBE_STOP: $MSG — إيقافٌ وتوثيقٌ وتدقيقُ أسرارٍ لا تخفيفَ"
   printf 'gate=%s\nreason=%s\nstopped_at_utc=%s\n' "$LABEL" "$MSG" "$(date -Is)" > "$OUT/PROBE_STOP.txt"
   printf '{"stopped_gate":"%s","reason":"%s","date_utc":"%s"}\n' "$LABEL" "$MSG" "$(date -Is)" > "$OUT/wave-summary-stop.json"
-  audit_run "$SECRETS" "$AUDIT_PY" "$OUT" "$LABEL" || exit 1
+  audit_run "$SECRETS" "$AUDIT_PY" "$OUT" "$LABEL" || exit 1   # فشلُ التدقيقِ يستبدلُ السببَ بـ SECRET_AUDIT_FAIL ويحذفُ الأثرَ الخامَّ
   exit 1
 fi
 

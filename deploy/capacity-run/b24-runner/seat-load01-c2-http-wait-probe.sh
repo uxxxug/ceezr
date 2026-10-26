@@ -33,6 +33,8 @@ log "اختبارٌ ذاتيٌّ للمحلّلِ على بياناتٍ مصغر
 python3 "$H/deploy/capacity-run/b24-runner/probe-analyze-selftest.py" || { echo "PROBE_ANALYZER_SELFTEST_FAIL — لا موجة"; exit 1; }
 bash "$H/deploy/capacity-run/b24-runner/probe-gate-stop.test.sh" || { echo "PROBE_GATE_STOP_TEST_FAIL — لا موجة"; exit 1; }
 bash "$H/deploy/capacity-run/b24-runner/probe-analyze-fail.test.sh" || { echo "PROBE_ANALYZE_FAIL_TEST_FAIL — لا موجة"; exit 1; }
+bash "$H/deploy/capacity-run/b24-runner/probe-audit-clean.test.sh" || { echo "PROBE_AUDIT_CLEAN_TEST_FAIL — لا موجة"; exit 1; }
+bash "$H/deploy/capacity-run/b24-runner/probe-final-audit.test.sh" || { echo "PROBE_FINAL_AUDIT_TEST_FAIL — لا موجة"; exit 1; }
 
 log "worktree اثنان: wt-acc (مسارُ التشغيلِ للذراعين، يبدأُ من A) وwt-ref (سجلُ b24-env.json وحده، على B)"
 git -C "$H" worktree add -f --detach "$W/wt-acc" "$A_SHA" >/dev/null 2>&1
@@ -280,6 +282,12 @@ sed -i '/^CITIES=/d;/^CITY=/d' "$B/secrets.env"
 SA_RC=0
 python3 "$H/deploy/capacity-run/b24-runner/seat-bin/b24-secret-audit.py" "$B/secrets.env" "$OUT" > "$OUT/secret-audit.txt" 2>&1 || SA_RC=$?
 cat "$OUT/secret-audit.txt"
-if [ $SA_RC -ne 0 ]; then echo "SECRET_AUDIT_FAIL"; rm -rf "$OUT/raw"; exit 1; fi
+if [ $SA_RC -ne 0 ]; then
+  echo "SECRET_AUDIT_FAIL — توقفٌ منظّمٌ مسجَّلٌ لا خروجٌ صامتٌ"
+  printf 'gate=FINAL\nreason=SECRET_AUDIT_FAIL\nstopped_at_utc=%s\n' "$(date -Is)" > "$OUT/PROBE_STOP.txt"
+  printf '{"stopped_gate":"FINAL","reason":"SECRET_AUDIT_FAIL","date_utc":"%s"}\n' "$(date -Is)" > "$OUT/wave-summary-stop.json"
+  rm -rf "$OUT/raw"
+  exit 1
+fi
 echo "SECRET_AUDIT_CLEAN"
 log DONE
