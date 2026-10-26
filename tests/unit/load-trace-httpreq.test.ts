@@ -137,6 +137,10 @@ describe("LOAD-01 — httpreq/pseat/arr1s خلف DISPATCH_TRACE_FILE", () => {
       endMs: 14.02,
       finishMs: 15.4,
       closed: false,
+      requestLeadMs: 0.42,
+      inflightAtEntry: 3,
+      connSeq: 2,
+      loopOverdueAtEntryMs: 1.5,
     });
     // ومردودٌ ناقصُ الحدودِ (إغلاقٌ مبكرٌ): المعدومُ يبقى معدومًا لا صفرًا ولا يُخترعُ.
     trace.onGap({
@@ -149,6 +153,10 @@ describe("LOAD-01 — httpreq/pseat/arr1s خلف DISPATCH_TRACE_FILE", () => {
       endMs: null,
       finishMs: null,
       closed: true,
+      requestLeadMs: null,
+      inflightAtEntry: 1,
+      connSeq: 1,
+      loopOverdueAtEntryMs: null,
     });
     await trace.stop();
     const all = rows(file);
@@ -390,6 +398,9 @@ describe("LOAD-01 — عمودُ العميلِ (http_call)", () => {
       requestId: "req-cli-1",
       ttfbMs: 100.5,
       bodyMs: 22.96,
+      invokeMs: 0.31,
+      inflightAtInvoke: 7,
+      headersOverdueMs: 2.25,
     };
     // بلا علمٍ (حالةُ OFF): لا سطرَ عميلٍ — فحصُ ON–OFF يقيسُ كلفةَ الأداةِ في الجانبينِ معًا.
     delete process.env.DISPATCH_TRACE_FILE;

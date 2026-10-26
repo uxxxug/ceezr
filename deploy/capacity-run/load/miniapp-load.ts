@@ -60,6 +60,7 @@ import {
   signedInitData,
   sleep,
   sql,
+  startClientLoopProbe,
   T0,
 } from "./lib.ts";
 
@@ -265,6 +266,9 @@ export async function call(
       // لا ترويساتِ ولا جسمًا في الفشلِ الشبكيِّ — لا حدَّينِ يُفصلانِ (null لا صفرٌ).
       ttfbMs: null,
       bodyMs: null,
+      invokeMs: null,
+      inflightAtInvoke: null,
+      headersOverdueMs: null,
     });
     throw error;
   }
@@ -1136,6 +1140,8 @@ async function recordOfferLifecycle(corr: ScenarioCorr): Promise<void> {
 /* ───────── الحلقةُ الرئيسةُ ───────── */
 
 async function main() {
+  // LOAD-01-GAP-PROBE-RUN2: مِجسُّ حلقةِ المولّدِ خلفَ أثرِ الحملِ وحدَه (null بلا علمٍ).
+  const stopLoopProbe = startClientLoopProbe("miniapp_http", GEN_ID);
   ev("gen.start", {
     profile: PROFILE,
     depth: DEPTH,
@@ -1304,6 +1310,7 @@ async function main() {
     riderSocket: { mix: RIDER_SOCKET_MIX, ...riderSocketStats },
   };
   ev("gen.end", summary);
+  stopLoopProbe?.();
   console.log(JSON.stringify(summary));
   await sql.end({ timeout: 5 });
   process.exit(0);

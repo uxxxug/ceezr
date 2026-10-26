@@ -34,12 +34,19 @@
  *   بثانيةٍ واحدةٍ **عندَ الدخولِ** (طلباتُ HTTP لكلِّ مسارٍ، وطلباتُ المقاعدِ لحظةَ طلبِها لكلِّ
  *   تجمُّعٍ) — لا إعادةُ تسميةٍ لعدّادِ الاكتمالاتِ. القياسُ كلهُ خلفَ `DISPATCH_TRACE_FILE`
  *   وحدَه كما كلُّ هذا الملفِّ: بلا تفعيلٍ لا سلوكَ ولا كلفة.
+ * - `loop1s` (LOAD-01-GAP-PROBE-RUN2، 2026-10-27): مِجسُّ الحلقةِ المشتركُ معَ المولّدِ
+ *   (`packages/infrastructure/observability/loop-probe.ts`) — نبضةٌ كلَّ 10ms وسطرٌ كلَّ ثانية:
+ *   تأخُّرٌ p50/p95/p99/max، وCPU الخيطِ الرئيسيِّ وانتظارُهُ في طابورِ التشغيل (schedstat)،
+ *   وELU إن أتاحَهُ المشغِّل. سطرُ `loop` القديمُ (5ث، 50ms) **باقٍ بمعناهُ دونَ تغيير**. وحقولُ
+ *   `httpgap` الجديدةُ (`requestLeadMs`/`inflightAtEntry`/`connSeq`/`loopOverdueAtEntryMs`)
+ *   تُكتبُ كما يرصدُها الجسر.
  */
 import { AsyncLocalStorage } from "node:async_hooks";
 import { readFileSync } from "node:fs";
 import { appendFile } from "node:fs/promises";
 import { observeQueryTimings } from "../../../../packages/infrastructure/db/query-deadline.ts";
 import { currentRequestId } from "../../../../packages/infrastructure/observability/correlation.ts";
+import { startLoopProbe } from "../../../../packages/infrastructure/observability/loop-probe.ts";
 import { REQUEST_ID_HEADER } from "../observability/request-id.ts";
 import type { HttpGapTiming } from "../realtime/http-bridge.ts";
 import { currentLoadPath, enableLoadPathScope, withLoadPath } from "./load-path-scope.ts";
@@ -56,6 +63,8 @@ export interface LoadTrace {
    * حدثِ `finish`/الإغلاقِ. قياسٌ فقط خلفَ `DISPATCH_TRACE_FILE` — لا يغيّرِ سلوكًا.
    */
   readonly onGap: (gap: HttpGapTiming) => void;
+  /** مؤشّرُ تأخُّرِ نبضةِ الحلقةِ الآنَ (مِجسُّ `loop1s`) — يقرؤُهُ الجسرُ لحظةَ الدخول. */
+  readonly loopOverdueMs: () => number;
   readonly stop: () => Promise<void>;
 }
 
@@ -330,6 +339,11 @@ export function createLoadTrace(file: string | undefined): LoadTrace | null {
     void flush();
   }, 5_000);
   timer.unref?.();
+  const loop1s = startLoopProbe({
+    intervalMs: 10,
+    sampleMs: 1_000,
+    emit: (sample) => emit({ k: "loop1s", ...sample }),
+  });
   return {
     drainer: {
       onJob: (t) => emit({ k: "job", ...t }),
@@ -348,6 +362,7 @@ export function createLoadTrace(file: string | undefined): LoadTrace | null {
       w.ms.push(ms);
       if (status >= 500) w.errors += 1;
     },
+    loopOverdueMs: () => loop1s.overdueMs(),
     onGap: (gap) => {
       // httpgap: حدودُ الردّ كما تُرصدُ في الجسرِ — إزاحاتٌ من دخولِ معالجِهِ (بعدَ
       // تحليلِ ترويساتِ الطلبِ لا استقبالِ أولِ بايتٍ)، بمعرّفِ الطلبِ القائمِ، حتى
@@ -364,6 +379,11 @@ export function createLoadTrace(file: string | undefined): LoadTrace | null {
         endMs: gap.endMs === null ? null : round2(gap.endMs),
         finishMs: gap.finishMs === null ? null : round2(gap.finishMs),
         closed: gap.closed,
+        requestLeadMs: gap.requestLeadMs === null ? null : round2(gap.requestLeadMs),
+        inflightAtEntry: gap.inflightAtEntry,
+        connSeq: gap.connSeq,
+        loopOverdueAtEntryMs:
+          gap.loopOverdueAtEntryMs === null ? null : round2(gap.loopOverdueAtEntryMs),
       });
     },
     inRoute: (pathname, method, fn) => {
@@ -430,6 +450,7 @@ export function createLoadTrace(file: string | undefined): LoadTrace | null {
       }
       clearInterval(timer);
       clearInterval(lagTimer);
+      loop1s.stop();
       observeQueryTimings(null);
       await flush();
       // عندَ الإيقافِ صبُّ ما تبقى: الثواني الأخيرةُ انقضت كلُّها بحكمِ نهايةِ الموجةِ.
