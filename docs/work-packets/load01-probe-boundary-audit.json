@@ -23,7 +23,16 @@
     "docs/evidence/archive/LOAD01-PROBE-BOUNDARY-AUDIT-20261026/samples/load01c2-probe-B1-i81-M-1500/load-events.jsonl.gz",
     "docs/evidence/archive/LOAD01-PROBE-BOUNDARY-AUDIT-20261026/samples/load01c2-probe-B2-i82-M-1500/load-events.jsonl.gz",
     "docs/evidence/archive/LOAD01-PROBE-BOUNDARY-AUDIT-20261026/samples/load01c2-probe-B3-i85-M-1500/load-events.jsonl.gz",
-    "docs/evidence/archive/LOAD01-PROBE-BOUNDARY-AUDIT-20261026/samples/load01c2-probe-B4-i86-M-1500/load-events.jsonl.gz"
+    "docs/evidence/archive/LOAD01-PROBE-BOUNDARY-AUDIT-20261026/samples/load01c2-probe-B4-i86-M-1500/load-events.jsonl.gz",
+    "docs/evidence/archive/LOAD01-PROBE-BOUNDARY-AUDIT-20261026/samples/load01c2-probe-A1-i80-M-1500/miniapp-load-events.jsonl.gz",
+    "docs/evidence/archive/LOAD01-PROBE-BOUNDARY-AUDIT-20261026/samples/load01c2-probe-A2-i83-M-1500/miniapp-load-events.jsonl.gz",
+    "docs/evidence/archive/LOAD01-PROBE-BOUNDARY-AUDIT-20261026/samples/load01c2-probe-A3-i84-M-1500/miniapp-load-events.jsonl.gz",
+    "docs/evidence/archive/LOAD01-PROBE-BOUNDARY-AUDIT-20261026/samples/load01c2-probe-A4-i87-M-1500/miniapp-load-events.jsonl.gz",
+    "docs/evidence/archive/LOAD01-PROBE-BOUNDARY-AUDIT-20261026/samples/load01c2-probe-B1-i81-M-1500/miniapp-load-events.jsonl.gz",
+    "docs/evidence/archive/LOAD01-PROBE-BOUNDARY-AUDIT-20261026/samples/load01c2-probe-B2-i82-M-1500/miniapp-load-events.jsonl.gz",
+    "docs/evidence/archive/LOAD01-PROBE-BOUNDARY-AUDIT-20261026/samples/load01c2-probe-B3-i85-M-1500/miniapp-load-events.jsonl.gz",
+    "docs/evidence/archive/LOAD01-PROBE-BOUNDARY-AUDIT-20261026/samples/load01c2-probe-B4-i86-M-1500/miniapp-load-events.jsonl.gz",
+    "docs/evidence/archive/LOAD01-PROBE-BOUNDARY-AUDIT-20261026/SHA256SUMS"
   ],
   "no_other_affected_docs_reason": null
 }

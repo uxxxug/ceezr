@@ -1,25 +1,68 @@
-خريطةُ مصدرِ عيناتِ تدقيقِ حدودِ المجسّاتِ — LOAD01-PROBE-BOUNDARY-AUDIT (2026-10-26)
-المصدرُ: أثرُ أفعالِ التشغيلِ 40292412972 (دورةُ LOAD01-C2-HTTP-WAIT-PROBE)
-بصمةُ SHA-256 للأثرِ: b5a465b54eb918daf2419624beb95231b84c026e89221f104f42734ef493b588
-(الأثرُ الكاملُ 795 ملفًّا · خريطتُهُ في ../LOAD01-C2-HTTP-WAIT-PROBE-20261026/artifact-map.txt)
+خريطةُ مصدرِ عيّناتِ إعادةِ الإنتاجِ — LOAD-01-PROBE-BOUNDARY-AUDIT (2026-10-26)
 
-الذراعانِ المقيسانِ (ملفاتُ الأداةِ الأربعُ متطابقةٌ حرفيًّا بينَهما — بصماتُ الملفاتِ):
-  A = 30c9dae6110b522628f8ac7e3194c92eb40952fd
-  B = 3697d7a0802472d55f1b00cffe75e10488a721e3
-  apps/gateway/src/background/load-trace.ts  (SHA-256 مقتطع: 1c367427 في الذراعينِ)
-  deploy/capacity-run/load/lib.ts            (3fa03413 في الذراعينِ)
-  deploy/capacity-run/load/miniapp-load.ts   (377327ec في الذراعينِ)
-  deploy/capacity-run/load/wave-report.ts    (1eae14d3 في الذراعينِ)
+# 1. هويّةُ ذراعَي المقعدِ (من خامِ التشغيلِ نفسِه)
 
-محتوى samples/<wave>/:
-  load-events.jsonl.gz        — سطورُ http_call لمسارِ rides_create (genA) كما هيَ منَ الخامِّ
-                                (لا تحويلَ ولا تدويرَ) + سطرُ latency_percentiles النهائيُّ لـgenA
-  miniapp-load-events.jsonl.gz — أحداثُ الأطوارِ (phase.start/drain_start/end) +
-                                سيناريوهاتُ scenario.outcome المتحقّقةُ (kind=verified)
+المصدرُ: ملفّا `arm.txt` و`arm-sha.txt` في كلِّ ملخّصِ خامٍ للموجةِ في أرشيفِ الدورةِ
+السابقةِ (`../LOAD01-C2-HTTP-WAIT-PROBE-20261026/raw-summaries/<wave>/`). القيمُ كما
+تُقرأُ منَ الملفاتِ بلا تدخلٍ:
 
-هذهِ هيَ المدخلاتُ الدنيا الكافيةُ لإعادةِ تشغيلِ المحلّلِ:
-  python3 docs/evidence/capacity/LOAD01-PROBE-BOUNDARY-AUDIT-20261026/analyze-probe-boundary.py \
-    docs/evidence/archive/LOAD01-PROBE-BOUNDARY-AUDIT-20261026/samples \
-    docs/evidence/archive/LOAD01-C2-HTTP-WAIT-PROBE-20261026/raw-summaries
-(خرجُها مطابقٌ حرفيًّا لـ probe-boundary-summary.json المحفوظِ في دليلِ الدورةِ — تحققٌ منقولٌ.)
-ما ليسَ هنا: باقي مساراتِ http_call وغيرِها منَ الخامِّ — في أثرِ الأفعالِ (احتفاظُ 30 يومًا).
+| الموجاتُ | الذراعُ | بصمةُ رأسِ الشجرةِ |
+|---|---|---|
+| A1–A4، AA1، AA2، COST-ON1، COST-ON2، S1 | A | `30c9dae6110b522628f8ac7e3194c92eb40952fd` |
+| B1–B4، S2 | B | `3697d7a0802472d55f1b00cffe75e10488a721e3` |
+| COST-OFF1، COST-OFF2 | A (كودُ الأداةِ مرفوعٌ) | `4bd9432ea38542c2d6e1f24eb3f7417d93fbca20` |
+
+**نطاقُ هذا التدقيقِ: الموجاتُ الثماني A1–A4/B1–B4** (ذراعانِ: `30c9dae6` و`3697d7a0`).
+موجاتُ COST-OFF برأسٍ ثالثٍ (شجرةٌ مختلفةٌ لأنَّ كودَ الأداةِ مرفوعٌ منها) خارجُ نطاقِ
+المطابقةِ هنا، وموجاتُ AA/COST/S لم تدخل التحققَ المركّبَ (لم تُطابَق مئيناتُها).
+
+# 2. تطابقُ ملفاتِ القياسِ بينَ الذراعين (بالمقارنةِ الحرفيّةِ)
+
+ملفاتُ القياسِ الأربعةُ (ثلاثةٌ في مولّدِ الحملِ وواحدٌ خادميّ) **متطابقةٌ حرفيًّا بينَ
+ذراعَي `30c9dae6` و`369d7a0`** — قورنت بالمحتوى (بصمة SHA-256 للملفِ، لا لمسارِهِ):
+
+- `deploy/capacity-run/load/lib.ts` — ساعةُ العميلِ والمئيناتُ وعمودُ http_call
+- `deploy/capacity-run/load/miniapp-load.ts` — نداءُ إنشاءِ الرحلةِ (بلا إعادةِ محاولةٍ)
+- `deploy/capacity-run/load/wave-report.ts` — اختيارُ آخرِ سطرِ مئيناتٍ للتقريرِ
+- `apps/gateway/src/background/load-trace.ts` — **خادميّ**: ساعةُ serverMs وسطورُ httpreq/pseat
+
+نتيجةُ المقارنةِ: بصمةُ كلِّ ملفٍّ واحدةٌ في الذراعينِ (قيمُها في
+`../capacity/LOAD01-PROBE-BOUNDARY-AUDIT-20261026/probe-boundary-summary.json` تحت
+`files`، وقيمُها الكاملةُ تُقرأُ بـ
+`git ls-tree -r <head> <path>` لكلِّ رأسٍ منَ الجدولِ أعلاه).
+
+# 3. عيّناتُ إعادةِ الإنتاجِ (هذا الأرشيف)
+
+لكلِّ موجةٍ منَ الثماني، ملفّانِ مضغوطانِ يحتويانِ **كلَّ ما يقرأُهُ المحلّلُ**:
+
+- `samples/<wave>/load-events.jsonl.gz` — أسطرُ `http_call` لمسارِ `rides_create` كاملةً
+  (الزمنُ والحالةُ ومعرّفُ الطلبِ) + **سطرُ `latency_percentiles` الأخير** الذي يقرؤهُ
+  `wave-report` (نصُّهُ الكاملُ — القيمُ المدوّرةُ للمللي ثانيةِ وn).
+- `samples/<wave>/miniapp-load-events.jsonl.gz` — أحداثُ الأطوارِ (start/completed لكلِّ
+  طورٍ) وأحداثُ السيناريوهاتِ المتحقّقةِ (اسمُ السيناريو وoutcome).
+
+هذهِ العيّناتُ مستخرجةٌ من ملفاتِ genA/genB في أثرِ أفعالِ التشغيلِ 40292412972
+(بصمةُ الأثرِ `b5a465b5…` — سجلاتُهُ الخامّةُ في أرشيفِ الدورةِ السابقةِ). **لا يحتاجُ
+إعادةُ الإنتاجِ الأثرَ الخامَّ كاملًا ولا الأفعالَ** — العيّناتُ كافيةٌ لأنَّ المحلّلَ لا
+يقرأُ غيرَها.
+
+# 4. إعادةُ الإنتاجِ (بلا توليدِ bytecode)
+
+الأداةُ تستوردُ المحلّلَ في الاختبارِ الذاتيّ، وأيُّ استيرادٍ يولّد `__pycache__` داخلَ
+دليلِ الأدلةِ فيُفشلَ حاجزَ بياناتِ الأدلةِ (ملفٌّ غيرُ مُدرَج). **الحلُّ المسجّلُ في
+البروتوكولِ:** شغّل المحلّلَ والاختبارَ الذاتيَّ بـ`PYTHONDONTWRITEBYTECODE=1` فلا
+يولَّد `__pycache__` أصلًا — وهذا موثّقٌ هنا وفي دليلِ الدورةِ، والتحققُ أدناه
+يُنفَّذ بهذهِ الصيغةِ (بلا تنظيفٍ يدويٍّ):
+
+```sh
+cd docs/evidence/capacity/LOAD01-PROBE-BOUNDARY-AUDIT-20261026
+PYTHONDONTWRITEBYTECODE=1 python3 analyze-probe-boundary-selftest.py   # PASS
+PYTHONDONTWRITEBYTECODE=1 python3 analyze-probe-boundary.py \
+  ../../archive/LOAD01-PROBE-BOUNDARY-AUDIT-20261026/samples \
+  ../../archive/LOAD01-C2-HTTP-WAIT-PROBE-20261026/raw-summaries        # تطابقٌ 8/8
+# ثم حاجزُ بياناتِ الأدلةِ مباشرةً (لا __pycache__ بينهما):
+cd ../../.. && bun scripts/check-evidence-manifests.ts
+```
+
+مخرجُ المحلّلِ المحفوظُ `probe-boundary-summary.json` في دليلِ الدورةِ **أُعيدَ إنتاجُهُ
+من هذهِ العيّناتِ تطابقًا حرفيًّا** (قُورن الثنائيانِ).
