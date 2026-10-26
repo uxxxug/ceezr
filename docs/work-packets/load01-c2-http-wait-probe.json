@@ -8,9 +8,7 @@
     "apps/gateway/src/background/load-trace.ts",
     "apps/gateway/src/background/load-path-scope.ts",
     "deploy/capacity-run/load/miniapp-load.ts",
-    "deploy/capacity-run/load/wave-report.ts",
-    "deploy/capacity-run/load/lib.ts",
-    "tests/unit/load-trace-httpreq.test.ts"
+    "deploy/capacity-run/load/wave-report.ts"
   ],
   "state": ["docs/SYSTEM_STATE.md"],
   "roadmap": ["ROADMAP.md"],
@@ -21,9 +19,7 @@
     "docs/evidence/capacity/LOAD01-C2-HTTP-WAIT-ANALYSIS-20261026/SHA256SUMS",
     "docs/evidence/capacity/LOAD01-C2-HTTP-WAIT-PROBE-20261026/PROTOCOL-load01-c2-http-wait-probe.md",
     "docs/roadmap/execution/STATUS.md",
-    "docs/evidence/capacity/LOAD01-C2-HTTP-WAIT-ANALYSIS-20261026/test_analyze_http_wait.py",
-    "docs/evidence/capacity/LOAD01-C2-HTTP-WAIT-PROBE-TOOL-20261026/RESULT.md",
-    "docs/evidence/capacity/LOAD01-C2-HTTP-WAIT-PROBE-TOOL-20261026/SHA256SUMS"
+    "docs/evidence/capacity/LOAD01-C2-HTTP-WAIT-ANALYSIS-20261026/test_analyze_http_wait.py"
   ],
   "no_other_affected_docs_reason": null
 }
