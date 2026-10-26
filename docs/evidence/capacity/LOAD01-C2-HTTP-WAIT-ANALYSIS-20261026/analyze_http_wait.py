@@ -130,6 +130,9 @@ def load_wave(raw_dir, wave, conc):
             loop.append((d.get("lagP95Ms"), d.get("processCpuPct")))
     if first_at is None or last_at is None or last_at <= first_at:
         raise AnalysisError(f"فقدُ التوقيتِ في {tr}: لا يُختلقُ مدًّى — فشلٌ صريح")
+    if unexpected:
+        # فحصٌ مُلزِم: لا تمرُّ ملاحظةٌ غيرُ متوقعةٍ بصمتٍ حتى لو لم يكشفها pagg
+        raise AnalysisError(f"{tr}: ملاحظاتٌ غيرُ متوقعةٍ: {dict(unexpected)}")
     # — المطابقةُ المُلزِمةُ pdb ↔ pagg (اتحادُ مفاتيحِ gatewayRequest):
     # العددُ ومجموعا الانتظارِ والاحتجازِ، بتسامحٍ مشتقٍّ منَ التقريبِ.
     mismatch = []

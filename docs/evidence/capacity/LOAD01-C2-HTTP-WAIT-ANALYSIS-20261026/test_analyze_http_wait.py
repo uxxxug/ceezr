@@ -36,7 +36,7 @@ def write_wave(raw, wave, conc, trace_lines, client_row=None):
         f.write('2000,6000,3,0,10,2000,"select synthetic_probe()"\n')
 
 
-def build_fixtures(raw, *, tamper_pagg=False, drop_at=False):
+def build_fixtures(raw, *, tamper_pagg=False, drop_at=False, unexpected_kind=False):
     """موجةٌ واحدةٌ كافيةٌ البنيةِ لكلِّ اسمٍ، وبياناتٌ حقيقيّةُ الشكلِ في زوجٍ واحد.
 
     الزوجُ ذو المعطيات: A1-i80 وB1-i81 — والأسماءُ الباقيةُ حاملةٌ أدنى بنيةٍ صالحةٍ
@@ -82,6 +82,9 @@ def build_fixtures(raw, *, tamper_pagg=False, drop_at=False):
     for w in ["A1-i80", "B1-i81", "B2-i82", "A2-i83", "A3-i84", "B3-i85", "B4-i86", "A4-i87"]:
         if w in ("A1-i80", "B1-i81"):
             http_n, wait, drain = (2000, 30000.0, 700) if w.startswith("A") else (2000, 42000.0, 500)
+            if unexpected_kind:
+                # صفٌّ بنوعٍ غيرِ متوقعٍ **بلا نظيرٍ في pagg** — يجبُ أن يُفشلَ الفحصُ المُلزِم
+                pass
             # ثلاثُ نوافذَ متطابقةِ البنيةِ (لِتُكوِّنَ شريحةً بكتلةٍ كافيةٍ للفحصِ)
             rows = win(http_n, wait, drain, AT0) + win(http_n, wait, drain, AT0 + 5) + win(http_n, wait, drain, AT0 + 10)
             trace = rows + pagg_from(rows) + [
@@ -89,6 +92,9 @@ def build_fixtures(raw, *, tamper_pagg=False, drop_at=False):
                  "p50Ms": 150, "p95Ms": 400, "maxMs": 900, "errors": 0},
                 {"k": "loop", "at": AT0, "lagP50Ms": 1, "lagP95Ms": 3, "processCpuPct": 80},
             ]
+            if unexpected_kind:
+                trace = [{"k": "pdb", "at": AT0, "pool": POOL, "path": "http:POST /v1/rides",
+                          "kind": "txQuery", "n": 5, "waitSumMs": 1.0, "runSumMs": 1.0}] + trace
             if drop_at:
                 for r in trace:
                     r.pop("at", None)
@@ -161,7 +167,14 @@ def main():
         expect(res2.returncode != 0 and "pagg" in (res2.stderr + res2.stdout),
                "العبثُ بمطابقةِ pdb↔pagg يُفشلُ السكربتَ صراحةً")
 
-        # 3) فشلُ فقدِ التوقيتِ
+        # 3) فشلُ نوعٍ غيرِ متوقعٍ بلا نظيرٍ في pagg (الفحصُ المُلزِمُ لا يعتمدُ على pagg)
+        raw4 = os.path.join(tmp, "raw-unexpected")
+        build_fixtures(raw4, unexpected_kind=True)
+        res4 = run(raw4, os.path.join(tmp, "analysis4.json"))
+        expect(res4.returncode != 0 and "غيرُ متوقعة" in (res4.stderr + res4.stdout),
+               "نوعٌ غيرُ متوقعٍ بلا نظيرٍ في pagg يُفشلُ السكربتَ صراحةً")
+
+        # 4) فشلُ فقدِ التوقيتِ
         raw3 = os.path.join(tmp, "raw-noat")
         build_fixtures(raw3, drop_at=True)
         res3 = run(raw3, os.path.join(tmp, "analysis3.json"))
