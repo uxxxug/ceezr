@@ -262,6 +262,9 @@ export async function call(
       body: null,
       networkError: error instanceof Error ? error.name : "network",
       requestId: null,
+      // لا ترويساتِ ولا جسمًا في الفشلِ الشبكيِّ — لا حدَّينِ يُفصلانِ (null لا صفرٌ).
+      ttfbMs: null,
+      bodyMs: null,
     });
     throw error;
   }
