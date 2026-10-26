@@ -1,0 +1,260 @@
+{
+ "rule": {
+  "minPairs": 3,
+  "effectPp": 5,
+  "nullPp": 2
+ },
+ "controlStatements": 25,
+ "waves": [
+  {
+   "slot": "A1",
+   "superseded": false,
+   "raw": "/home/user/load01c2-out/raw/load01c2-c2ab-A1-i80-M-1500",
+   "seat": {
+    "cpuModel": "AMD EPYC 7763 64-Core Processor",
+    "idleSpeedProbeMs": 339.8,
+    "idlePgProbeMs": 378.1
+   },
+   "valid": true,
+   "g1": {
+    "ok": 5014,
+    "total": 12400,
+    "pct": 40.44
+   },
+   "pairedComparability": {
+    "verdict": "COMPARABLE",
+    "reasons": []
+   },
+   "hardwareFactor": 1,
+   "claimMeanMs": 3.46,
+   "contactQueueP50Ms": 21929.48,
+   "contactExecMeanMs": 240.36,
+   "sweepsTruncatedShare": 0.958
+  },
+  {
+   "slot": "B1",
+   "superseded": false,
+   "raw": "/home/user/load01c2-out/raw/load01c2-c2ab-B1-i81-M-1500",
+   "seat": {
+    "cpuModel": "AMD EPYC 7763 64-Core Processor",
+    "idleSpeedProbeMs": 339.5,
+    "idlePgProbeMs": 377.8
+   },
+   "valid": true,
+   "g1": {
+    "ok": 5230,
+    "total": 12407,
+    "pct": 42.15
+   },
+   "pairedComparability": {
+    "verdict": "COMPARABLE",
+    "reasons": []
+   },
+   "hardwareFactor": 0.99,
+   "claimMeanMs": 3.47,
+   "contactQueueP50Ms": 21854.27,
+   "contactExecMeanMs": 208.51,
+   "sweepsTruncatedShare": 0.958
+  },
+  {
+   "slot": "B2",
+   "superseded": false,
+   "raw": "/home/user/load01c2-out/raw/load01c2-c2ab-B2-i82-M-1500",
+   "seat": {
+    "cpuModel": "AMD EPYC 7763 64-Core Processor",
+    "idleSpeedProbeMs": 339.3,
+    "idlePgProbeMs": 375.2
+   },
+   "valid": true,
+   "g1": {
+    "ok": 4822,
+    "total": 12244,
+    "pct": 39.38
+   },
+   "pairedComparability": {
+    "verdict": "COMPARABLE",
+    "reasons": []
+   },
+   "hardwareFactor": 1.03,
+   "claimMeanMs": 3.63,
+   "contactQueueP50Ms": 21602.51,
+   "contactExecMeanMs": 212.53,
+   "sweepsTruncatedShare": 0.958
+  },
+  {
+   "slot": "A2",
+   "superseded": false,
+   "raw": "/home/user/load01c2-out/raw/load01c2-c2ab-A2-i83-M-1500",
+   "seat": {
+    "cpuModel": "AMD EPYC 7763 64-Core Processor",
+    "idleSpeedProbeMs": 339.6,
+    "idlePgProbeMs": 378
+   },
+   "valid": true,
+   "g1": {
+    "ok": 4828,
+    "total": 12366,
+    "pct": 39.04
+   },
+   "pairedComparability": {
+    "verdict": "COMPARABLE",
+    "reasons": []
+   },
+   "hardwareFactor": 1.02,
+   "claimMeanMs": 3.18,
+   "contactQueueP50Ms": 21072.21,
+   "contactExecMeanMs": 243.82,
+   "sweepsTruncatedShare": 0.958
+  },
+  {
+   "slot": "A3",
+   "superseded": false,
+   "raw": "/home/user/load01c2-out/raw/load01c2-c2ab-A3-i84-M-1500",
+   "seat": {
+    "cpuModel": "AMD EPYC 7763 64-Core Processor",
+    "idleSpeedProbeMs": 340.1,
+    "idlePgProbeMs": 382.2
+   },
+   "valid": true,
+   "g1": {
+    "ok": 4935,
+    "total": 12413,
+    "pct": 39.76
+   },
+   "pairedComparability": {
+    "verdict": "COMPARABLE",
+    "reasons": []
+   },
+   "hardwareFactor": 1.04,
+   "claimMeanMs": 3.27,
+   "contactQueueP50Ms": 21150.45,
+   "contactExecMeanMs": 247.76,
+   "sweepsTruncatedShare": 0.958
+  },
+  {
+   "slot": "B3",
+   "superseded": false,
+   "raw": "/home/user/load01c2-out/raw/load01c2-c2ab-B3-i85-M-1500",
+   "seat": {
+    "cpuModel": "AMD EPYC 7763 64-Core Processor",
+    "idleSpeedProbeMs": 339.9,
+    "idlePgProbeMs": 388
+   },
+   "valid": true,
+   "g1": {
+    "ok": 5085,
+    "total": 12365,
+    "pct": 41.12
+   },
+   "pairedComparability": {
+    "verdict": "COMPARABLE",
+    "reasons": []
+   },
+   "hardwareFactor": 1.01,
+   "claimMeanMs": 3.42,
+   "contactQueueP50Ms": 21245.96,
+   "contactExecMeanMs": 203.06,
+   "sweepsTruncatedShare": 0.958
+  },
+  {
+   "slot": "B4",
+   "superseded": false,
+   "raw": "/home/user/load01c2-out/raw/load01c2-c2ab-B4-i86-M-1500",
+   "seat": {
+    "cpuModel": "AMD EPYC 7763 64-Core Processor",
+    "idleSpeedProbeMs": 339.4,
+    "idlePgProbeMs": 376.4
+   },
+   "valid": true,
+   "g1": {
+    "ok": 4741,
+    "total": 12292,
+    "pct": 38.57
+   },
+   "pairedComparability": {
+    "verdict": "COMPARABLE",
+    "reasons": []
+   },
+   "hardwareFactor": 1.04,
+   "claimMeanMs": 3.52,
+   "contactQueueP50Ms": 21860.53,
+   "contactExecMeanMs": 210.06,
+   "sweepsTruncatedShare": 0.958
+  },
+  {
+   "slot": "A4",
+   "superseded": false,
+   "raw": "/home/user/load01c2-out/raw/load01c2-c2ab-A4-i87-M-1500",
+   "seat": {
+    "cpuModel": "AMD EPYC 7763 64-Core Processor",
+    "idleSpeedProbeMs": 339.6,
+    "idlePgProbeMs": 378.9
+   },
+   "valid": true,
+   "g1": {
+    "ok": 4354,
+    "total": 12339,
+    "pct": 35.29
+   },
+   "pairedComparability": {
+    "verdict": "COMPARABLE",
+    "reasons": []
+   },
+   "hardwareFactor": 1.08,
+   "claimMeanMs": 3.47,
+   "contactQueueP50Ms": 22086.25,
+   "contactExecMeanMs": 245.48,
+   "sweepsTruncatedShare": 0.952
+  }
+ ],
+ "claimMeanMsByArm": {
+  "A": 3.35,
+  "B": 3.51
+ },
+ "verdict": {
+  "decision": "NO_DETECTABLE_EFFECT",
+  "why": "|mean Δ| 1.67pp < 2",
+  "pairs": [
+   {
+    "pair": 1,
+    "a": 40.44,
+    "b": 42.15,
+    "dPp": 1.71
+   },
+   {
+    "pair": 2,
+    "a": 39.04,
+    "b": 39.38,
+    "dPp": 0.34
+   },
+   {
+    "pair": 3,
+    "a": 39.76,
+    "b": 41.12,
+    "dPp": 1.36
+   },
+   {
+    "pair": 4,
+    "a": 35.29,
+    "b": 38.57,
+    "dPp": 3.28
+   }
+  ],
+  "excluded": [],
+  "meanDPp": 1.67,
+  "armG1": {
+   "A": {
+    "n": 4,
+    "pooledPct": 38.63,
+    "min": 35.29,
+    "max": 40.44
+   },
+   "B": {
+    "n": 4,
+    "pooledPct": 40.31,
+    "min": 38.57,
+    "max": 42.15
+   }
+  }
+ }
+}
