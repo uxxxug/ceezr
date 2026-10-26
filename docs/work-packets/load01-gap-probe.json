@@ -1,22 +1,15 @@
 {
   "id": "load01-gap-probe",
   "goal": "LOAD-01 · التشغيلُ الأولُ لمقعدِ فصلِ فجوةِ العميل/الخادمِ ببروتوكولِ #671 وملحقِه 1 المسجّلِ قبلَ أيِّ موجة (التشغيل 40394883081): توقّفٌ منظّمٌ عندَ بوابةِ A/A — حدودُ الخادمِ تكرّرت ضمنَ δ=15ms و ttfbMs لم يتكرّر (+23.41ms) — فلا حكمَ B−A ولا قياسَ كلفةٍ؛ توثيقُ النتيجةِ والتناقضِ معَ C2 (المعالجُ مختلفٌ، غيرُ مثبتِ السببيّة) وإدخالُ أدواتِ المقعدِ إلى main خاملةً (المسارُ يعملُ على فرعِ القياسِ وحدَه). لا كودَ منتجٍ ولا حدٍّ ولا عتبة: LOAD-01M = NOT_MET وLOAD-01 = FAIL.",
-  "canonical_source": [
-    "docs/evidence/capacity/LOAD01-GAP-PROBE-20261026/RESULT.md"
-  ],
+  "canonical_source": ["docs/evidence/capacity/LOAD01-GAP-PROBE-20261026/RESULT.md"],
   "implementation": [
     "deploy/capacity-run/b24-runner/gap-analyze.py",
     "deploy/capacity-run/b24-runner/gap-analyze-selftest.py",
     "deploy/capacity-run/b24-runner/seat-load01-gap-probe.sh",
     ".github/workflows/load01-gap-probe.yml"
   ],
-  "state": [
-    "docs/SYSTEM_STATE.md",
-    "docs/roadmap/execution/STATUS.md"
-  ],
-  "roadmap": [
-    "ROADMAP.md"
-  ],
+  "state": ["docs/SYSTEM_STATE.md", "docs/roadmap/execution/STATUS.md"],
+  "roadmap": ["ROADMAP.md"],
   "affected_docs": [
     "docs/evidence/capacity/LOAD01-GAP-PROBE-20261026/RESULT.md",
     "docs/evidence/capacity/LOAD01-GAP-PROBE-20261026/PROTOCOL-ANNEX-1.md",
