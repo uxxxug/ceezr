@@ -16,7 +16,9 @@
     "tests/unit/load-trace-httpreq.test.ts",
     "deploy/capacity-run/b24-runner/probe-gate.sh",
     "deploy/capacity-run/b24-runner/probe-gate-stop.test.sh",
-    "deploy/capacity-run/b24-runner/probe-analyze-fail.test.sh"
+    "deploy/capacity-run/b24-runner/probe-analyze-fail.test.sh",
+    "deploy/capacity-run/b24-runner/probe-audit-clean.test.sh",
+    ".github/workflows/load01-c2-http-wait-probe.yml"
   ],
   "state": ["docs/SYSTEM_STATE.md"],
   "roadmap": ["ROADMAP.md"],
