@@ -206,7 +206,7 @@ import {
 } from "./realtime/adapters.ts";
 import { type ChatChannel, createChatChannel } from "./realtime/chat-channel.ts";
 import type { HttpGapTiming } from "./realtime/http-bridge.ts";
-import { createHttpBridge } from "./realtime/http-bridge.ts";
+import { createHttpBridge, stampRequestEvents } from "./realtime/http-bridge.ts";
 import { isLiveLocationBroadcastPermitted } from "./realtime/live-tracking-policy.ts";
 import { createOffersChannel } from "./realtime/offers-channel.ts";
 import { createRideChannel } from "./realtime/ride-channel.ts";
@@ -2059,7 +2059,12 @@ const httpHandler = createHttpBridge(
   {
     // رصدُ حدودِ الردّ (httpgap) خلفَ أثرِ الحملِ وحده: بلا أثرٍ لا تُمرَّر الدالةُ
     // أصلًا فلا تُلتقطُ طوابعٌ في الجسرِ ولا يُقاسُ شيءٌ — الكلفةُ صفرٌ بلا تفعيلٍ.
-    ...(loadTrace === null ? {} : { onGap: (gap: HttpGapTiming) => loadTrace?.onGap(gap) }),
+    ...(loadTrace === null
+      ? {}
+      : {
+          onGap: (gap: HttpGapTiming) => loadTrace?.onGap(gap),
+          loopOverdueMs: () => loadTrace?.loopOverdueMs() ?? 0,
+        }),
     fetch: async (request: Request, server?: unknown) => {
       const { pathname } = new URL(request.url);
       const isProbe = pathname === "/health" || pathname === "/ready";
@@ -2103,6 +2108,9 @@ serverHandle.listen(config.port);
 ioServer = new IoServer(serverHandle, {
   cors: { origin: "*" },
 });
+// LOAD-01-GAP-PROBE-RUN2: ختمُ حدثِ `request` — أبكرُ نقطةٍ لكلِّ طلبٍ في node:http على Bun —
+// يُسجَّلُ **بعدَ** ربطِ Socket.IO كي يسبقَ ملفَّهُ للمستمعين، وخلفَ أثرِ الحملِ وحدَه.
+if (loadTrace !== null) stampRequestEvents(serverHandle);
 
 /**
  * `F2-06` — **الإنتاجُ لا يبثُّ موقعاً حيّاً** (قرارُ المالكِ 2026-09-19). وقبلَ

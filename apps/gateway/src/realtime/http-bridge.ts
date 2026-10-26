@@ -33,15 +33,48 @@
  *
  * كلُّ المددِ **إزاحاتٌ من دخولِ المعالجِ** (ساعةٌ واحدةٌ)، والرصدُ لا يغيّرُ سلوكًا ولا
  * يُنشأُ أصلاً إلا بوجودِ `onGap`.
+ *
+ * ## ما قبلَ دخولِ الجسرِ (LOAD-01-GAP-PROBE-RUN2، 2026-10-27)
+ *
+ * - **أبكرُ نقطةٍ متاحةٍ لكلِّ طلبٍ** في `node:http` على Bun هي حدثُ `request` (فُحصَ محلّيًّا:
+ *   حدثُ `data` على المقبسِ لا يُطلَقُ، و`connection` مرّةٌ لكلِّ اتصالٍ لا لكلِّ طلب).
+ *   `stampRequestEvents` يُسجِّلُ مستمعًا **في رأسِ القائمةِ بعدَ ربطِ Socket.IO** فيختمُ
+ *   الطلبَ لحظةَ الحدثِ، و`requestLeadMs` = دخولُ الجسرِ − تلكَ اللحظة (الساعةُ نفسُها).
+ *   ما بينَ وصولِ البايتاتِ إلى المقبسِ وحدثِ `request` (التحليلُ وجدولةُ الحلقةِ) **لا يُقاس**.
+ * - `inflightAtEntry` عددُ الطلباتِ داخلَ الجسرِ لحظةَ الدخولِ (شاملًا هذا)، و`connSeq` ترتيبُ
+ *   الطلبِ على مقبسِهِ (1 = أولُ طلبٍ على اتصالٍ جديد)، و`loopOverdueAtEntryMs` مؤشّرُ مِجسِّ
+ *   الحلقةِ لحظةَ الدخولِ إن مُرِّرَ — مؤشّرٌ لا مُكوِّنٌ.
+ * - كلُّ ذلكَ خلفَ `onGap` نفسِه: بلا رصدٍ لا مستمعَ ولا عدّادَ ولا خريطة.
  */
 
 import type { Server as HttpServer, IncomingMessage, ServerResponse } from "node:http";
+import type { Socket } from "node:net";
 import { REQUEST_ID_HEADER } from "../observability/request-id.ts";
 
 export interface HonoLike {
   fetch: (request: Request, server?: unknown) => Response | Promise<Response>;
   /** رصدُ حدودِ الردّ — اختياريّ؛ بغيابِهِ لا يُرصدُ شيءٌ ولا تُلتقطُ طوابعٌ. */
   onGap?: (gap: HttpGapTiming) => void;
+  /** مؤشّرُ مِجسِّ الحلقةِ لحظةَ الدخولِ — اختياريّ، ولا يُقرأُ إلا معَ `onGap`. */
+  loopOverdueMs?: () => number;
+}
+
+/** ختمُ حدثِ `request` على الطلبِ (ساعةُ العمليّةِ الرتيبة) — رمزٌ لا يتسرّبُ خارجَ الجسر. */
+const REQUEST_EVENT_AT = Symbol("ceezr.requestEventAt");
+
+/**
+ * يُسجِّلُ مستمعَ `request` في رأسِ قائمةِ الخادمِ فيختمُ كلَّ طلبٍ لحظةَ الحدثِ — يُنادى
+ * **بعدَ** ربطِ Socket.IO (الذي يلفُّ المستمعينَ القائمين) كي يكونَ الأبكرَ فعلًا. لا يكتبُ
+ * ردًّا ولا يمسُّ الطلبَ إلا بالرمزِ. يُعيدُ دالّةَ فكٍّ للاختبار.
+ */
+export function stampRequestEvents(server: HttpServer): () => void {
+  const listener = (req: IncomingMessage): void => {
+    (req as unknown as Record<symbol, number>)[REQUEST_EVENT_AT] = performance.now();
+  };
+  server.prependListener("request", listener);
+  return () => {
+    server.off("request", listener);
+  };
 }
 
 /**
@@ -65,6 +98,14 @@ export interface HttpGapTiming {
   readonly finishMs: number | null;
   /** أُغلِقَ الاتصالُ قبلَ اكتمالِ الردّ. */
   readonly closed: boolean;
+  /** حدثُ `request` ← دخولُ الجسر (null إن لم يُختمِ الحدث: `stampRequestEvents` غيرُ مسجَّل). */
+  readonly requestLeadMs: number | null;
+  /** طلباتٌ داخلَ الجسرِ لحظةَ الدخولِ (شاملًا هذا الطلب). */
+  readonly inflightAtEntry: number;
+  /** ترتيبُ الطلبِ على مقبسِهِ (1 = أولُ طلبٍ على اتصالٍ جديد)؛ null بلا مقبس. */
+  readonly connSeq: number | null;
+  /** مؤشّرُ تأخُّرِ نبضةِ الحلقةِ لحظةَ الدخولِ (null بلا مِجسّ). */
+  readonly loopOverdueAtEntryMs: number | null;
 }
 
 /**
@@ -133,6 +174,9 @@ async function writeWebResponse(
  * يتولّى ما يخصُّه (مسار `/socket.io/`).
  */
 export function createHttpBridge(app: HonoLike, port: number) {
+  // عدّادُ الطلباتِ داخلَ الجسرِ وترتيبُها على المقبسِ — يُنشآنِ معَ `onGap` وحدَه.
+  let inflight = 0;
+  const socketSeq = app.onGap === undefined ? null : new WeakMap<Socket, number>();
   return async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
     // إزاحةُ كلِّ الطوابعِ من هذهِ اللحظةِ بساعةٍ واحدةٍ — بلا رصدٍ لا تُلتقطُ أصلًا.
     const tEntry = app.onGap === undefined ? null : performance.now();
@@ -148,7 +192,19 @@ export function createHttpBridge(app: HonoLike, port: number) {
     // بديلٌ. finish = كُتبتِ آخرُ البياناتِ إلى نظامِ التشغيلِ — ليسَ إثباتَ استلامِ العميلِ.
     if (app.onGap !== undefined && tEntry !== null) {
       const emit = app.onGap;
-      const base = (): Omit<HttpGapTiming, "finishMs" | "closed"> => ({
+      inflight += 1;
+      const inflightAtEntry = inflight;
+      const evAt = (req as unknown as Record<symbol, number | undefined>)[REQUEST_EVENT_AT];
+      const requestLeadMs = typeof evAt === "number" ? tEntry - evAt : null;
+      const sock = req.socket as Socket | undefined;
+      let connSeq: number | null = null;
+      if (sock !== undefined && sock !== null && socketSeq !== null) {
+        connSeq = (socketSeq.get(sock) ?? 0) + 1;
+        socketSeq.set(sock, connSeq);
+      }
+      const loopOverdueAtEntryMs = app.loopOverdueMs === undefined ? null : app.loopOverdueMs();
+      const extra = { requestLeadMs, inflightAtEntry, connSeq, loopOverdueAtEntryMs };
+      const base = (): Omit<HttpGapTiming, "finishMs" | "closed" | keyof typeof extra> => ({
         requestId: responseHeaders?.get(REQUEST_ID_HEADER) ?? null,
         method: req.method ?? "",
         pathname: (req.url ?? "/").split("?").at(0) ?? "/",
@@ -161,12 +217,14 @@ export function createHttpBridge(app: HonoLike, port: number) {
       res.on("finish", () => {
         if (settled) return;
         settled = true;
-        emit({ ...base(), finishMs: performance.now() - tEntry, closed: false });
+        inflight -= 1;
+        emit({ ...base(), finishMs: performance.now() - tEntry, closed: false, ...extra });
       });
       res.on("close", () => {
         if (settled) return;
         settled = true;
-        emit({ ...base(), finishMs: null, closed: true });
+        inflight -= 1;
+        emit({ ...base(), finishMs: null, closed: true, ...extra });
       });
     }
     try {
