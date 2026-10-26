@@ -6,17 +6,26 @@
  *   (٢) `pseat`: حجزُ مقعدٍ فردّيٌّ منسوبٌ إلى معرّفِ الطلبِ (سياقِ الارتباطِ الجاري) بفواصلِهِ
  *       المشتقّةِ — للنطاقاتِ الـHTTP وحدها؛ مساراتُ الدرينرِ لا تُنسَبُ إلى معرّفِ طلبٍ.
  *   (٣) `arr1s`: وصولٌ بثانيةٍ واحدةٍ عندَ الدخولِ (http لكلِّ مسارٍ، وseat لحظةَ طلبِ
- *       المقعدِ) — لا يُصبُّ عندَ الإيقافِ إلا ما انقضت ثانيتُه.
- *   (٤) عمودُ العميلِ: `http_call` سطرٌ فرديٌّ لكلِّ نداءٍ بمعرّفِ الطلبِ وزمنِ العميلِ.
+ *       المقعدِ) — لا يُصبُّ عندَ الإيقافِ إلا ما انقضت ثانيتُه، والحجزُ الذي يبدأُ قبلَ
+ *       التفريغِ وينتهي بعدَهُ يُحتسَبُ مرةً واحدةً في ثانيتِهِ لا فقدَ ولا استبدالَ عدٍّ سابق.
+ *   (٤) عمودُ العميلِ: `http_call` سطرٌ فرديٌّ لكلِّ نداءٍ بمعرّفِ الطلبِ وزمنِ العميلِ — خلفَ
+ *       العلمِ نفسِهِ (OFF بلا سطرٍ) فيقيسُ فحصُ ON–OFF كلفةَ الجانبينِ معًا.
+ *   (٥) السلسلةُ عبرَ الوسيطِ الحقيقيِّ (http_call ← httpreq ← pseat بمعرّفٍ واحدٍ)
+ *       ومصالحةُ الحجوزاتِ المؤهّلةِ بحسبِ التجمّعِ والنوعِ معَ الإجمالياتِ القائمةِ.
  * ينتمي إلى: tests/unit
  */
 import { afterEach, describe, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { Hono } from "hono";
 import type postgres from "postgres";
 import { enableLoadPathScope } from "../../apps/gateway/src/background/load-path-scope.ts";
 import { createLoadTrace } from "../../apps/gateway/src/background/load-trace.ts";
+import {
+  createRequestIdMiddleware,
+  REQUEST_ID_HEADER,
+} from "../../apps/gateway/src/observability/request-id.ts";
 import { withQueryDeadline } from "../../packages/infrastructure/db/query-deadline.ts";
 import { runWithCorrelation } from "../../packages/infrastructure/observability/correlation.ts";
 
@@ -168,17 +177,131 @@ describe("LOAD-01 — httpreq/pseat/arr1s خلف DISPATCH_TRACE_FILE", () => {
     expect(seatArr[0]?.name).toBe("ceezr:gatewayRequest");
     expect(Number(seatArr[0]?.n)).toBe(1);
   });
+
+  test("arr1s: حجزٌ يبدأُ قبلَ التفريغِ وينتهي بعدَهُ — يُحتسَبُ مرةً واحدةً في ثانيتِهِ، لا فقدَ ولا استبدالَ عدٍّ سابق", async () => {
+    const file = join(mkdtempSync(join(tmpdir(), "hr4-")), "trace");
+    const trace = createLoadTrace(file);
+    if (trace === null) throw new Error("الأثرُ معطّل");
+    // الاصطفافُ بعيدًا عن حدودِ الثواني: الوصولانِ (السريعُ والمتأخرُ المشتقُّ) في الثانيةِ نفسِها حتمًا.
+    while (Date.now() % 1000 < 250 || Date.now() % 1000 > 750) {
+      await new Promise((r) => setTimeout(r, 25));
+    }
+    const S = Math.floor(Date.now() / 1000) * 1000; // ثانيةُ وصولِ الاثنينِ
+    const sqlFast = withQueryDeadline(lazySql(10), {
+      deadlineMs: 10_000,
+      slots: 2,
+      label: "ceezr:gatewayRequest",
+    });
+    const sqlSlow = withQueryDeadline(lazySql(5_100), {
+      deadlineMs: 10_000,
+      slots: 2,
+      label: "ceezr:gatewayRequest",
+    });
+    // الحجزُ المتأخرُ: يُطلَبُ الآنَ (ثانيةُ S) ويحسمُ بعدَ التفريغِ الدوريِّ (~5ث) — وصولُهُ مشتقٌّ إلى S.
+    const fast = sqlFast`select 1` as unknown as Promise<unknown>;
+    const slow = sqlSlow`select 2` as unknown as Promise<unknown>;
+    await fast;
+    await slow; // التفريغُ الدوريُّ (5ث) يمرُّ أثناءَ حياةِ هذا الحجزِ ويصبُّ ثانيةَ S أولًا
+    await trace.stop();
+    const all = rows(file);
+    const seatArr = all.filter((r) => r.k === "arr1s" && r.cls === "seat");
+    // صفّانِ للثانيةِ نفسِها: المتأخرُ لم يستبدلْ عدَّ الأولِ (صُفّانِ لا صفٌّ واحدٌ بِنِ2) ولم يُفقدْ.
+    expect(seatArr).toHaveLength(2);
+    expect(seatArr.every((r) => Number(r.at) === S)).toBe(true); // الثانيةُ الصحيحةُ لا غيرُها
+    expect(seatArr.every((r) => Number(r.n) === 1)).toBe(true); // كلٌّ مرةً واحدةً — لا مضاعفةَ
+    // المستهلكُ (readTraceDiag) يجمعُ الصفوفَ: المجموعُ 2 لا أكثرَ ولا أقلَّ.
+    const consumed = seatArr.reduce((s, r) => s + Number(r.n), 0);
+    expect(consumed).toBe(2);
+  }, 20_000);
+
+  test("الربطُ عبرَ الوسيطِ الحقيقيِّ: http_call ← httpreq ← pseat بمعرّفٍ واحدٍ ومصالحةُ الحجوزاتِ المؤهّلةِ", async () => {
+    const file = join(mkdtempSync(join(tmpdir(), "hr5-")), "trace");
+    const trace = createLoadTrace(file);
+    if (trace === null) throw new Error("الأثرُ معطّل");
+    const sql = withQueryDeadline(lazySql(30), {
+      deadlineMs: 5_000,
+      slots: 2,
+      label: "ceezr:gatewayRequest",
+    });
+    // التطبيقُ والوسيطُ الحقيقيّانِ: الوسيطُ يولّدُ المعرّفَ ويربطُ السياقَ ويُلحقُ الرأسَ — كما في server.ts،
+    // والدخولُ عبرَ inRoute كما في index.ts — لا runWithCorrelation يدويٍّ ولا معرّفٍ مُمرَّرٍ.
+    const app = new Hono();
+    app.use(createRequestIdMiddleware());
+    app.post("/v1/rides", async (c) => {
+      await (sql`select 1` as unknown as Promise<unknown>);
+      return c.json({ ok: true });
+    });
+    const response = await trace.inRoute("/v1/rides", "POST", async () =>
+      app.fetch(new Request("http://gateway/v1/rides", { method: "POST" })),
+    );
+    const rid = response.headers.get(REQUEST_ID_HEADER);
+    expect(rid).toBeTruthy(); // الوسيطُ الحقيقيُّ ولّدَهُ وألحقَهُ
+    // عمودُ العميلِ: http_call بمعرّفِ الردِّ الفعليِّ — كما يقرؤُهُ المولّدُ منَ الرأسِ.
+    const runDir = mkdtempSync(join(tmpdir(), "hc2-"));
+    mkdirSync(`${runDir}/evidence`, { recursive: true });
+    const prevRun = process.env.RUN_DIR;
+    const prevTrace = process.env.DISPATCH_TRACE_FILE;
+    process.env.RUN_DIR = runDir;
+    process.env.DISPATCH_TRACE_FILE = file;
+    const { PathRecorder } = await import("../../deploy/capacity-run/load/lib.ts");
+    const rec = new PathRecorder({ path: "miniapp_http", gen: "genT" });
+    rec.httpCallLog("rides_create", {
+      status: response.status,
+      ok: response.ok,
+      is429: false,
+      elapsedMs: 100,
+      body: null,
+      networkError: null,
+      requestId: rid,
+    });
+    await trace.stop();
+    if (prevRun === undefined) delete process.env.RUN_DIR;
+    else process.env.RUN_DIR = prevRun;
+    if (prevTrace === undefined) delete process.env.DISPATCH_TRACE_FILE;
+    else process.env.DISPATCH_TRACE_FILE = prevTrace;
+    // السلسلةُ كاملةً بمعرّفٍ واحدٍ: http_call ← httpreq ← pseat
+    const all = rows(file);
+    const httpreq = all.filter((r) => r.k === "httpreq");
+    expect(httpreq).toHaveLength(1);
+    expect(httpreq[0]?.requestId).toBe(rid); // من رأسِ الردِّ الفعليِّ الذي ولّدَهُ الوسيطُ
+    const pseat = all.filter((r) => r.k === "pseat");
+    expect(pseat).toHaveLength(1);
+    expect(pseat[0]?.requestId).toBe(rid); // انسابَ عبرَ سياقِ الارتباطِ الذي أنشأَهُ الوسيطُ الحقيقيُّ
+    expect(pseat[0]?.path).toBe("http:POST /v1/rides");
+    const callLines = readFileSync(`${runDir}/evidence/load-events.jsonl`, "utf8")
+      .split("\n")
+      .filter((l) => l !== "");
+    const httpCall = callLines.map((l) => JSON.parse(l) as Record<string, unknown>);
+    expect(httpCall).toHaveLength(1);
+    expect(httpCall[0]?.requestId).toBe(rid);
+    // المصالحةُ بحسبِ التجمّعِ والنوعِ: كلُّ حجزٍ مؤهّلٍ للنطاقِ الـHTTP (غيرِ txQuery) مسجّلٌ فردًّا
+    // منسوبًا — عددُ pseat = مجموعُ حجوزاتِ المسارِ في pagg لكلِّ (pool, kind).
+    const pagg = all.filter(
+      (r) => r.k === "pagg" && r.path === "http:POST /v1/rides" && r.kind !== "txQuery",
+    );
+    expect(pagg).toHaveLength(1);
+    const byKey = new Map<string, number>();
+    for (const p of pseat) {
+      const k = `${p.pool}|${p.kind}`;
+      byKey.set(k, (byKey.get(k) ?? 0) + 1);
+    }
+    for (const g of pagg) {
+      expect(byKey.get(`${g.pool}|${g.kind}`)).toBe(Number(g.n));
+    }
+  });
 });
 
 describe("LOAD-01 — عمودُ العميلِ (http_call)", () => {
-  test("سطرٌ فرديٌّ لكلِّ نداءٍ بمعرّفِ الطلبِ وزمنِ العميلِ — لا جمعَ", async () => {
+  test("خلفَ DISPATCH_TRACE_FILE: بلا علمٍ لا سطرَ، وبالعلمِ سطرٌ فرديٌّ لكلِّ نداءٍ — لا جمعَ", async () => {
     const runDir = mkdtempSync(join(tmpdir(), "hc1-"));
     mkdirSync(`${runDir}/evidence`, { recursive: true });
+    const prevRun = process.env.RUN_DIR;
+    const prevTrace = process.env.DISPATCH_TRACE_FILE;
     process.env.RUN_DIR = runDir;
     // استيرادٌ ديناميكيٌّ بعدَ ضبطِ RUN_DIR: EV ثابتٌ يُحلَّ عندَ تحميلِ الوحدةِ.
     const { PathRecorder } = await import("../../deploy/capacity-run/load/lib.ts");
     const rec = new PathRecorder({ path: "miniapp_http", gen: "genT" });
-    rec.httpCallLog("rides_create", {
+    const result = {
       status: 200,
       ok: true,
       is429: false,
@@ -186,7 +309,14 @@ describe("LOAD-01 — عمودُ العميلِ (http_call)", () => {
       body: null,
       networkError: null,
       requestId: "req-cli-1",
-    });
+    };
+    // بلا علمٍ (حالةُ OFF): لا سطرَ عميلٍ — فحصُ ON–OFF يقيسُ كلفةَ الأداةِ في الجانبينِ معًا.
+    delete process.env.DISPATCH_TRACE_FILE;
+    rec.httpCallLog("rides_create", result);
+    expect(existsSync(`${runDir}/evidence/load-events.jsonl`)).toBe(false);
+    // بالعلمِ (حالةُ ON): سطرٌ فرديٌّ بمعرّفِ الطلبِ وزمنِ العميلِ.
+    process.env.DISPATCH_TRACE_FILE = "/tmp/load-trace-on.jsonl";
+    rec.httpCallLog("rides_create", result);
     const lines = readFileSync(`${runDir}/evidence/load-events.jsonl`, "utf8")
       .split("\n")
       .filter((l) => l !== "");
@@ -197,5 +327,9 @@ describe("LOAD-01 — عمودُ العميلِ (http_call)", () => {
     expect(row.requestId).toBe("req-cli-1");
     expect(row.status).toBe(200);
     expect(row.elapsedMs).toBe(123.46); // مقرَّبًا إلى سنتي الميلي ثانيةِ
+    if (prevRun === undefined) delete process.env.RUN_DIR;
+    else process.env.RUN_DIR = prevRun;
+    if (prevTrace === undefined) delete process.env.DISPATCH_TRACE_FILE;
+    else process.env.DISPATCH_TRACE_FILE = prevTrace;
   });
 });

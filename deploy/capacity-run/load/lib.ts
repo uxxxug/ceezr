@@ -234,6 +234,11 @@ export class PathRecorder {
    * فجوةُ العميل/الخادمِ فصلًا. ممرٌّ جديدٌ لا يجمعُ: لا مئيناتٍ ولا نوافذَ — العينةُ نفسُها.
    */
   httpCallLog(label: string, result: HttpResult): void {
+    // خلفَ `DISPATCH_TRACE_FILE` وحدَهِ — العلمُ نفسُهِ الذي تُقرؤُهُ البوّابةُ (يصلُ المولّدَ
+    // عبرَ secrets.env التي يحمّلُها wave.sh) — فيقيسُ فحصُ ON–OFF كلفةَ الأداةِ في
+    // الجانبينِ معًا، ولا يعملُ شيءٌ من التسجيلِ الجديدِ في الحالتينِ معًا.
+    if (process.env.DISPATCH_TRACE_FILE === undefined || process.env.DISPATCH_TRACE_FILE === "")
+      return;
     // المسارُ يُحلُّ وقتَ النداءِ لا وقتَ تحميلِ الوحدةِ: سطرُ العميلِ يُكتبُ حيثُ يشيرُ
     // RUN_DIR لحظةَ الكتابةِ (الوحدةُ قد تُحمَّلُ في اختباراتٍ كثيرةٍ ببيئاتٍ متغايرةٍ).
     appendFileSync(
