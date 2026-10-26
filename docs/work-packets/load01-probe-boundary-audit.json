@@ -1,0 +1,38 @@
+{
+  "id": "load01-probe-boundary-audit",
+  "goal": "LOAD-01 · تدقيقُ حدودِ قياسِ مجسّاتِ الذيلِ P1/P6a — دورةٌ استرجاعيةٌ وصفيّةٌ بلا مقعدٍ ولا كودِ منتجٍ: خريطةُ إنتاجِ المجسّينَ منَ الكودِ (الساعةُ التراكميّةُ للموجةِ كاملةً على نداءاتِ genA، والفاشلُ شبكيًّا يُسجَّلُ بحالةٍ 0 داخلَ المئيناتِ وعمودِ الربطِ معًا (لا يُستبعدُ))، وتدقيقُ تعريفِ فجوةِ العميل/الخادمِ منَ الكودِ، وبرهانُ اتصالِ القياسينِ: تحققٌ مركّبٌ في 8/8 موجاتٍ: المئينانِ عندَ دقّةِ التقريرِ (1ms) + عددُ السطورِ = ‏n سطرِ المئيناتِ = عددُ السيناريوهاتِ المتحقّقةِ (لا رفضَ ولا إعادةَ محاولةٍ) — فالمجسّانِ على المجتمعِ المرتبطِ نفسِهِ الذي يربطُهُ محلّلُ الدورةِ السابقةِ، وذيلُ المجسّاتِ كلُّهُ ردودٌ 200 لا ذيلَ أخطاءٍ. الناتجُ: تفسيرُ الذيلِ ما زالَ غيرَ محسومٍ — الفجوةُ موصوفةٌ أعلى في B لكنَّ السجلاتِ القائمةَ لا تفصلُ داخلَها (شبكة/عميل/مقبس)، ومرشّحاتُ القياسِ لفصلِها معروضةٌ في التقريرِ وتحتاجُ تقييمًا وبروتوكولًا مسجّلًا مسبقًا جديدًا ومقعدًا — لا تُطلَقُ ضمنَ هذهِ الدورةِ. لا مساسَ بمسارِ المنتجِ ولا حدٍّ ولا عتبة: LOAD-01M = NOT_MET وLOAD-01 = FAIL يبقيانِ.",
+  "canonical_source": ["docs/evidence/capacity/LOAD01-PROBE-BOUNDARY-AUDIT-20261026/RESULT.md"],
+  "implementation": [
+    "docs/evidence/capacity/LOAD01-PROBE-BOUNDARY-AUDIT-20261026/analyze-probe-boundary.py",
+    "docs/evidence/capacity/LOAD01-PROBE-BOUNDARY-AUDIT-20261026/analyze-probe-boundary-selftest.py"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [
+    "docs/evidence/capacity/LOAD01-PROBE-BOUNDARY-AUDIT-20261026/RESULT.md",
+    "docs/evidence/capacity/LOAD01-PROBE-BOUNDARY-AUDIT-20261026/SHA256SUMS",
+    "docs/evidence/capacity/LOAD01-PROBE-BOUNDARY-AUDIT-20261026/analyze-probe-boundary.py",
+    "docs/evidence/capacity/LOAD01-PROBE-BOUNDARY-AUDIT-20261026/analyze-probe-boundary-selftest.py",
+    "docs/evidence/capacity/LOAD01-PROBE-BOUNDARY-AUDIT-20261026/probe-boundary-summary.json",
+    "docs/roadmap/execution/STATUS.md",
+    "docs/evidence/archive/LOAD01-PROBE-BOUNDARY-AUDIT-20261026/SOURCE-MAP.txt",
+    "docs/evidence/archive/LOAD01-PROBE-BOUNDARY-AUDIT-20261026/samples/load01c2-probe-A1-i80-M-1500/load-events.jsonl.gz",
+    "docs/evidence/archive/LOAD01-PROBE-BOUNDARY-AUDIT-20261026/samples/load01c2-probe-A2-i83-M-1500/load-events.jsonl.gz",
+    "docs/evidence/archive/LOAD01-PROBE-BOUNDARY-AUDIT-20261026/samples/load01c2-probe-A3-i84-M-1500/load-events.jsonl.gz",
+    "docs/evidence/archive/LOAD01-PROBE-BOUNDARY-AUDIT-20261026/samples/load01c2-probe-A4-i87-M-1500/load-events.jsonl.gz",
+    "docs/evidence/archive/LOAD01-PROBE-BOUNDARY-AUDIT-20261026/samples/load01c2-probe-B1-i81-M-1500/load-events.jsonl.gz",
+    "docs/evidence/archive/LOAD01-PROBE-BOUNDARY-AUDIT-20261026/samples/load01c2-probe-B2-i82-M-1500/load-events.jsonl.gz",
+    "docs/evidence/archive/LOAD01-PROBE-BOUNDARY-AUDIT-20261026/samples/load01c2-probe-B3-i85-M-1500/load-events.jsonl.gz",
+    "docs/evidence/archive/LOAD01-PROBE-BOUNDARY-AUDIT-20261026/samples/load01c2-probe-B4-i86-M-1500/load-events.jsonl.gz",
+    "docs/evidence/archive/LOAD01-PROBE-BOUNDARY-AUDIT-20261026/samples/load01c2-probe-A1-i80-M-1500/miniapp-load-events.jsonl.gz",
+    "docs/evidence/archive/LOAD01-PROBE-BOUNDARY-AUDIT-20261026/samples/load01c2-probe-A2-i83-M-1500/miniapp-load-events.jsonl.gz",
+    "docs/evidence/archive/LOAD01-PROBE-BOUNDARY-AUDIT-20261026/samples/load01c2-probe-A3-i84-M-1500/miniapp-load-events.jsonl.gz",
+    "docs/evidence/archive/LOAD01-PROBE-BOUNDARY-AUDIT-20261026/samples/load01c2-probe-A4-i87-M-1500/miniapp-load-events.jsonl.gz",
+    "docs/evidence/archive/LOAD01-PROBE-BOUNDARY-AUDIT-20261026/samples/load01c2-probe-B1-i81-M-1500/miniapp-load-events.jsonl.gz",
+    "docs/evidence/archive/LOAD01-PROBE-BOUNDARY-AUDIT-20261026/samples/load01c2-probe-B2-i82-M-1500/miniapp-load-events.jsonl.gz",
+    "docs/evidence/archive/LOAD01-PROBE-BOUNDARY-AUDIT-20261026/samples/load01c2-probe-B3-i85-M-1500/miniapp-load-events.jsonl.gz",
+    "docs/evidence/archive/LOAD01-PROBE-BOUNDARY-AUDIT-20261026/samples/load01c2-probe-B4-i86-M-1500/miniapp-load-events.jsonl.gz",
+    "docs/evidence/archive/LOAD01-PROBE-BOUNDARY-AUDIT-20261026/SHA256SUMS"
+  ],
+  "no_other_affected_docs_reason": null
+}
