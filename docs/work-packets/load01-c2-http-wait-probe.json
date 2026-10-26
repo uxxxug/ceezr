@@ -38,7 +38,25 @@
     "docs/evidence/archive/LOAD01-C2-HTTP-WAIT-PROBE-20261026/final-audit-status.txt",
     "docs/evidence/archive/LOAD01-C2-HTTP-WAIT-PROBE-20261026/final-secret-audit.txt",
     "docs/evidence/archive/LOAD01-C2-HTTP-WAIT-PROBE-20261026/SHA256SUMS",
-    "docs/evidence/capacity/LOAD01-C2-HTTP-WAIT-PROBE-20261026/analyze-linkage-selftest.py"
+    "docs/evidence/capacity/LOAD01-C2-HTTP-WAIT-PROBE-20261026/analyze-linkage-selftest.py",
+    "docs/evidence/archive/LOAD01-C2-HTTP-WAIT-PROBE-20261026/artifact-map.txt",
+    "docs/evidence/archive/LOAD01-C2-HTTP-WAIT-PROBE-20261026/raw-summaries/load01c2-probe-A1-i80-M-1500/wave-report.json",
+    "docs/evidence/archive/LOAD01-C2-HTTP-WAIT-PROBE-20261026/raw-summaries/load01c2-probe-A2-i83-M-1500/wave-report.json",
+    "docs/evidence/archive/LOAD01-C2-HTTP-WAIT-PROBE-20261026/raw-summaries/load01c2-probe-A3-i84-M-1500/wave-report.json",
+    "docs/evidence/archive/LOAD01-C2-HTTP-WAIT-PROBE-20261026/raw-summaries/load01c2-probe-A4-i87-M-1500/wave-report.json",
+    "docs/evidence/archive/LOAD01-C2-HTTP-WAIT-PROBE-20261026/raw-summaries/load01c2-probe-AA1-i70-M-1500/wave-report.json",
+    "docs/evidence/archive/LOAD01-C2-HTTP-WAIT-PROBE-20261026/raw-summaries/load01c2-probe-AA2-i71-M-1500/wave-report.json",
+    "docs/evidence/archive/LOAD01-C2-HTTP-WAIT-PROBE-20261026/raw-summaries/load01c2-probe-B1-i81-M-1500/wave-report.json",
+    "docs/evidence/archive/LOAD01-C2-HTTP-WAIT-PROBE-20261026/raw-summaries/load01c2-probe-B2-i82-M-1500/wave-report.json",
+    "docs/evidence/archive/LOAD01-C2-HTTP-WAIT-PROBE-20261026/raw-summaries/load01c2-probe-B3-i85-M-1500/wave-report.json",
+    "docs/evidence/archive/LOAD01-C2-HTTP-WAIT-PROBE-20261026/raw-summaries/load01c2-probe-B4-i86-M-1500/wave-report.json",
+    "docs/evidence/archive/LOAD01-C2-HTTP-WAIT-PROBE-20261026/raw-summaries/load01c2-probe-COST-OFF1-i72-M-1500/wave-report.json",
+    "docs/evidence/archive/LOAD01-C2-HTTP-WAIT-PROBE-20261026/raw-summaries/load01c2-probe-COST-OFF2-i73-M-1500/wave-report.json",
+    "docs/evidence/archive/LOAD01-C2-HTTP-WAIT-PROBE-20261026/raw-summaries/load01c2-probe-COST-ON1-i71-M-1500/wave-report.json",
+    "docs/evidence/archive/LOAD01-C2-HTTP-WAIT-PROBE-20261026/raw-summaries/load01c2-probe-COST-ON2-i74-M-1500/wave-report.json",
+    "docs/evidence/archive/LOAD01-C2-HTTP-WAIT-PROBE-20261026/raw-summaries/load01c2-probe-S1-i90-M-100/wave-report.json",
+    "docs/evidence/archive/LOAD01-C2-HTTP-WAIT-PROBE-20261026/raw-summaries/load01c2-probe-S2-i90-M-100/wave-report.json",
+    "docs/evidence/archive/LOAD01-C2-HTTP-WAIT-PROBE-20261026/artifact-map.txt"
   ],
   "no_other_affected_docs_reason": null
 }
