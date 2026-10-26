@@ -1,0 +1,362 @@
+{
+ "per_wave": {
+  "load01c2-c2ab-A1-i80-M-1500": {
+   "arm": "A",
+   "jobs": 16000,
+   "acq_total": 49789,
+   "kinds": {
+    "message": {
+     "n": 1789,
+     "acq": 7156,
+     "acq_per_job": 4.0,
+     "hist": {
+      "4": 1789
+     },
+     "ok": 1789
+    },
+    "command": {
+     "n": 1811,
+     "acq": 5433,
+     "acq_per_job": 3.0,
+     "hist": {
+      "3": 1811
+     },
+     "ok": 1811
+    },
+    "contact": {
+     "n": 12400,
+     "acq": 37200,
+     "acq_per_job": 3.0,
+     "hist": {
+      "3": 12400
+     },
+     "ok": 12400
+    }
+   },
+   "contact_completed": 12400,
+   "acq_per_completed_contact_job": 3.0,
+   "g1_verified": 5014,
+   "acq_per_g1_verified": 7.42,
+   "sql": {
+    "get_user_language_calls": 16000
+   }
+  },
+  "load01c2-c2ab-A2-i83-M-1500": {
+   "arm": "A",
+   "jobs": 15966,
+   "acq_total": 49687,
+   "kinds": {
+    "message": {
+     "n": 1789,
+     "acq": 7156,
+     "acq_per_job": 4.0,
+     "hist": {
+      "4": 1789
+     },
+     "ok": 1789
+    },
+    "command": {
+     "n": 1811,
+     "acq": 5433,
+     "acq_per_job": 3.0,
+     "hist": {
+      "3": 1811
+     },
+     "ok": 1811
+    },
+    "contact": {
+     "n": 12366,
+     "acq": 37098,
+     "acq_per_job": 3.0,
+     "hist": {
+      "3": 12366
+     },
+     "ok": 12366
+    }
+   },
+   "contact_completed": 12366,
+   "acq_per_completed_contact_job": 3.0,
+   "g1_verified": 4828,
+   "acq_per_g1_verified": 7.68,
+   "sql": {
+    "get_user_language_calls": 15966
+   }
+  },
+  "load01c2-c2ab-A3-i84-M-1500": {
+   "arm": "A",
+   "jobs": 16012,
+   "acq_total": 49825,
+   "kinds": {
+    "message": {
+     "n": 1789,
+     "acq": 7156,
+     "acq_per_job": 4.0,
+     "hist": {
+      "4": 1789
+     },
+     "ok": 1789
+    },
+    "command": {
+     "n": 1810,
+     "acq": 5430,
+     "acq_per_job": 3.0,
+     "hist": {
+      "3": 1810
+     },
+     "ok": 1810
+    },
+    "contact": {
+     "n": 12413,
+     "acq": 37239,
+     "acq_per_job": 3.0,
+     "hist": {
+      "3": 12413
+     },
+     "ok": 12413
+    }
+   },
+   "contact_completed": 12413,
+   "acq_per_completed_contact_job": 3.0,
+   "g1_verified": 4935,
+   "acq_per_g1_verified": 7.55,
+   "sql": {
+    "get_user_language_calls": 16012
+   }
+  },
+  "load01c2-c2ab-A4-i87-M-1500": {
+   "arm": "A",
+   "jobs": 15939,
+   "acq_total": 49606,
+   "kinds": {
+    "message": {
+     "n": 1789,
+     "acq": 7156,
+     "acq_per_job": 4.0,
+     "hist": {
+      "4": 1789
+     },
+     "ok": 1789
+    },
+    "command": {
+     "n": 1811,
+     "acq": 5433,
+     "acq_per_job": 3.0,
+     "hist": {
+      "3": 1811
+     },
+     "ok": 1811
+    },
+    "contact": {
+     "n": 12339,
+     "acq": 37017,
+     "acq_per_job": 3.0,
+     "hist": {
+      "3": 12339
+     },
+     "ok": 12339
+    }
+   },
+   "contact_completed": 12339,
+   "acq_per_completed_contact_job": 3.0,
+   "g1_verified": 4354,
+   "acq_per_g1_verified": 8.5,
+   "sql": {
+    "get_user_language_calls": 15939
+   }
+  },
+  "load01c2-c2ab-B1-i81-M-1500": {
+   "arm": "B",
+   "jobs": 16007,
+   "acq_total": 37403,
+   "kinds": {
+    "message": {
+     "n": 1789,
+     "acq": 7156,
+     "acq_per_job": 4.0,
+     "hist": {
+      "4": 1789
+     },
+     "ok": 1789
+    },
+    "command": {
+     "n": 1811,
+     "acq": 5433,
+     "acq_per_job": 3.0,
+     "hist": {
+      "3": 1811
+     },
+     "ok": 1811
+    },
+    "contact": {
+     "n": 12407,
+     "acq": 24814,
+     "acq_per_job": 2.0,
+     "hist": {
+      "2": 12407
+     },
+     "ok": 12407
+    }
+   },
+   "contact_completed": 12407,
+   "acq_per_completed_contact_job": 2.0,
+   "g1_verified": 5230,
+   "acq_per_g1_verified": 4.74,
+   "sql": {
+    "get_user_language_calls": 3600,
+    "merged_query_calls": 12407
+   }
+  },
+  "load01c2-c2ab-B2-i82-M-1500": {
+   "arm": "B",
+   "jobs": 15844,
+   "acq_total": 37077,
+   "kinds": {
+    "message": {
+     "n": 1789,
+     "acq": 7156,
+     "acq_per_job": 4.0,
+     "hist": {
+      "4": 1789
+     },
+     "ok": 1789
+    },
+    "command": {
+     "n": 1811,
+     "acq": 5433,
+     "acq_per_job": 3.0,
+     "hist": {
+      "3": 1811
+     },
+     "ok": 1811
+    },
+    "contact": {
+     "n": 12244,
+     "acq": 24488,
+     "acq_per_job": 2.0,
+     "hist": {
+      "2": 12244
+     },
+     "ok": 12244
+    }
+   },
+   "contact_completed": 12244,
+   "acq_per_completed_contact_job": 2.0,
+   "g1_verified": 4822,
+   "acq_per_g1_verified": 5.08,
+   "sql": {
+    "get_user_language_calls": 3600,
+    "merged_query_calls": 12244
+   }
+  },
+  "load01c2-c2ab-B3-i85-M-1500": {
+   "arm": "B",
+   "jobs": 15965,
+   "acq_total": 37319,
+   "kinds": {
+    "message": {
+     "n": 1789,
+     "acq": 7156,
+     "acq_per_job": 4.0,
+     "hist": {
+      "4": 1789
+     },
+     "ok": 1789
+    },
+    "command": {
+     "n": 1811,
+     "acq": 5433,
+     "acq_per_job": 3.0,
+     "hist": {
+      "3": 1811
+     },
+     "ok": 1811
+    },
+    "contact": {
+     "n": 12365,
+     "acq": 24730,
+     "acq_per_job": 2.0,
+     "hist": {
+      "2": 12365
+     },
+     "ok": 12365
+    }
+   },
+   "contact_completed": 12365,
+   "acq_per_completed_contact_job": 2.0,
+   "g1_verified": 5085,
+   "acq_per_g1_verified": 4.86,
+   "sql": {
+    "get_user_language_calls": 3600,
+    "merged_query_calls": 12365
+   }
+  },
+  "load01c2-c2ab-B4-i86-M-1500": {
+   "arm": "B",
+   "jobs": 15892,
+   "acq_total": 37173,
+   "kinds": {
+    "message": {
+     "n": 1789,
+     "acq": 7156,
+     "acq_per_job": 4.0,
+     "hist": {
+      "4": 1789
+     },
+     "ok": 1789
+    },
+    "command": {
+     "n": 1811,
+     "acq": 5433,
+     "acq_per_job": 3.0,
+     "hist": {
+      "3": 1811
+     },
+     "ok": 1811
+    },
+    "contact": {
+     "n": 12292,
+     "acq": 24584,
+     "acq_per_job": 2.0,
+     "hist": {
+      "2": 12292
+     },
+     "ok": 12292
+    }
+   },
+   "contact_completed": 12292,
+   "acq_per_completed_contact_job": 2.0,
+   "g1_verified": 4741,
+   "acq_per_g1_verified": 5.19,
+   "sql": {
+    "get_user_language_calls": 3600,
+    "merged_query_calls": 12292
+   }
+  }
+ },
+ "per_arm": {
+  "A": {
+   "waves": 4,
+   "jobs": 63917,
+   "acq_total": 198907,
+   "acq_per_job": 3.112,
+   "contact_jobs": 49518,
+   "contact_acq": 148554,
+   "contact_acq_per_job": 3.0,
+   "contact_hist": {
+    "3": 49518
+   }
+  },
+  "B": {
+   "waves": 4,
+   "jobs": 63708,
+   "acq_total": 148972,
+   "acq_per_job": 2.338,
+   "contact_jobs": 49308,
+   "contact_acq": 98616,
+   "contact_acq_per_job": 2.0,
+   "contact_hist": {
+    "2": 49308
+   }
+  }
+ }
+}

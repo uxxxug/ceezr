@@ -1,0 +1,11 @@
+COLLECT_UNDECLARED db-audit-post.out 50
+COLLECT_UNDECLARED db-audit-pre.out 733
+COLLECT_UNDECLARED diag-env.txt 60
+COLLECT_UNDECLARED dispatch-trace.jsonl.load.jsonl 7968401
+COLLECT_UNDECLARED gateway.pid 6
+COLLECT_UNDECLARED gateway.wave.log 30145779
+COLLECT_UNDECLARED notification-outbox.csv 10527116
+COLLECT_UNDECLARED pgss-top.txt 3716
+COLLECT_UNDECLARED telegram-mock.jsonl 21089038
+COLLECT_UNDECLARED wave-report.err 0
+COLLECT_DONE files=22 missing=0 undeclared=10

@@ -1,0 +1,5 @@
+pkill: killing pid 9667 failed: Operation not permitted
+   116 /srv/ceezr-cap-20261016/runs/load01c2-c2ab-A1-i80-M-1500/evidence/pgss-full.csv
+ 16001 /srv/ceezr-cap-20261016/runs/load01c2-c2ab-A1-i80-M-1500/evidence/telegram-jobs.csv
+ 16117 total
+POST_DIAG_DONE
