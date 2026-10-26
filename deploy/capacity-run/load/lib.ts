@@ -22,7 +22,15 @@ import postgres from "postgres";
 export const RUN_DIR = process.env.RUN_DIR ?? "/tmp/cap-run";
 export const EV = `${RUN_DIR}/evidence`;
 mkdirSync(EV, { recursive: true });
-export const BASE = process.env.GATEWAY_URL ?? "http://127.0.0.1:54300";
+/**
+ * عنوانُ البوّابةِ — يُحلُّ **وقتَ النداءِ** لا وقتَ تحميلِ الوحدةِ (كما RUN_DIR): الوحدةُ
+ * قد تُحمَّلُ في اختباراتٍ كثيرةٍ ببيئاتٍ متغايرةٍ ثمَّ يُبدَّلُ GATEWAY_URL، فلا يُقفَلَ
+ * العنوانُ على أولِ بيئةٍ. ‏(BASE المصدَّرُ يبقى لمن يريدُ قيمةً وقتَ التحميلِ.)
+ */
+export function gatewayBase(): string {
+  return process.env.GATEWAY_URL ?? "http://127.0.0.1:54300";
+}
+export const BASE = gatewayBase();
 export const DB_URL = process.env.DATABASE_URL ?? "";
 export const GEN_ID = process.env.GEN_ID ?? "gen1";
 
@@ -95,6 +103,15 @@ export interface HttpResult {
    * يُوقَّعُ عليه)، لربطِ زمنِ العميلِ بأطوارِ الخادمِ للطلبِ نفسِهِ في السجلِ.
    */
   readonly requestId: string | null;
+  /**
+   * فصلُ زمنِ العميلِ (أداةُ فصلِ الفجوةِ، 2026-10-26): `ttfbMs` = من بدءِ النداءِ حتى
+   * حلِّ `fetch` (استلامُ ترويساتِ الردّ) و`bodyMs` = قراءةُ جسمِ الردّ وتحليلُه بعدَها.
+   * بلا تبديلَ لـ`fetch` ولا لقارئِ الجسمِ — النداءُ والقراءةُ كما كانا وفقطَ تُلتقطُ
+   * اللحظتانُ الموجودتانِ أصلًا بينَ `await` المتتاليينِ. null عندَ الفشلِ الشبكيِّ
+   * (المسارُ يمرُّ عبرَ catch فلا ترويساتِ ولا جسمٌ).
+   */
+  readonly ttfbMs: number | null;
+  readonly bodyMs: number | null;
 }
 
 export async function http(
@@ -109,7 +126,7 @@ export async function http(
 ): Promise<HttpResult> {
   const started = performance.now();
   try {
-    const response = await fetch(`${BASE}${path}`, {
+    const response = await fetch(`${gatewayBase()}${path}`, {
       method: init.method ?? "GET",
       headers: {
         ...(init.token === undefined ? {} : { authorization: `Bearer ${init.token}` }),
@@ -119,9 +136,12 @@ export async function http(
       ...(init.body === undefined ? {} : { body: JSON.stringify(init.body) }),
       signal: AbortSignal.timeout(init.timeoutMs ?? 20_000),
     });
+    const ttfb = performance.now() - started;
     let body: Record<string, unknown> | null = null;
+    let bodyMs: number | null = null;
     try {
       body = (await response.json()) as Record<string, unknown>;
+      bodyMs = performance.now() - started - ttfb;
     } catch {
       body = null;
     }
@@ -133,6 +153,8 @@ export async function http(
       body,
       networkError: null,
       requestId: response.headers.get("x-request-id"),
+      ttfbMs: Math.round(ttfb * 100) / 100,
+      bodyMs: bodyMs === null ? null : Math.round(bodyMs * 100) / 100,
     };
   } catch (error) {
     return {
@@ -144,6 +166,9 @@ export async function http(
       networkError: error instanceof Error ? error.name : "network",
       // لا استجابةَ فلا معرّفَ طلبٍ — والفشلُ الصفريُّ بلا رأسٍ منَ الخادمِ أصلاً.
       requestId: null,
+      // ولا ترويساتِ ولا جسمٌ فلا حدَّينِ يُفصلانِ عندَ العميلِ — null لا صفرٌ.
+      ttfbMs: null,
+      bodyMs: null,
     };
   }
 }
@@ -253,6 +278,8 @@ export class PathRecorder {
         status: result.status,
         elapsedMs: Math.round(result.elapsedMs * 100) / 100,
         requestId: result.requestId,
+        ttfbMs: result.ttfbMs,
+        bodyMs: result.bodyMs,
       })}\n`,
     );
   }

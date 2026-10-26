@@ -1,0 +1,31 @@
+{
+  "id": "load01-gap-probe-tool",
+  "goal": "LOAD-01 · أداةُ فصلِ فجوةِ العميل/الخادمِ + تسجيلُ بروتوكولِها قبلَ أيِّ تشغيلٍ — دورةُ أداةٍ لا مقعدَ فيها ولا حكمَ سعةٍ: (1) رصدُ حدودِ الردّ عندَ الخادمِ (httpgap في الجسرِ): مردودٌ واحدٌ لكلِّ طلبٍ من ساعةٍ واحدةٍ مقرونٌ بمعرّفِ الطلبِ القائمِ — fetchMs (اكتمالُ بناءِ الردّ ويشملُ serverMs) وwriteHeadMs وfirstWriteMs (أولُ جزءٍ منَ الجسمِ) وendMs وfinishMs (حدثُ finish: كُتبتِ آخرُ البياناتِ إلى نظامِ التشغيلِ) وclosed (إغلاقٌ مبكرٌ بلا اختراعِ بديلٍ)؛ (2) فصلُ زمنِ العميلِ في عمودِ http_call إلى ttfbMs (الترويساتُ) وbodyMs (الجسمُ) بلا تبديلِ fetch ولا قارئِ الجسمِ، والفشلُ الشبكيُّ يحملُ null في الحدينِ؛ (3) إثباتٌ صناعيٌّ محليٌّ: تأخيرٌ معلومٌ يُحقنُ (في app.fetch أو في أولِ جزءٍ منَ الجسمِ أو في الترويساتِ/الجسمِ عندَ العميلِ) ويظهرُ في المرحلةِ الصحيحةِ لا المجاورةِ، معَ مساراتِ النقصِ والفشلِ؛ (4) قياسُ كلفةِ الرصدِ محليًا (طيّةُ عودةٍ — دونَ ضوضاءِ القياسِ فلا يُستعملُ دليلًا، والحكمُ للبوابةِ المتعاكسةِ على المقعدِ)؛ (5) بروتوكولُ التجربةِ مسجَّلٌ سلفًا (الذراعانِ زوجُ C2 والأداةُ واحدةٌ فيهما، ثماني ABBA + A/A + كلفةٍ، δ=15ms بمجالِ صلاحيتِها، وحدةُ التحليلِ العينةُ الفرديةُ المربوطةُ، قاعدةُ الحالاتِ الثلاثِ، قياسُ البقايا كمّيًا). لا مساسَ بمسارِ المنتجِ عندَ إيقافِ الأثرِ (onGap لا يُنشأُ إلا بالرصدِ) ولا حدٍّ ولا عتبة: LOAD-01M = NOT_MET وLOAD-01 = FAIL يبقيانِ، وتفسيرُ ذيلِ B غيرُ محسومٍ.",
+  "canonical_source": ["docs/evidence/capacity/LOAD01-GAP-PROBE-TOOL-20261026/RESULT.md"],
+  "implementation": [
+    "apps/gateway/src/realtime/http-bridge.ts",
+    "apps/gateway/src/background/load-trace.ts",
+    "apps/gateway/src/index.ts",
+    "deploy/capacity-run/load/lib.ts",
+    "deploy/capacity-run/load/miniapp-load.ts",
+    "tests/unit/http-bridge-gap-probe.test.ts",
+    "tests/unit/load-http-split.test.ts",
+    "tests/unit/load-trace-httpreq.test.ts",
+    "docs/evidence/capacity/LOAD01-GAP-PROBE-TOOL-20261026/bench-gap-probe.ts"
+  ],
+  "state": ["docs/SYSTEM_STATE.md", "docs/roadmap/execution/STATUS.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [
+    "docs/evidence/capacity/LOAD01-GAP-PROBE-TOOL-20261026/RESULT.md",
+    "docs/evidence/capacity/LOAD01-GAP-PROBE-TOOL-20261026/PROTOCOL-load01-gap-probe.md",
+    "docs/evidence/capacity/LOAD01-GAP-PROBE-TOOL-20261026/bench-gap-probe.ts",
+    "docs/evidence/archive/LOAD01-GAP-PROBE-TOOL-20261026/bench-run-1.json",
+    "docs/evidence/archive/LOAD01-GAP-PROBE-TOOL-20261026/bench-run-2.json",
+    "docs/evidence/archive/LOAD01-GAP-PROBE-TOOL-20261026/bench-run-3.json",
+    "docs/work-packets/load01-gap-probe-tool.json",
+    "docs/evidence/capacity/LOAD01-GAP-PROBE-TOOL-20261026/SHA256SUMS",
+    "docs/evidence/archive/LOAD01-GAP-PROBE-TOOL-20261026/SHA256SUMS",
+    "docs/roadmap/execution/STATUS.md"
+  ],
+  "no_other_affected_docs_reason": null
+}

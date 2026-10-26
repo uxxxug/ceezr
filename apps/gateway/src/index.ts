@@ -205,6 +205,7 @@ import {
   createSessionVerifier,
 } from "./realtime/adapters.ts";
 import { type ChatChannel, createChatChannel } from "./realtime/chat-channel.ts";
+import type { HttpGapTiming } from "./realtime/http-bridge.ts";
 import { createHttpBridge } from "./realtime/http-bridge.ts";
 import { isLiveLocationBroadcastPermitted } from "./realtime/live-tracking-policy.ts";
 import { createOffersChannel } from "./realtime/offers-channel.ts";
@@ -2056,6 +2057,9 @@ updateDrainer = startTelegramUpdateDrainer(
  */
 const httpHandler = createHttpBridge(
   {
+    // رصدُ حدودِ الردّ (httpgap) خلفَ أثرِ الحملِ وحده: بلا أثرٍ لا تُمرَّر الدالةُ
+    // أصلًا فلا تُلتقطُ طوابعٌ في الجسرِ ولا يُقاسُ شيءٌ — الكلفةُ صفرٌ بلا تفعيلٍ.
+    ...(loadTrace === null ? {} : { onGap: (gap: HttpGapTiming) => loadTrace?.onGap(gap) }),
     fetch: async (request: Request, server?: unknown) => {
       const { pathname } = new URL(request.url);
       const isProbe = pathname === "/health" || pathname === "/ready";
