@@ -92,17 +92,22 @@ def wave_audit(events_path: str, phases_path: str, report_path: str) -> dict:
     last_lp = (lp_rows[-1].get("rides_create") if lp_rows else None) or {}
     lp_n = last_lp.get("n")
 
-    # أحداثُ المولّدِ (الأطوارُ ونتائجُ السيناريوهاتِ) من ملفِ أحداثِ الأطوارِ
-    phase_rows, _ = read_jsonl_gz(phases_path)
+    # أحداثُ المولّدِ (الأطوارُ ونتائجُ السيناريوهاتِ) من ملفِ أحداثِ الأطوارِ —
+    # والأسطرُ غيرُ القابلةِ للقراءةِ فيهِ تُعَدُّ كما في ملفِ الأحداثِ (لا تُخفى).
+    phase_rows, bad_phase_lines = read_jsonl_gz(phases_path)
     # وسيناريوهاتُ المولّدِ: كلُّ سيناريو متحقّقٍ بدأ بإنشاءِ رحلةٍ واحدٍ لا إعادةَ —
     # فتطابقُ عدّها معَ n يسدُّ الطريقَ الثالثَ (لا رفضَ ولا إعادةَ محاولةٍ).
     verified = sum(1 for d in phase_rows
                    if d.get("event") == "scenario.outcome" and d.get("kind") == "verified")
 
-    # الأطوارُ: حقنٌ [start, drain) وتصريفٌ [drain, end)
+    # الأطوارُ: حدودٌ ثلاثةٌ يجبُ وجودُها وترتيبُها (start ≤ drain_start ≤ end)،
+    # ثمّ حقنٌ [start, drain) وتصريفٌ [drain, end] — وغيابُ الحدودِ أو نقصُها
+    # يُفشِلُ الحكمَ (فلا يُقبَلَ عيّنةٌ بلا أطوارٍ مكتملةٍ تحتَ غطاءِ صفرٍ خارجَها).
     ph = {d["event"]: epoch_ms(d["t"]) for d in phase_rows if str(d.get("event", "")).startswith("phase.")}
+    phases_present = {"phase.start", "phase.drain_start", "phase.end"} <= set(ph)
+    phases_ordered = phases_present and ph["phase.start"] <= ph["phase.drain_start"] <= ph["phase.end"]
     inj = drain = outside = 0
-    if {"phase.start", "phase.drain_start", "phase.end"} <= set(ph):
+    if phases_ordered:
         for r in calls:
             t = epoch_ms(r["t"])
             if ph["phase.start"] <= t < ph["phase.drain_start"]:
@@ -111,15 +116,21 @@ def wave_audit(events_path: str, phases_path: str, report_path: str) -> dict:
                 drain += 1
             else:
                 outside += 1
+    # الغطاءُ مكتملٌ فقط إذا انقسمتِ العيّنةُ كلُّها بينَ الحقنِ والتصريفِ.
+    phases_cover = phases_ordered and inj + drain == len(calls)
 
     status_all = Counter(r["status"] for r in calls)
     return {
         "wave": os.path.basename(os.path.dirname(events_path)),
         "n_rides_create_calls": len(calls),
-        "unreadable_lines": bad_lines,
         "status_all": dict(sorted(status_all.items())),
         "rows_without_request_id": sum(1 for r in calls if not r.get("requestId")),
+        "unreadable_lines": bad_lines,
+        "unreadable_phase_lines": bad_phase_lines,
+        "phases_present": phases_present,
+        "phases_ordered": phases_ordered,
         "phase_coverage": {"injection": inj, "drain": drain, "outside_phases": outside},
+        "phases_cover_sample": phases_cover,
         "since_start_span_ms": (
             [min(r["sinceStartMs"] for r in calls), max(r["sinceStartMs"] for r in calls)]
             if calls else None
@@ -157,7 +168,8 @@ def main(argv: list[str]) -> int:
         found += 1
         all_ok = all_ok and w["report_precision_match"] and w["n_matches_lp_row"] \
             and w["n_matches_verified_scenarios"] and w["unreadable_lines"] == 0 \
-            and w["phase_coverage"]["outside_phases"] == 0
+            and w["unreadable_phase_lines"] == 0 and w["phases_present"] and w["phases_ordered"] \
+            and w["phases_cover_sample"] and w["phase_coverage"]["outside_phases"] == 0
     if found == 0:
         print("✗ لم تُعثر على أيِّ موجةِ قياسٍ — المدخلاتُ ناقصةٌ", file=sys.stderr)
         return 3

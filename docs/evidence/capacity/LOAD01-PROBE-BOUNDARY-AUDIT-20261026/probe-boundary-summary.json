@@ -4,16 +4,20 @@
   {
    "wave": "load01c2-probe-A1-i80-M-1500",
    "n_rides_create_calls": 5336,
-   "unreadable_lines": 0,
    "status_all": {
     "200": 5336
    },
    "rows_without_request_id": 0,
+   "unreadable_lines": 0,
+   "unreadable_phase_lines": 0,
+   "phases_present": true,
+   "phases_ordered": true,
    "phase_coverage": {
     "injection": 4727,
     "drain": 609,
     "outside_phases": 0
    },
+   "phases_cover_sample": true,
    "since_start_span_ms": [
     2995,
     198055
@@ -42,16 +46,20 @@
   {
    "wave": "load01c2-probe-A2-i83-M-1500",
    "n_rides_create_calls": 5126,
-   "unreadable_lines": 0,
    "status_all": {
     "200": 5126
    },
    "rows_without_request_id": 0,
+   "unreadable_lines": 0,
+   "unreadable_phase_lines": 0,
+   "phases_present": true,
+   "phases_ordered": true,
    "phase_coverage": {
     "injection": 4625,
     "drain": 501,
     "outside_phases": 0
    },
+   "phases_cover_sample": true,
    "since_start_span_ms": [
     2942,
     196127
@@ -80,16 +88,20 @@
   {
    "wave": "load01c2-probe-A3-i84-M-1500",
    "n_rides_create_calls": 4729,
-   "unreadable_lines": 0,
    "status_all": {
     "200": 4729
    },
    "rows_without_request_id": 0,
+   "unreadable_lines": 0,
+   "unreadable_phase_lines": 0,
+   "phases_present": true,
+   "phases_ordered": true,
    "phase_coverage": {
     "injection": 4442,
     "drain": 287,
     "outside_phases": 0
    },
+   "phases_cover_sample": true,
    "since_start_span_ms": [
     3058,
     190895
@@ -118,16 +130,20 @@
   {
    "wave": "load01c2-probe-A4-i87-M-1500",
    "n_rides_create_calls": 5189,
-   "unreadable_lines": 0,
    "status_all": {
     "200": 5189
    },
    "rows_without_request_id": 0,
+   "unreadable_lines": 0,
+   "unreadable_phase_lines": 0,
+   "phases_present": true,
+   "phases_ordered": true,
    "phase_coverage": {
     "injection": 4792,
     "drain": 397,
     "outside_phases": 0
    },
+   "phases_cover_sample": true,
    "since_start_span_ms": [
     2985,
     193496
@@ -156,16 +172,20 @@
   {
    "wave": "load01c2-probe-B1-i81-M-1500",
    "n_rides_create_calls": 5148,
-   "unreadable_lines": 0,
    "status_all": {
     "200": 5148
    },
    "rows_without_request_id": 0,
+   "unreadable_lines": 0,
+   "unreadable_phase_lines": 0,
+   "phases_present": true,
+   "phases_ordered": true,
    "phase_coverage": {
     "injection": 4769,
     "drain": 379,
     "outside_phases": 0
    },
+   "phases_cover_sample": true,
    "since_start_span_ms": [
     3143,
     194274
@@ -194,16 +214,20 @@
   {
    "wave": "load01c2-probe-B2-i82-M-1500",
    "n_rides_create_calls": 4999,
-   "unreadable_lines": 0,
    "status_all": {
     "200": 4999
    },
    "rows_without_request_id": 0,
+   "unreadable_lines": 0,
+   "unreadable_phase_lines": 0,
+   "phases_present": true,
+   "phases_ordered": true,
    "phase_coverage": {
     "injection": 4628,
     "drain": 371,
     "outside_phases": 0
    },
+   "phases_cover_sample": true,
    "since_start_span_ms": [
     3043,
     193832
@@ -232,16 +256,20 @@
   {
    "wave": "load01c2-probe-B3-i85-M-1500",
    "n_rides_create_calls": 5541,
-   "unreadable_lines": 0,
    "status_all": {
     "200": 5541
    },
    "rows_without_request_id": 0,
+   "unreadable_lines": 0,
+   "unreadable_phase_lines": 0,
+   "phases_present": true,
+   "phases_ordered": true,
    "phase_coverage": {
     "injection": 5115,
     "drain": 426,
     "outside_phases": 0
    },
+   "phases_cover_sample": true,
    "since_start_span_ms": [
     2959,
     196579
@@ -270,16 +298,20 @@
   {
    "wave": "load01c2-probe-B4-i86-M-1500",
    "n_rides_create_calls": 5481,
-   "unreadable_lines": 0,
    "status_all": {
     "200": 5481
    },
    "rows_without_request_id": 0,
+   "unreadable_lines": 0,
+   "unreadable_phase_lines": 0,
+   "phases_present": true,
+   "phases_ordered": true,
    "phase_coverage": {
     "injection": 5046,
     "drain": 435,
     "outside_phases": 0
    },
+   "phases_cover_sample": true,
    "since_start_span_ms": [
     2987,
     192725
