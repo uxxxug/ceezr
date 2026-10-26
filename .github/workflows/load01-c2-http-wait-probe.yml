@@ -1,0 +1,68 @@
+name: LOAD-01 · دورة تشخيص كمون HTTP (مقعد 4 vCPU)
+
+# تجربةُ قياسٍ على فرعِ القياسِ وحدَه ولا تُدمَج. PROTOCOL-load01-c2-http-wait-probe.md وملحقُه (2026-10-26)
+# مثبَّتانِ في الأصلِ قبلَ أيِّ موجةٍ (PR #667). ستَّ عشرةَ موجةً ببواباتِ تمهيدٍ توقفُ لا تُخفِّف:
+# AA1/AA2 (فهرسانِ 70/71) ← بوابةُ A/A ← معايرةُ الشرائحِ ← COST ON–OFF–OFF–ON (71–74) ← بوابةُ الكلفةِ
+# ← S1/S2 (conc=100) ← ABBA 80–87. gatewayRequest 5 وIMMEDIATE_REDISPATCH_LIMIT 50 دونَ تغيير.
+# لا قاعدةَ إنتاج، لا Render، لا تيليجرامَ حقيقي. الحكمُ تشخيصيٌّ فقط: لا ادّعاءَ سعةٍ.
+
+on:
+  push:
+    branches: [exp/load01-c2-http-wait-probe]
+    paths:
+      - deploy/capacity-run/b24-runner/seat-load01-c2-http-wait-probe.sh
+      - docs/evidence/capacity/LOAD01-C2-HTTP-WAIT-PROBE-20261026/PROTOCOL-load01-c2-http-wait-probe.md
+      - .github/workflows/load01-c2-http-wait-probe.yml
+
+permissions:
+  contents: read
+
+env:
+  # PROTOCOL §2 + ملحق 1: A = main + أداةُ الربطِ، B = التزامُ C2 + الأداة، OFF = main قبلَ الأداةِ (4bd9432e).
+  A_SHA: 30c9dae6110b522628f8ac7e3194c92eb40952fd
+  B_SHA: 3697d7a0802472d55f1b00cffe75e10488a721e3
+  OFF_SHA: 4bd9432ea38542c2d6e1f24eb3f7417d93fbca20
+  MIXED_RATE: "20"
+  MIXED_SEED: "1"
+
+jobs:
+  seat:
+    name: "c2-http-wait-probe (16 waves, gates first)"
+    runs-on: ubuntu-26.04
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: تجهيز المقعد
+        run: sudo bash deploy/capacity-run/b24-runner/provision-root.sh
+
+      - name: نسخة المستودع للمستخدم user
+        run: |
+          sudo cp -a "$GITHUB_WORKSPACE" /home/user/workspace/ceezr
+          sudo chown -R user:user /home/user/workspace/ceezr
+          for X in "$A_SHA" "$B_SHA" "$OFF_SHA"; do sudo -u user git -C /home/user/workspace/ceezr cat-file -e "$X^{commit}"; done
+
+      - name: المقعد والموجات (داخل ceezrseat.slice)
+        run: |
+          sudo systemd-run --quiet --wait --pipe --collect --slice=ceezrseat.slice \
+            --uid=user --gid=user -p LimitNOFILE=65536 -p WorkingDirectory=/home/user \
+            --setenv=A_SHA="$A_SHA" --setenv=B_SHA="$B_SHA" --setenv=OFF_SHA="$OFF_SHA" --setenv=MIXED_RATE="$MIXED_RATE" --setenv=MIXED_SEED="$MIXED_SEED" --setenv=CONC="1500" --setenv=SMOKE_CONC="100" --setenv=CITIES="JED,MKK,RUH,TIF,MED" \
+            bash /home/user/workspace/ceezr/deploy/capacity-run/b24-runner/seat-load01-c2-http-wait-probe.sh
+
+      - name: رفع الدليل (لا يُرفعُ إلا بنجاحِ تدقيقِ الأسرار)
+        uses: actions/upload-artifact@v5
+        with:
+          name: load01c2-http-wait-probe
+          path: /home/user/load01c2-probe-out/
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: رفع تقرير الفشل المنقح (تدقيقُ الأسرارِ وحدَه)
+        if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: load01c2-http-wait-probe-failure-report
+          path: /home/user/load01c2-probe-out/secret-audit.txt
+          if-no-files-found: ignore
