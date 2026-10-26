@@ -1,47 +1,85 @@
 {
- "pairs": [
-  [
-   "A1-i80",
-   "B1-i81"
-  ],
-  [
-   "A2-i83",
-   "B2-i82"
-  ],
-  [
-   "A3-i84",
-   "B3-i85"
-  ],
-  [
-   "A4-i87",
-   "B4-i86"
-  ]
+ "script": "analyze_http_wait.py",
+ "raw_dir": "/tmp/wave-artifact/raw",
+ "gateway_pool": "ceezr:gatewayRequest",
+ "expected_kinds": [
+  "query"
  ],
+ "inputs": {
+  "A1-i80": {
+   "load-trace.jsonl.gz": "91e3d343c48035d8e7780e5a046330d0db63d6714a6ed62ef2894ab6e922e85a",
+   "load-events.jsonl.gz": "12b147d1229bedaa190cd5cb394a17c1f74943aa842334f0e45a7a6db06991ee"
+  },
+  "B1-i81": {
+   "load-trace.jsonl.gz": "cd9f4d96778ffdb85728e38ad732d83ef2094e9e5978353d8610f84dc0f88c21",
+   "load-events.jsonl.gz": "4e249824b2a7c7690836670fcff2933691e7340635a751835b8ef5d39b51cd61"
+  },
+  "B2-i82": {
+   "load-trace.jsonl.gz": "402de5f5df36fb3f857ed4328aa04a60960ba39a5f7cb1119e0c1bbcfef9d4fa",
+   "load-events.jsonl.gz": "794ee10122b5087c12c1c7ef6cb82a2b2affe06c033be1fcd4e0be05eeeb7ad2"
+  },
+  "A2-i83": {
+   "load-trace.jsonl.gz": "994e00b30956170b1089c0553ac9c5828e6aa519395cd797b547c6e09632eb63",
+   "load-events.jsonl.gz": "f3a223eace32f78af4004a9ce44b083952eecfbee69a9c010b69132840534b7b"
+  },
+  "A3-i84": {
+   "load-trace.jsonl.gz": "e537785c8e9d89fa724242f4679ac12dea9a9d196de5300d2e1198feb02ab52d",
+   "load-events.jsonl.gz": "c31b2abc0365ea56c4a048e669eefb5eea68d9567661883df6d285273ec97e07"
+  },
+  "B3-i85": {
+   "load-trace.jsonl.gz": "023d8559ecb4cc10b333cac6ba8c001255ba3f3dede18517459363dc4007a250",
+   "load-events.jsonl.gz": "03cb0fd87d5ac1763ef8ef436fb04ff82bef4d11ecc2922ff98bb51e9fcfbb78"
+  },
+  "B4-i86": {
+   "load-trace.jsonl.gz": "405cf7e51072c559dde18d17162a456123df69996a0fcc35744d984a606fd81d",
+   "load-events.jsonl.gz": "16d74b9b851eaab42278fbe15aae82386f955221faeabec47676cf079070a49c"
+  },
+  "A4-i87": {
+   "load-trace.jsonl.gz": "07d5bcce8a7b1cad3228566eabce91ed4a460da5037d0ed6cb641f5fd3dc7b8f",
+   "load-events.jsonl.gz": "23c283fbd23b1be906a8a5689636bb80648dc0666d6fa0c607d8caa86f4d07be"
+  },
+  "S1-i90": {
+   "load-trace.jsonl.gz": "41f64487979337aa98eee3c3dda0646a457ce4aed4bf8651e75c846195539c6e",
+   "load-events.jsonl.gz": "cad4b1eb6dc360a4d31f9bf3d37972aa26b24c129428c50b9e2f7dcf338bc98f"
+  },
+  "S2-i90": {
+   "load-trace.jsonl.gz": "848d286ef8552be12568e9bc69a13614d973379827de39f42a74c0dde2d2212a",
+   "load-events.jsonl.gz": "df51b7b33ee55b018dc4cfe1727e6a53a0e2dc0199742e868b62d707ac849b58"
+  }
+ },
  "per_pair": {
-  "-i80_vs_-i81": {
+  "A1-i80_vs_B1-i81": {
    "duration_s": {
     "A1-i80": 255.612,
     "B1-i81": 241.372
    },
    "http_route": {
     "POST /v1/rides": {
+     "nA": 5014,
+     "nB": 5230,
      "meanA_ms": 159.71339848424412,
      "meanB_ms": 185.69858508604207,
-     "BA": 1.162698852121423
+     "meanBA": 1.162698852121423
     },
     "POST /v1/session/telegram": {
+     "nA": 22428,
+     "nB": 22867,
      "meanA_ms": 191.92301007668988,
      "meanB_ms": 208.25937377006164,
-     "BA": 1.08511935951215
+     "meanBA": 1.08511935951215
     },
     "GET /v1/driver/offers": {
+     "nA": 9650,
+     "nB": 9829,
      "meanA_ms": 174.56687772020723,
      "meanB_ms": 202.8033024722759,
-     "BA": 1.1617513306122456
+     "meanBA": 1.1617513306122456
     }
    },
    "pool_paths": {
     "http:POST /v1/rides": {
+     "nA": 10028,
+     "nB": 10460,
      "waitA_ms": 147.33766154766653,
      "waitB_ms": 174.48250382409176,
      "waitBA": 1.1842355986330309,
@@ -50,6 +88,8 @@
      "runBA": 1.0163646824183006
     },
     "http:POST /v1/session/telegram": {
+     "nA": 22428,
+     "nB": 22867,
      "waitA_ms": 178.20683342250763,
      "waitB_ms": 194.73568898412563,
      "waitBA": 1.0927509638333004,
@@ -58,21 +98,35 @@
      "runBA": 0.9954985951465445
     }
    },
-   "pool_totals": {
-    "httpAcqA": 197990,
-    "httpAcqB": 204359,
-    "httpAcqBA": 1.032168291327845,
-    "drainAcqA": 77614,
-    "drainAcqB": 66623,
-    "drainAcqBA": 0.8583889504470843,
-    "totalAcqBA": 0.9832295612545536,
-    "httpWaitTotalA_s": 34719.81334000001,
-    "httpWaitTotalB_s": 40631.59417000001,
-    "httpWaitBA": 1.1702711005991833
+   "gateway_request_totals": {
+    "httpAcq": {
+     "A": 197990,
+     "B": 204359,
+     "BA": 1.032168291327845
+    },
+    "drainerAcq": {
+     "A": 55642,
+     "B": 42703,
+     "BA": 0.767459832500629
+    },
+    "backgroundAcq": {
+     "A": 266,
+     "B": 252
+    },
+    "totalAcq": {
+     "A": 253898,
+     "B": 247314,
+     "BA": 0.9740683266508597
+    },
+    "httpWaitTotal_s": {
+     "A": 34719.81334,
+     "B": 40631.594170000004,
+     "BA": 1.1702711005991833
+    }
    },
-   "http_rate": {
-    "rateA": 645.7834530460229,
-    "rateB": 703.4245894304227,
+   "http_completion_rate_per_s": {
+    "A": 645.7834530460229,
+    "B": 703.4245894304227,
     "BA": 1.0892576855484897
    },
    "loop": {
@@ -80,32 +134,326 @@
     "lagP95MedB": 3.5485359999875072,
     "procCpuMedA": 78.55000000000001,
     "procCpuMedB": 81.6
+   },
+   "client_percentiles": {
+    "A": {
+     "t": "2026-10-26T00:38:58.653Z",
+     "sinceStartMs": 198554,
+     "session_exchange": {
+      "n": 10028,
+      "p50": 146,
+      "p95": 415,
+      "p99": 648,
+      "max": 1032
+     },
+     "rides_create": {
+      "n": 5014,
+      "p50": 156,
+      "p95": 427,
+      "p99": 849,
+      "max": 1119
+     },
+     "driver_availability": {
+      "n": 10028,
+      "p50": 200,
+      "p95": 561,
+      "p99": 899,
+      "max": 1098
+     },
+     "driver_location": {
+      "n": 5014,
+      "p50": 1125,
+      "p95": 2217,
+      "p99": 2574,
+      "max": 2889
+     },
+     "driver_offers_board": {
+      "n": 9650,
+      "p50": 192,
+      "p95": 511,
+      "p99": 831,
+      "max": 1113
+     },
+     "driver_offer_accept": {
+      "n": 5015,
+      "p50": 237,
+      "p95": 649,
+      "p99": 967,
+      "max": 1115
+     }
+    },
+    "B": {
+     "t": "2026-10-26T00:45:12.841Z",
+     "sinceStartMs": 197675,
+     "session_exchange": {
+      "n": 10460,
+      "p50": 194,
+      "p95": 695,
+      "p99": 1288,
+      "max": 1621
+     },
+     "rides_create": {
+      "n": 5230,
+      "p50": 204,
+      "p95": 690,
+      "p99": 1368,
+      "max": 1648
+     },
+     "driver_availability": {
+      "n": 10460,
+      "p50": 287,
+      "p95": 729,
+      "p99": 1333,
+      "max": 1615
+     },
+     "driver_location": {
+      "n": 5230,
+      "p50": 1605,
+      "p95": 2566,
+      "p99": 3321,
+      "max": 3669
+     },
+     "driver_offers_board": {
+      "n": 9829,
+      "p50": 263,
+      "p95": 690,
+      "p99": 1387,
+      "max": 1623
+     },
+     "driver_offer_accept": {
+      "n": 5234,
+      "p50": 337,
+      "p95": 786,
+      "p99": 1387,
+      "max": 1604
+     }
+    }
+   },
+   "pagg_reconciliation_A": {
+    "(background)": {
+     "pagg_n": 266,
+     "pdb_n": 266,
+     "pagg_waitSum": 33793.18,
+     "pdb_waitSum": 33793.2
+    },
+    "drainer:replies": {
+     "pagg_n": 126,
+     "pdb_n": 126,
+     "pagg_waitSum": 16522.69,
+     "pdb_waitSum": 16522.69
+    },
+    "drainer:sweep": {
+     "pagg_n": 2125,
+     "pdb_n": 2125,
+     "pagg_waitSum": 171877.3,
+     "pdb_waitSum": 171877.31
+    },
+    "http:POST /webhook/telegram/driver": {
+     "pagg_n": 16000,
+     "pdb_n": 16000,
+     "pagg_waitSum": 3156292.77,
+     "pdb_waitSum": 3156292.75
+    },
+    "drainer:job:driver:message": {
+     "pagg_n": 7628,
+     "pdb_n": 7628,
+     "pagg_waitSum": 585856.04,
+     "pdb_waitSum": 585856.02
+    },
+    "drainer:job:driver:command": {
+     "pagg_n": 7462,
+     "pdb_n": 7462,
+     "pagg_waitSum": 712728.5,
+     "pdb_waitSum": 712728.51
+    },
+    "http:POST /v1/session/telegram": {
+     "pagg_n": 22428,
+     "pdb_n": 22428,
+     "pagg_waitSum": 3996822.84,
+     "pdb_waitSum": 3996822.86
+    },
+    "drainer:job:driver:contact": {
+     "pagg_n": 38301,
+     "pdb_n": 38301,
+     "pagg_waitSum": 3011870.33,
+     "pdb_waitSum": 3011870.34
+    },
+    "http:GET /v1/onboarding": {
+     "pagg_n": 12421,
+     "pdb_n": 12421,
+     "pagg_waitSum": 2237975.73,
+     "pdb_waitSum": 2237975.75
+    },
+    "http:POST /v1/onboarding/driver": {
+     "pagg_n": 17794,
+     "pdb_n": 17794,
+     "pagg_waitSum": 2986450.79,
+     "pdb_waitSum": 2986450.76
+    },
+    "http:POST /v1/rides": {
+     "pagg_n": 10028,
+     "pdb_n": 10028,
+     "pagg_waitSum": 1477502.05,
+     "pdb_waitSum": 1477502.07
+    },
+    "http:POST /v1/driver/availability": {
+     "pagg_n": 10028,
+     "pdb_n": 10028,
+     "pagg_waitSum": 1706378.38,
+     "pdb_waitSum": 1706378.37
+    },
+    "http:POST /v1/driver/location": {
+     "pagg_n": 40140,
+     "pdb_n": 40140,
+     "pagg_waitSum": 5814846.73,
+     "pdb_waitSum": 5814846.74
+    },
+    "http:GET /v1/driver/offers": {
+     "pagg_n": 9650,
+     "pdb_n": 9650,
+     "pagg_waitSum": 1616172.67,
+     "pdb_waitSum": 1616172.67
+    },
+    "http:POST /v1/driver/offers/receipts": {
+     "pagg_n": 6633,
+     "pdb_n": 6633,
+     "pagg_waitSum": 1280178.7,
+     "pdb_waitSum": 1280178.69
+    },
+    "http:POST /v1/driver/offers/:id/accept": {
+     "pagg_n": 5015,
+     "pdb_n": 5015,
+     "pagg_waitSum": 991768.31,
+     "pdb_waitSum": 991768.28
+    },
+    "http:GET /v1/rides/:id/trip-events": {
+     "pagg_n": 13924,
+     "pdb_n": 13924,
+     "pagg_waitSum": 2751961.94,
+     "pdb_waitSum": 2751961.94
+    },
+    "http:GET /v1/rides/:id/candidate": {
+     "pagg_n": 5014,
+     "pdb_n": 5014,
+     "pagg_waitSum": 974363.27,
+     "pdb_waitSum": 974363.27
+    },
+    "http:POST /v1/rides/:id/trip-events/ack": {
+     "pagg_n": 13873,
+     "pdb_n": 13873,
+     "pagg_waitSum": 2732003.17,
+     "pdb_waitSum": 2732003.18
+    },
+    "http:POST /v1/driver/job/:id/arrived": {
+     "pagg_n": 5014,
+     "pdb_n": 5014,
+     "pagg_waitSum": 998611.34,
+     "pdb_waitSum": 998611.33
+    },
+    "http:POST /v1/driver/job/:id/start": {
+     "pagg_n": 5014,
+     "pdb_n": 5014,
+     "pagg_waitSum": 990902.61,
+     "pdb_waitSum": 990902.58
+    },
+    "http:POST /v1/driver/job/:id/complete": {
+     "pagg_n": 5014,
+     "pdb_n": 5014,
+     "pagg_waitSum": 1007582.13,
+     "pdb_waitSum": 1007582.1
+    }
+   },
+   "postgres_top_queries": {
+    "select d.id as driver_id, d.city_id, st_y(d.last_location::geometry) as lat, st_x(d.last_l": {
+     "callsA": 7966.0,
+     "callsB": 8922.0,
+     "meanExecA_ms": 6.058180015064022,
+     "meanExecB_ms": 4.780939251288949,
+     "meanBA": 0.7891708796042477
+    },
+    "select claim_notification_delivery() result": {
+     "callsA": 18454.0,
+     "callsB": 14854.0,
+     "meanExecA_ms": 2.511385770022759,
+     "meanExecB_ms": 2.2035424128180963,
+     "meanBA": 0.8774209200039096
+    },
+    "select status::text, attempts, delivered_at::text from notification_outbox where order_id ": {
+     "callsA": 5014.0,
+     "callsB": 5230.0,
+     "meanExecA_ms": 5.943894894295971,
+     "meanExecB_ms": 6.017521223709369,
+     "meanBA": 1.0123868827970113
+    },
+    "select open_offer_round( $1::uuid, $2::integer, $3::timestamptz, $4::jsonb ) as result": {
+     "callsA": 7877.0,
+     "callsB": 8813.0,
+     "meanExecA_ms": 3.6359278913291866,
+     "meanExecB_ms": 3.5249449676614093,
+     "meanBA": 0.9694760383085581
+    },
+    "select claim_and_enqueue_telegram_update( $1, $2, $3, $4, $5 ) as result": {
+     "callsA": 16000.0,
+     "callsB": 16007.0,
+     "meanExecA_ms": 1.561286625,
+     "meanExecB_ms": 1.5180171799837572,
+     "meanBA": 0.9722860336318818
+    },
+    "select request_ride_with_offer($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::tex": {
+     "callsA": 5014.0,
+     "callsB": 5230.0,
+     "meanExecA_ms": 4.931800159553251,
+     "meanExecB_ms": 5.341993881453155,
+     "meanBA": 1.0831732245081607
+    },
+    "select ack_rider_trip_events( $1::bigint, $2::uuid, $3::uuid[] ) as result": {
+     "callsA": 13873.0,
+     "callsB": 14467.0,
+     "meanExecA_ms": 1.7657591004108701,
+     "meanExecB_ms": 1.3185575447570332,
+     "meanBA": 0.7467369384930376
+    },
+    "with board as ( select driver_offer_board($1::bigint) as payload ), elig as ( select d.ver": {
+     "callsA": 9650.0,
+     "callsB": 9829.0,
+     "meanExecA_ms": 1.487640310880829,
+     "meanExecB_ms": 1.7695592634042119,
+     "meanBA": 1.1895074706307598
+    }
    }
   },
-  "-i83_vs_-i82": {
+  "A2-i83_vs_B2-i82": {
    "duration_s": {
     "A2-i83": 255.755,
     "B2-i82": 260.481
    },
    "http_route": {
     "POST /v1/rides": {
+     "nA": 4828,
+     "nB": 4822,
      "meanA_ms": 157.47364747307378,
      "meanB_ms": 186.67334301119863,
-     "BA": 1.18542591733082
+     "meanBA": 1.18542591733082
     },
     "POST /v1/session/telegram": {
+     "nA": 22022,
+     "nB": 21888,
      "meanA_ms": 198.01427890291527,
      "meanB_ms": 213.11645148026318,
-     "BA": 1.0762680987503552
+     "meanBA": 1.0762680987503552
     },
     "GET /v1/driver/offers": {
+     "nA": 8629,
+     "nB": 9033,
      "meanA_ms": 177.1679858616294,
      "meanB_ms": 205.9708480017713,
-     "BA": 1.1625737403970788
+     "meanBA": 1.1625737403970788
     }
    },
    "pool_paths": {
     "http:POST /v1/rides": {
+     "nA": 9656,
+     "nB": 9644,
      "waitA_ms": 145.39299813587408,
      "waitB_ms": 174.42004562422233,
      "waitBA": 1.1996454290131744,
@@ -114,6 +462,8 @@
      "runBA": 1.0630876548088675
     },
     "http:POST /v1/session/telegram": {
+     "nA": 22022,
+     "nB": 21888,
      "waitA_ms": 184.3285923167741,
      "waitB_ms": 199.93022843567252,
      "waitBA": 1.084640347559789,
@@ -122,21 +472,35 @@
      "runBA": 1.032898583718964
     }
    },
-   "pool_totals": {
-    "httpAcqA": 191789,
-    "httpAcqB": 192323,
-    "httpAcqBA": 1.0027843098405018,
-    "drainAcqA": 77267,
-    "drainAcqB": 64886,
-    "drainAcqBA": 0.8397634177591986,
-    "totalAcqBA": 0.955968274262607,
-    "httpWaitTotalA_s": 33936.62295,
-    "httpWaitTotalB_s": 38943.38516,
-    "httpWaitBA": 1.1475327176005885
+   "gateway_request_totals": {
+    "httpAcq": {
+     "A": 191789,
+     "B": 192323,
+     "BA": 1.0027843098405018
+    },
+    "drainerAcq": {
+     "A": 55591,
+     "B": 42701,
+     "BA": 0.768127934377867
+    },
+    "backgroundAcq": {
+     "A": 266,
+     "B": 271
+    },
+    "totalAcq": {
+     "A": 247646,
+     "B": 235295,
+     "BA": 0.9501263900890787
+    },
+    "httpWaitTotal_s": {
+     "A": 33936.62295,
+     "B": 38943.38516,
+     "BA": 1.1475327176005885
+    }
    },
-   "http_rate": {
-    "rateA": 630.0404684170397,
-    "rateB": 613.5610658742864,
+   "http_completion_rate_per_s": {
+    "A": 630.0404684170397,
+    "B": 613.5610658742864,
     "BA": 0.9738438983385347
    },
    "loop": {
@@ -144,32 +508,326 @@
     "lagP95MedB": 3.4648419999866746,
     "procCpuMedA": 79.3,
     "procCpuMedB": 79.8
+   },
+   "client_percentiles": {
+    "A": {
+     "t": "2026-10-26T00:57:28.879Z",
+     "sinceStartMs": 195500,
+     "session_exchange": {
+      "n": 9656,
+      "p50": 133,
+      "p95": 361,
+      "p99": 545,
+      "max": 1190
+     },
+     "rides_create": {
+      "n": 4828,
+      "p50": 139,
+      "p95": 392,
+      "p99": 628,
+      "max": 1149
+     },
+     "driver_availability": {
+      "n": 9656,
+      "p50": 186,
+      "p95": 538,
+      "p99": 774,
+      "max": 1127
+     },
+     "driver_location": {
+      "n": 4828,
+      "p50": 1070,
+      "p95": 2327,
+      "p99": 2558,
+      "max": 2737
+     },
+     "driver_offers_board": {
+      "n": 8629,
+      "p50": 185,
+      "p95": 560,
+      "p99": 884,
+      "max": 1051
+     },
+     "driver_offer_accept": {
+      "n": 4833,
+      "p50": 226,
+      "p95": 820,
+      "p99": 983,
+      "max": 1112
+     }
+    },
+    "B": {
+     "t": "2026-10-26T00:51:09.804Z",
+     "sinceStartMs": 197551,
+     "session_exchange": {
+      "n": 9644,
+      "p50": 178,
+      "p95": 722,
+      "p99": 1174,
+      "max": 1677
+     },
+     "rides_create": {
+      "n": 4822,
+      "p50": 188,
+      "p95": 753,
+      "p99": 1291,
+      "max": 1662
+     },
+     "driver_availability": {
+      "n": 9644,
+      "p50": 251,
+      "p95": 777,
+      "p99": 1232,
+      "max": 1693
+     },
+     "driver_location": {
+      "n": 4822,
+      "p50": 1590,
+      "p95": 2702,
+      "p99": 2908,
+      "max": 3525
+     },
+     "driver_offers_board": {
+      "n": 9033,
+      "p50": 237,
+      "p95": 758,
+      "p99": 1287,
+      "max": 1693
+     },
+     "driver_offer_accept": {
+      "n": 4830,
+      "p50": 350,
+      "p95": 854,
+      "p99": 1431,
+      "max": 1697
+     }
+    }
+   },
+   "pagg_reconciliation_A": {
+    "(background)": {
+     "pagg_n": 266,
+     "pdb_n": 266,
+     "pagg_waitSum": 34199.32,
+     "pdb_waitSum": 34199.33
+    },
+    "drainer:replies": {
+     "pagg_n": 126,
+     "pdb_n": 126,
+     "pagg_waitSum": 17623.43,
+     "pdb_waitSum": 17623.44
+    },
+    "drainer:sweep": {
+     "pagg_n": 2137,
+     "pdb_n": 2137,
+     "pagg_waitSum": 172241.63,
+     "pdb_waitSum": 172241.59
+    },
+    "http:POST /webhook/telegram/driver": {
+     "pagg_n": 15966,
+     "pdb_n": 15966,
+     "pagg_waitSum": 3334749.45,
+     "pdb_waitSum": 3334749.44
+    },
+    "drainer:job:driver:message": {
+     "pagg_n": 7604,
+     "pdb_n": 7604,
+     "pagg_waitSum": 581578.46,
+     "pdb_waitSum": 581578.45
+    },
+    "drainer:job:driver:command": {
+     "pagg_n": 7407,
+     "pdb_n": 7407,
+     "pagg_waitSum": 673868.69,
+     "pdb_waitSum": 673868.72
+    },
+    "http:POST /v1/session/telegram": {
+     "pagg_n": 22022,
+     "pdb_n": 22022,
+     "pagg_waitSum": 4059284.26,
+     "pdb_waitSum": 4059284.26
+    },
+    "drainer:job:driver:contact": {
+     "pagg_n": 38317,
+     "pdb_n": 38317,
+     "pagg_waitSum": 3064130.55,
+     "pdb_waitSum": 3064130.55
+    },
+    "http:GET /v1/onboarding": {
+     "pagg_n": 12384,
+     "pdb_n": 12384,
+     "pagg_waitSum": 2201718.11,
+     "pdb_waitSum": 2201718.14
+    },
+    "http:POST /v1/onboarding/driver": {
+     "pagg_n": 17798,
+     "pdb_n": 17798,
+     "pagg_waitSum": 2954104.58,
+     "pdb_waitSum": 2954104.55
+    },
+    "http:POST /v1/rides": {
+     "pagg_n": 9656,
+     "pdb_n": 9656,
+     "pagg_waitSum": 1403914.81,
+     "pdb_waitSum": 1403914.79
+    },
+    "http:POST /v1/driver/availability": {
+     "pagg_n": 9656,
+     "pdb_n": 9656,
+     "pagg_waitSum": 1656421.98,
+     "pdb_waitSum": 1656421.95
+    },
+    "http:POST /v1/driver/location": {
+     "pagg_n": 38658,
+     "pdb_n": 38658,
+     "pagg_waitSum": 5644672.63,
+     "pdb_waitSum": 5644672.63
+    },
+    "http:GET /v1/driver/offers": {
+     "pagg_n": 8629,
+     "pdb_n": 8629,
+     "pagg_waitSum": 1468837.32,
+     "pdb_waitSum": 1468837.31
+    },
+    "http:POST /v1/driver/offers/receipts": {
+     "pagg_n": 6162,
+     "pdb_n": 6162,
+     "pagg_waitSum": 1180924.31,
+     "pdb_waitSum": 1180924.3
+    },
+    "http:POST /v1/driver/offers/:id/accept": {
+     "pagg_n": 4833,
+     "pdb_n": 4833,
+     "pagg_waitSum": 943927.64,
+     "pdb_waitSum": 943927.67
+    },
+    "http:GET /v1/rides/:id/candidate": {
+     "pagg_n": 4828,
+     "pdb_n": 4828,
+     "pagg_waitSum": 939990.32,
+     "pdb_waitSum": 939990.29
+    },
+    "http:GET /v1/rides/:id/trip-events": {
+     "pagg_n": 13376,
+     "pdb_n": 13376,
+     "pagg_waitSum": 2643051.29,
+     "pdb_waitSum": 2643051.29
+    },
+    "http:POST /v1/rides/:id/trip-events/ack": {
+     "pagg_n": 13337,
+     "pdb_n": 13337,
+     "pagg_waitSum": 2625313.54,
+     "pdb_waitSum": 2625313.55
+    },
+    "http:POST /v1/driver/job/:id/arrived": {
+     "pagg_n": 4828,
+     "pdb_n": 4828,
+     "pagg_waitSum": 956511.51,
+     "pdb_waitSum": 956511.53
+    },
+    "http:POST /v1/driver/job/:id/start": {
+     "pagg_n": 4828,
+     "pdb_n": 4828,
+     "pagg_waitSum": 954131.06,
+     "pdb_waitSum": 954131.08
+    },
+    "http:POST /v1/driver/job/:id/complete": {
+     "pagg_n": 4828,
+     "pdb_n": 4828,
+     "pagg_waitSum": 969070.15,
+     "pdb_waitSum": 969070.17
+    }
+   },
+   "postgres_top_queries": {
+    "select claim_notification_delivery() result": {
+     "callsA": 15520.0,
+     "callsB": 13299.0,
+     "meanExecA_ms": 3.4031204896907217,
+     "meanExecB_ms": 3.5603781487329873,
+     "meanBA": 1.0462098416787344
+    },
+    "select claim_and_enqueue_telegram_update( $1, $2, $3, $4, $5 ) as result": {
+     "callsA": 15966.0,
+     "callsB": 15844.0,
+     "meanExecA_ms": 2.520805336339722,
+     "meanExecB_ms": 1.5963134940671548,
+     "meanBA": 0.6332553613144304
+    },
+    "select d.id as driver_id, d.city_id, st_y(d.last_location::geometry) as lat, st_x(d.last_l": {
+     "callsA": 7561.0,
+     "callsB": 8400.0,
+     "meanExecA_ms": 4.401546224044439,
+     "meanExecB_ms": 6.190391428571429,
+     "meanBA": 1.4064129088898396
+    },
+    "select open_offer_round( $1::uuid, $2::integer, $3::timestamptz, $4::jsonb ) as result": {
+     "callsA": 7491.0,
+     "callsB": 8296.0,
+     "meanExecA_ms": 3.779358563609665,
+     "meanExecB_ms": 3.5673517357762776,
+     "meanBA": 0.9439040185615785
+    },
+    "select status::text, attempts, delivered_at::text from notification_outbox where order_id ": {
+     "callsA": 4828.0,
+     "callsB": 4822.0,
+     "meanExecA_ms": 5.6559115575807795,
+     "meanExecB_ms": 5.720790958108668,
+     "meanBA": 1.0114710776268998
+    },
+    "select request_ride_with_offer($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::tex": {
+     "callsA": 4828.0,
+     "callsB": 4822.0,
+     "meanExecA_ms": 4.787978666114333,
+     "meanExecB_ms": 5.078164247200331,
+     "meanBA": 1.0606071165562434
+    },
+    "select ack_rider_trip_events( $1::bigint, $2::uuid, $3::uuid[] ) as result": {
+     "callsA": 13337.0,
+     "callsB": 13465.0,
+     "meanExecA_ms": 1.4073655994601484,
+     "meanExecB_ms": 1.3555963609357593,
+     "meanBA": 0.9632155009727058
+    },
+    "with board as ( select driver_offer_board($1::bigint) as payload ), elig as ( select d.ver": {
+     "callsA": 8629.0,
+     "callsB": 9033.0,
+     "meanExecA_ms": 1.4041102097577933,
+     "meanExecB_ms": 1.7740942101184545,
+     "meanBA": 1.2635006837707439
+    }
    }
   },
-  "-i84_vs_-i85": {
+  "A3-i84_vs_B3-i85": {
    "duration_s": {
     "A3-i84": 258.996,
     "B3-i85": 257.528
    },
    "http_route": {
     "POST /v1/rides": {
+     "nA": 4935,
+     "nB": 5085,
      "meanA_ms": 162.57668895643366,
      "meanB_ms": 190.59556538839732,
-     "BA": 1.1723425210084824
+     "meanBA": 1.1723425210084824
     },
     "POST /v1/session/telegram": {
+     "nA": 22283,
+     "nB": 22535,
      "meanA_ms": 196.49230534488171,
      "meanB_ms": 214.8988542267584,
-     "BA": 1.0936756726914556
+     "meanBA": 1.0936756726914556
     },
     "GET /v1/driver/offers": {
+     "nA": 9058,
+     "nB": 8881,
      "meanA_ms": 182.79843894899537,
      "meanB_ms": 203.76422362346585,
-     "BA": 1.1146934557812083
+     "meanBA": 1.1146934557812083
     }
    },
    "pool_paths": {
     "http:POST /v1/rides": {
+     "nA": 9870,
+     "nB": 10170,
      "waitA_ms": 150.77454508611953,
      "waitB_ms": 177.6612192723697,
      "waitBA": 1.178323696290332,
@@ -178,6 +836,8 @@
      "runBA": 1.019493565769621
     },
     "http:POST /v1/session/telegram": {
+     "nA": 22283,
+     "nB": 22535,
      "waitA_ms": 182.5198640219001,
      "waitB_ms": 201.67859773685387,
      "waitBA": 1.1049679376961128,
@@ -186,21 +846,35 @@
      "runBA": 1.0161455316170815
     }
    },
-   "pool_totals": {
-    "httpAcqA": 195401,
-    "httpAcqB": 199182,
-    "httpAcqBA": 1.0193499521496818,
-    "drainAcqA": 78326,
-    "drainAcqB": 66220,
-    "drainAcqBA": 0.8454408497816817,
-    "totalAcqBA": 0.9695864858052001,
-    "httpWaitTotalA_s": 35354.81702,
-    "httpWaitTotalB_s": 39748.24599,
-    "httpWaitBA": 1.1242667715551933
+   "gateway_request_totals": {
+    "httpAcq": {
+     "A": 195401,
+     "B": 199182,
+     "BA": 1.0193499521496818
+    },
+    "drainerAcq": {
+     "A": 55782,
+     "B": 42906,
+     "BA": 0.7691728514574594
+    },
+    "backgroundAcq": {
+     "A": 269,
+     "B": 268
+    },
+    "totalAcq": {
+     "A": 251452,
+     "B": 242356,
+     "BA": 0.9638260980226843
+    },
+    "httpWaitTotal_s": {
+     "A": 35354.81702,
+     "B": 39748.24599,
+     "BA": 1.1242667715551933
+    }
    },
-   "http_rate": {
-    "rateA": 628.0985034517909,
-    "rateB": 643.6620483986206,
+   "http_completion_rate_per_s": {
+    "A": 628.0985034517909,
+    "B": 643.6620483986206,
     "BA": 1.0247788282591002
    },
    "loop": {
@@ -208,32 +882,326 @@
     "lagP95MedB": 3.6578999999910593,
     "procCpuMedA": 80.44999999999999,
     "procCpuMedB": 81.45
+   },
+   "client_percentiles": {
+    "A": {
+     "t": "2026-10-26T01:03:49.515Z",
+     "sinceStartMs": 199158,
+     "session_exchange": {
+      "n": 9870,
+      "p50": 141,
+      "p95": 404,
+      "p99": 669,
+      "max": 1281
+     },
+     "rides_create": {
+      "n": 4935,
+      "p50": 154,
+      "p95": 453,
+      "p99": 752,
+      "max": 1151
+     },
+     "driver_availability": {
+      "n": 9870,
+      "p50": 211,
+      "p95": 626,
+      "p99": 932,
+      "max": 1154
+     },
+     "driver_location": {
+      "n": 4935,
+      "p50": 1097,
+      "p95": 2401,
+      "p99": 2648,
+      "max": 2818
+     },
+     "driver_offers_board": {
+      "n": 9058,
+      "p50": 203,
+      "p95": 583,
+      "p99": 917,
+      "max": 1182
+     },
+     "driver_offer_accept": {
+      "n": 4940,
+      "p50": 265,
+      "p95": 775,
+      "p99": 966,
+      "max": 1145
+     }
+    },
+    "B": {
+     "t": "2026-10-26T01:10:06.981Z",
+     "sinceStartMs": 197373,
+     "session_exchange": {
+      "n": 10170,
+      "p50": 191,
+      "p95": 692,
+      "p99": 1353,
+      "max": 1589
+     },
+     "rides_create": {
+      "n": 5085,
+      "p50": 208,
+      "p95": 747,
+      "p99": 1333,
+      "max": 1570
+     },
+     "driver_availability": {
+      "n": 10170,
+      "p50": 241,
+      "p95": 803,
+      "p99": 1379,
+      "max": 1598
+     },
+     "driver_location": {
+      "n": 5085,
+      "p50": 1583,
+      "p95": 2568,
+      "p99": 3237,
+      "max": 3503
+     },
+     "driver_offers_board": {
+      "n": 8881,
+      "p50": 240,
+      "p95": 772,
+      "p99": 1434,
+      "max": 1587
+     },
+     "driver_offer_accept": {
+      "n": 5096,
+      "p50": 282,
+      "p95": 838,
+      "p99": 1448,
+      "max": 1603
+     }
+    }
+   },
+   "pagg_reconciliation_A": {
+    "(background)": {
+     "pagg_n": 269,
+     "pdb_n": 269,
+     "pagg_waitSum": 34848.52,
+     "pdb_waitSum": 34848.52
+    },
+    "drainer:replies": {
+     "pagg_n": 125,
+     "pdb_n": 125,
+     "pagg_waitSum": 18440.93,
+     "pdb_waitSum": 18440.92
+    },
+    "drainer:sweep": {
+     "pagg_n": 2138,
+     "pdb_n": 2138,
+     "pagg_waitSum": 175210.19,
+     "pdb_waitSum": 175210.16
+    },
+    "http:POST /webhook/telegram/driver": {
+     "pagg_n": 16012,
+     "pdb_n": 16012,
+     "pagg_waitSum": 3236020.22,
+     "pdb_waitSum": 3236020.23
+    },
+    "drainer:job:driver:message": {
+     "pagg_n": 7631,
+     "pdb_n": 7631,
+     "pagg_waitSum": 573078.65,
+     "pdb_waitSum": 573078.63
+    },
+    "drainer:job:driver:command": {
+     "pagg_n": 7427,
+     "pdb_n": 7427,
+     "pagg_waitSum": 684256.92,
+     "pdb_waitSum": 684256.92
+    },
+    "http:POST /v1/session/telegram": {
+     "pagg_n": 22283,
+     "pdb_n": 22283,
+     "pagg_waitSum": 4067090.18,
+     "pdb_waitSum": 4067090.13
+    },
+    "drainer:job:driver:contact": {
+     "pagg_n": 38461,
+     "pdb_n": 38461,
+     "pagg_waitSum": 3123975.13,
+     "pdb_waitSum": 3123975.12
+    },
+    "http:GET /v1/onboarding": {
+     "pagg_n": 12433,
+     "pdb_n": 12433,
+     "pagg_waitSum": 2261898.42,
+     "pdb_waitSum": 2261898.38
+    },
+    "http:POST /v1/onboarding/driver": {
+     "pagg_n": 18170,
+     "pdb_n": 18170,
+     "pagg_waitSum": 3018193.18,
+     "pdb_waitSum": 3018193.16
+    },
+    "http:POST /v1/rides": {
+     "pagg_n": 9870,
+     "pdb_n": 9870,
+     "pagg_waitSum": 1488144.77,
+     "pdb_waitSum": 1488144.76
+    },
+    "http:POST /v1/driver/availability": {
+     "pagg_n": 9870,
+     "pdb_n": 9870,
+     "pagg_waitSum": 1761756.95,
+     "pdb_waitSum": 1761756.95
+    },
+    "http:POST /v1/driver/location": {
+     "pagg_n": 39510,
+     "pdb_n": 39510,
+     "pagg_waitSum": 5922339.55,
+     "pdb_waitSum": 5922339.53
+    },
+    "http:GET /v1/driver/offers": {
+     "pagg_n": 9058,
+     "pdb_n": 9058,
+     "pagg_waitSum": 1587211.56,
+     "pdb_waitSum": 1587211.59
+    },
+    "http:POST /v1/driver/offers/receipts": {
+     "pagg_n": 6456,
+     "pdb_n": 6456,
+     "pagg_waitSum": 1292712.77,
+     "pdb_waitSum": 1292712.75
+    },
+    "http:POST /v1/driver/offers/:id/accept": {
+     "pagg_n": 4940,
+     "pdb_n": 4940,
+     "pagg_waitSum": 1036036.92,
+     "pdb_waitSum": 1036036.92
+    },
+    "http:GET /v1/rides/:id/candidate": {
+     "pagg_n": 4935,
+     "pdb_n": 4935,
+     "pagg_waitSum": 1013614.64,
+     "pdb_waitSum": 1013614.68
+    },
+    "http:GET /v1/rides/:id/trip-events": {
+     "pagg_n": 13560,
+     "pdb_n": 13560,
+     "pagg_waitSum": 2814167.46,
+     "pdb_waitSum": 2814167.49
+    },
+    "http:POST /v1/rides/:id/trip-events/ack": {
+     "pagg_n": 13499,
+     "pdb_n": 13499,
+     "pagg_waitSum": 2780167.76,
+     "pdb_waitSum": 2780167.75
+    },
+    "http:POST /v1/driver/job/:id/arrived": {
+     "pagg_n": 4935,
+     "pdb_n": 4935,
+     "pagg_waitSum": 1018145.52,
+     "pdb_waitSum": 1018145.51
+    },
+    "http:POST /v1/driver/job/:id/start": {
+     "pagg_n": 4935,
+     "pdb_n": 4935,
+     "pagg_waitSum": 1015585.9,
+     "pdb_waitSum": 1015585.93
+    },
+    "http:POST /v1/driver/job/:id/complete": {
+     "pagg_n": 4935,
+     "pdb_n": 4935,
+     "pagg_waitSum": 1041731.27,
+     "pdb_waitSum": 1041731.26
+    }
+   },
+   "postgres_top_queries": {
+    "select claim_notification_delivery() result": {
+     "callsA": 14033.0,
+     "callsB": 15487.0,
+     "meanExecA_ms": 3.7511090287180218,
+     "meanExecB_ms": 3.40095124943501,
+     "meanBA": 0.9066521989624275
+    },
+    "select d.id as driver_id, d.city_id, st_y(d.last_location::geometry) as lat, st_x(d.last_l": {
+     "callsA": 7963.0,
+     "callsB": 8436.0,
+     "meanExecA_ms": 4.331932060781113,
+     "meanExecB_ms": 4.482868302513039,
+     "meanBA": 1.0348427075065232
+    },
+    "select status::text, attempts, delivered_at::text from notification_outbox where order_id ": {
+     "callsA": 4935.0,
+     "callsB": 5085.0,
+     "meanExecA_ms": 6.034740425531915,
+     "meanExecB_ms": 6.095603146509341,
+     "meanBA": 1.010085391696373
+    },
+    "select open_offer_round( $1::uuid, $2::integer, $3::timestamptz, $4::jsonb ) as result": {
+     "callsA": 7899.0,
+     "callsB": 8343.0,
+     "meanExecA_ms": 3.6365717179389794,
+     "meanExecB_ms": 3.6361316073354906,
+     "meanBA": 0.9998789765092992
+    },
+    "select claim_and_enqueue_telegram_update( $1, $2, $3, $4, $5 ) as result": {
+     "callsA": 16012.0,
+     "callsB": 15965.0,
+     "meanExecA_ms": 1.6206395828128903,
+     "meanExecB_ms": 1.5779549013466958,
+     "meanBA": 0.9736618296141403
+    },
+    "select request_ride_with_offer($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::tex": {
+     "callsA": 4935.0,
+     "callsB": 5085.0,
+     "meanExecA_ms": 4.953512664640324,
+     "meanExecB_ms": 5.146541199606687,
+     "meanBA": 1.0389680107904555
+    },
+    "select ack_rider_trip_events( $1::bigint, $2::uuid, $3::uuid[] ) as result": {
+     "callsA": 13499.0,
+     "callsB": 14133.0,
+     "meanExecA_ms": 1.4201379361434179,
+     "meanExecB_ms": 1.6107087667161961,
+     "meanBA": 1.1341917751245347
+    },
+    "with board as ( select driver_offer_board($1::bigint) as payload ), elig as ( select d.ver": {
+     "callsA": 9058.0,
+     "callsB": 8881.0,
+     "meanExecA_ms": 1.8033065798189447,
+     "meanExecB_ms": 1.6551326427204145,
+     "meanBA": 0.917832087590227
+    }
    }
   },
-  "-i87_vs_-i86": {
+  "A4-i87_vs_B4-i86": {
    "duration_s": {
     "A4-i87": 257.296,
     "B4-i86": 259.39
    },
    "http_route": {
     "POST /v1/rides": {
+     "nA": 4354,
+     "nB": 4741,
      "meanA_ms": 169.99986908589807,
      "meanB_ms": 192.09863741826618,
-     "BA": 1.1299928550015645
+     "meanBA": 1.1299928550015645
     },
     "POST /v1/session/telegram": {
+     "nA": 21047,
+     "nB": 21774,
      "meanA_ms": 213.49198983228015,
      "meanB_ms": 215.6763952420318,
-     "BA": 1.01023179095135
+     "meanBA": 1.01023179095135
     },
     "GET /v1/driver/offers": {
+     "nA": 7744,
+     "nB": 8496,
      "meanA_ms": 195.9875439049586,
      "meanB_ms": 206.20955508474574,
-     "BA": 1.0521564328840416
+     "meanBA": 1.0521564328840416
     }
    },
    "pool_paths": {
     "http:POST /v1/rides": {
+     "nA": 8708,
+     "nB": 9482,
      "waitA_ms": 156.4474494717501,
      "waitB_ms": 178.18803522463614,
      "waitBA": 1.1389641430799533,
@@ -242,6 +1210,8 @@
      "runBA": 1.0027133766445844
     },
     "http:POST /v1/session/telegram": {
+     "nA": 21047,
+     "nB": 21774,
      "waitA_ms": 198.14362807050887,
      "waitB_ms": 202.4324285845503,
      "waitBA": 1.0216449075643013,
@@ -250,21 +1220,35 @@
      "runBA": 0.9587708977670135
     }
    },
-   "pool_totals": {
-    "httpAcqA": 178118,
-    "httpAcqB": 189638,
-    "httpAcqBA": 1.064676225872736,
-    "drainAcqA": 75420,
-    "drainAcqB": 64663,
-    "drainAcqBA": 0.85737204985415,
-    "totalAcqBA": 1.0030094108181022,
-    "httpWaitTotalA_s": 35114.43994,
-    "httpWaitTotalB_s": 38851.31657,
-    "httpWaitBA": 1.1064199410950368
+   "gateway_request_totals": {
+    "httpAcq": {
+     "A": 178118,
+     "B": 189638,
+     "BA": 1.064676225872736
+    },
+    "drainerAcq": {
+     "A": 55494,
+     "B": 42803,
+     "BA": 0.7713086099398133
+    },
+    "backgroundAcq": {
+     "A": 268,
+     "B": 270
+    },
+    "totalAcq": {
+     "A": 233880,
+     "B": 232711,
+     "BA": 0.9950017102787755
+    },
+    "httpWaitTotal_s": {
+     "A": 35114.439940000004,
+     "B": 38851.316569999995,
+     "BA": 1.1064199410950364
+    }
    },
-   "http_rate": {
-    "rateA": 570.7589702132952,
-    "rateB": 611.2109179228189,
+   "http_completion_rate_per_s": {
+    "A": 570.7589702132952,
+    "B": 611.2109179228189,
     "BA": 1.0708739587472564
    },
    "loop": {
@@ -272,153 +1256,656 @@
     "lagP95MedB": 3.558697000000393,
     "procCpuMedA": 80.85,
     "procCpuMedB": 81.1
+   },
+   "client_percentiles": {
+    "A": {
+     "t": "2026-10-26T01:22:40.974Z",
+     "sinceStartMs": 195246,
+     "session_exchange": {
+      "n": 8708,
+      "p50": 137,
+      "p95": 490,
+      "p99": 710,
+      "max": 1297
+     },
+     "rides_create": {
+      "n": 4354,
+      "p50": 151,
+      "p95": 491,
+      "p99": 689,
+      "max": 1317
+     },
+     "driver_availability": {
+      "n": 8708,
+      "p50": 230,
+      "p95": 666,
+      "p99": 837,
+      "max": 1388
+     },
+     "driver_location": {
+      "n": 4354,
+      "p50": 1108,
+      "p95": 2582,
+      "p99": 2963,
+      "max": 3614
+     },
+     "driver_offers_board": {
+      "n": 7744,
+      "p50": 218,
+      "p95": 657,
+      "p99": 1174,
+      "max": 1362
+     },
+     "driver_offer_accept": {
+      "n": 4355,
+      "p50": 284,
+      "p95": 821,
+      "p99": 1246,
+      "max": 1400
+     }
+    },
+    "B": {
+     "t": "2026-10-26T01:16:23.377Z",
+     "sinceStartMs": 196927,
+     "session_exchange": {
+      "n": 9482,
+      "p50": 185,
+      "p95": 746,
+      "p99": 1340,
+      "max": 1673
+     },
+     "rides_create": {
+      "n": 4741,
+      "p50": 197,
+      "p95": 753,
+      "p99": 1238,
+      "max": 1698
+     },
+     "driver_availability": {
+      "n": 9482,
+      "p50": 268,
+      "p95": 849,
+      "p99": 1279,
+      "max": 1675
+     },
+     "driver_location": {
+      "n": 4741,
+      "p50": 1493,
+      "p95": 2612,
+      "p99": 2929,
+      "max": 3528
+     },
+     "driver_offers_board": {
+      "n": 8496,
+      "p50": 241,
+      "p95": 800,
+      "p99": 1423,
+      "max": 1694
+     },
+     "driver_offer_accept": {
+      "n": 4747,
+      "p50": 324,
+      "p95": 904,
+      "p99": 1425,
+      "max": 1696
+     }
+    }
+   },
+   "pagg_reconciliation_A": {
+    "(background)": {
+     "pagg_n": 268,
+     "pdb_n": 268,
+     "pagg_waitSum": 37054.14,
+     "pdb_waitSum": 37054.1
+    },
+    "drainer:replies": {
+     "pagg_n": 127,
+     "pdb_n": 127,
+     "pagg_waitSum": 18518.16,
+     "pdb_waitSum": 18518.16
+    },
+    "drainer:sweep": {
+     "pagg_n": 2128,
+     "pdb_n": 2128,
+     "pagg_waitSum": 171305.91,
+     "pdb_waitSum": 171305.89
+    },
+    "http:POST /webhook/telegram/driver": {
+     "pagg_n": 15939,
+     "pdb_n": 15939,
+     "pagg_waitSum": 3598945.3,
+     "pdb_waitSum": 3598945.3
+    },
+    "drainer:job:driver:message": {
+     "pagg_n": 8055,
+     "pdb_n": 8055,
+     "pagg_waitSum": 663834.04,
+     "pdb_waitSum": 663834.03
+    },
+    "drainer:job:driver:command": {
+     "pagg_n": 7523,
+     "pdb_n": 7523,
+     "pagg_waitSum": 707943.31,
+     "pdb_waitSum": 707943.3
+    },
+    "http:POST /v1/session/telegram": {
+     "pagg_n": 21047,
+     "pdb_n": 21047,
+     "pagg_waitSum": 4170328.95,
+     "pdb_waitSum": 4170328.94
+    },
+    "drainer:job:driver:contact": {
+     "pagg_n": 37661,
+     "pdb_n": 37661,
+     "pagg_waitSum": 2993070.34,
+     "pdb_waitSum": 2993070.34
+    },
+    "http:GET /v1/onboarding": {
+     "pagg_n": 12354,
+     "pdb_n": 12354,
+     "pagg_waitSum": 2312244.03,
+     "pdb_waitSum": 2312244.05
+    },
+    "http:POST /v1/onboarding/driver": {
+     "pagg_n": 17092,
+     "pdb_n": 17092,
+     "pagg_waitSum": 3008871.84,
+     "pdb_waitSum": 3008871.81
+    },
+    "http:POST /v1/rides": {
+     "pagg_n": 8708,
+     "pdb_n": 8708,
+     "pagg_waitSum": 1362344.38,
+     "pdb_waitSum": 1362344.39
+    },
+    "http:POST /v1/driver/availability": {
+     "pagg_n": 8708,
+     "pdb_n": 8708,
+     "pagg_waitSum": 1694549.06,
+     "pdb_waitSum": 1694549.05
+    },
+    "http:POST /v1/driver/location": {
+     "pagg_n": 34848,
+     "pdb_n": 34848,
+     "pagg_waitSum": 5476743.12,
+     "pdb_waitSum": 5476743.13
+    },
+    "http:GET /v1/driver/offers": {
+     "pagg_n": 7744,
+     "pdb_n": 7744,
+     "pagg_waitSum": 1459342.97,
+     "pdb_waitSum": 1459342.95
+    },
+    "http:POST /v1/driver/offers/receipts": {
+     "pagg_n": 5493,
+     "pdb_n": 5493,
+     "pagg_waitSum": 1215325.16,
+     "pdb_waitSum": 1215325.15
+    },
+    "http:POST /v1/driver/offers/:id/accept": {
+     "pagg_n": 4355,
+     "pdb_n": 4355,
+     "pagg_waitSum": 987829.33,
+     "pdb_waitSum": 987829.31
+    },
+    "http:GET /v1/rides/:id/candidate": {
+     "pagg_n": 4354,
+     "pdb_n": 4354,
+     "pagg_waitSum": 991866.88,
+     "pdb_waitSum": 991866.88
+    },
+    "http:GET /v1/rides/:id/trip-events": {
+     "pagg_n": 12236,
+     "pdb_n": 12236,
+     "pagg_waitSum": 2882711.45,
+     "pdb_waitSum": 2882711.48
+    },
+    "http:POST /v1/rides/:id/trip-events/ack": {
+     "pagg_n": 12178,
+     "pdb_n": 12178,
+     "pagg_waitSum": 2854119.36,
+     "pdb_waitSum": 2854119.34
+    },
+    "http:POST /v1/driver/job/:id/arrived": {
+     "pagg_n": 4354,
+     "pdb_n": 4354,
+     "pagg_waitSum": 1024257.65,
+     "pdb_waitSum": 1024257.68
+    },
+    "http:POST /v1/driver/job/:id/start": {
+     "pagg_n": 4354,
+     "pdb_n": 4354,
+     "pagg_waitSum": 1037454.1,
+     "pdb_waitSum": 1037454.1
+    },
+    "http:POST /v1/driver/job/:id/complete": {
+     "pagg_n": 4354,
+     "pdb_n": 4354,
+     "pagg_waitSum": 1037506.41,
+     "pdb_waitSum": 1037506.38
+    }
+   },
+   "postgres_top_queries": {
+    "select claim_notification_delivery() result": {
+     "callsA": 9687.0,
+     "callsB": 14273.0,
+     "meanExecA_ms": 8.303773097966346,
+     "meanExecB_ms": 3.336467456035872,
+     "meanBA": 0.40180137591343834
+    },
+    "select d.id as driver_id, d.city_id, st_y(d.last_location::geometry) as lat, st_x(d.last_l": {
+     "callsA": 7260.0,
+     "callsB": 8302.0,
+     "meanExecA_ms": 4.057302066115702,
+     "meanExecB_ms": 5.660720790171043,
+     "meanBA": 1.39519333239844
+    },
+    "select claim_and_enqueue_telegram_update( $1, $2, $3, $4, $5 ) as result": {
+     "callsA": 15939.0,
+     "callsB": 15892.0,
+     "meanExecA_ms": 1.740827655436351,
+     "meanExecB_ms": 1.6555035237855524,
+     "meanBA": 0.9509864567096324
+    },
+    "select open_offer_round( $1::uuid, $2::integer, $3::timestamptz, $4::jsonb ) as result": {
+     "callsA": 7179.0,
+     "callsB": 8211.0,
+     "meanExecA_ms": 3.8049143334726283,
+     "meanExecB_ms": 3.6752491779320424,
+     "meanBA": 0.9659216623092156
+    },
+    "select status::text, attempts, delivered_at::text from notification_outbox where order_id ": {
+     "callsA": 4354.0,
+     "callsB": 4741.0,
+     "meanExecA_ms": 5.329762976573266,
+     "meanExecB_ms": 5.748576038810378,
+     "meanBA": 1.078580053949488
+    },
+    "select ack_rider_trip_events( $1::bigint, $2::uuid, $3::uuid[] ) as result": {
+     "callsA": 12178.0,
+     "callsB": 13355.0,
+     "meanExecA_ms": 1.7338069469535227,
+     "meanExecB_ms": 1.3967067764882066,
+     "meanBA": 0.8055722575932484
+    },
+    "select request_ride_with_offer($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::tex": {
+     "callsA": 4354.0,
+     "callsB": 4741.0,
+     "meanExecA_ms": 4.75175287092329,
+     "meanExecB_ms": 5.1087034380932295,
+     "meanBA": 1.0751197667189671
+    },
+    "with board as ( select driver_offer_board($1::bigint) as payload ), elig as ( select d.ver": {
+     "callsA": 7744.0,
+     "callsB": 8496.0,
+     "meanExecA_ms": 1.5163688016528927,
+     "meanExecB_ms": 1.620730461393597,
+     "meanBA": 1.068823402081965
+    }
    }
   }
  },
- "buckets": {
-  "equal_http_arrivals": {
-   "A": {
-    "2000": {
-     "n": 6,
-     "waitMed": 178.4743538922468
+ "verify_waves": {
+  "S1-i90": {
+   "http_route": {
+    "POST /internal/realtime/offers-signal": {
+     "n": 1,
+     "mean_ms": 1.01
     },
-    "3000": {
-     "n": 7,
-     "waitMed": 195.68615855524948
+    "POST /internal/realtime/rider-trip-signal": {
+     "n": 12784,
+     "mean_ms": 0.1747090112640801
     },
-    "4000": {
-     "n": 34,
-     "waitMed": 208.97580122628773
+    "POST /webhook/telegram/driver": {
+     "n": 8384,
+     "mean_ms": 51.32051645992367
     },
-    "5000": {
-     "n": 83,
-     "waitMed": 205.1502558139535
+    "POST /v1/session/telegram": {
+     "n": 14352,
+     "mean_ms": 59.05484322742473
     },
-    "6000": {
-     "n": 27,
-     "waitMed": 168.56150766456267
+    "GET /v1/onboarding": {
+     "n": 4784,
+     "mean_ms": 47.04019439799332
     },
-    "7000": {
-     "n": 3,
-     "waitMed": 101.59182210087654
+    "POST /v1/onboarding/driver": {
+     "n": 4784,
+     "mean_ms": 96.23939590301005
+    },
+    "POST /v1/rides": {
+     "n": 4784,
+     "mean_ms": 59.45068979933111
+    },
+    "POST /v1/driver/availability": {
+     "n": 9568,
+     "mean_ms": 67.1243102006689
+    },
+    "POST /v1/driver/location": {
+     "n": 4784,
+     "mean_ms": 239.85915133779258
+    },
+    "GET /v1/driver/offers": {
+     "n": 9389,
+     "mean_ms": 36.50372776653531
+    },
+    "POST /v1/driver/offers/receipts": {
+     "n": 5132,
+     "mean_ms": 57.400407248635986
+    },
+    "POST /v1/driver/offers/:id/accept": {
+     "n": 4791,
+     "mean_ms": 61.51497182216656
+    },
+    "GET /v1/rides/:id/trip-events": {
+     "n": 13432,
+     "mean_ms": 74.40671902918406
+    },
+    "GET /v1/rides/:id/candidate": {
+     "n": 4784,
+     "mean_ms": 59.48065635451504
+    },
+    "POST /v1/rides/:id/trip-events/ack": {
+     "n": 13432,
+     "mean_ms": 77.82643314472901
+    },
+    "POST /v1/driver/job/:id/arrived": {
+     "n": 4784,
+     "mean_ms": 65.8341806020067
+    },
+    "POST /v1/driver/job/:id/start": {
+     "n": 4784,
+     "mean_ms": 73.35085702341136
+    },
+    "POST /v1/driver/job/:id/complete": {
+     "n": 4784,
+     "mean_ms": 85.23740175585284
     }
    },
-   "B": {
-    "2000": {
-     "n": 5,
-     "waitMed": 187.43441205053452
+   "client_percentiles": {
+    "t": "2026-10-26T00:26:31.857Z",
+    "sinceStartMs": 182377,
+    "session_exchange": {
+     "n": 9568,
+     "p50": 49,
+     "p95": 130,
+     "p99": 175,
+     "max": 296
     },
-    "3000": {
-     "n": 6,
-     "waitMed": 200.14065951565297
+    "rides_create": {
+     "n": 4784,
+     "p50": 57,
+     "p95": 133,
+     "p99": 173,
+     "max": 219
     },
-    "4000": {
-     "n": 24,
-     "waitMed": 252.26933692164448
+    "driver_availability": {
+     "n": 9568,
+     "p50": 60,
+     "p95": 164,
+     "p99": 214,
+     "max": 318
     },
-    "5000": {
-     "n": 97,
-     "waitMed": 221.0661413043478
+    "driver_location": {
+     "n": 4784,
+     "p50": 234,
+     "p95": 516,
+     "p99": 752,
+     "max": 1031
     },
-    "6000": {
-     "n": 25,
-     "waitMed": 200.03583961079727
+    "driver_offers_board": {
+     "n": 9389,
+     "p50": 29,
+     "p95": 104,
+     "p99": 149,
+     "max": 305
     },
-    "7000": {
-     "n": 3,
-     "waitMed": 113.85034387132558
+    "driver_offer_accept": {
+     "n": 4791,
+     "p50": 62,
+     "p95": 141,
+     "p99": 194,
+     "max": 330
     }
-   }
+   },
+   "span_s": 245.333
   },
-  "equal_total_acquisitions": {
+  "S2-i90": {
+   "http_route": {
+    "POST /internal/realtime/offers-signal": {
+     "n": 1,
+     "mean_ms": 0.96
+    },
+    "POST /internal/realtime/rider-trip-signal": {
+     "n": 15406,
+     "mean_ms": 0.15984940932104377
+    },
+    "POST /webhook/telegram/driver": {
+     "n": 8535,
+     "mean_ms": 46.929855887521974
+    },
+    "POST /v1/session/telegram": {
+     "n": 14805,
+     "mean_ms": 54.71291455589327
+    },
+    "GET /v1/onboarding": {
+     "n": 4935,
+     "mean_ms": 45.066498480243155
+    },
+    "POST /v1/onboarding/driver": {
+     "n": 4935,
+     "mean_ms": 89.77517527862207
+    },
+    "POST /v1/rides": {
+     "n": 4935,
+     "mean_ms": 54.55731509625127
+    },
+    "POST /v1/driver/availability": {
+     "n": 9870,
+     "mean_ms": 63.899143870314084
+    },
+    "POST /v1/driver/location": {
+     "n": 4935,
+     "mean_ms": 215.43902938196553
+    },
+    "GET /v1/driver/offers": {
+     "n": 9693,
+     "mean_ms": 33.25955122253173
+    },
+    "POST /v1/driver/offers/receipts": {
+     "n": 5114,
+     "mean_ms": 54.48554751662105
+    },
+    "POST /v1/driver/offers/:id/accept": {
+     "n": 4938,
+     "mean_ms": 57.43837991089511
+    },
+    "GET /v1/rides/:id/candidate": {
+     "n": 4935,
+     "mean_ms": 55.95732522796351
+    },
+    "GET /v1/rides/:id/trip-events": {
+     "n": 13888,
+     "mean_ms": 70.2469426843318
+    },
+    "POST /v1/rides/:id/trip-events/ack": {
+     "n": 13885,
+     "mean_ms": 73.5059387828592
+    },
+    "POST /v1/driver/job/:id/arrived": {
+     "n": 4935,
+     "mean_ms": 61.03412360688957
+    },
+    "POST /v1/driver/job/:id/start": {
+     "n": 4935,
+     "mean_ms": 68.31240526849037
+    },
+    "POST /v1/driver/job/:id/complete": {
+     "n": 4935,
+     "mean_ms": 81.80324822695036
+    }
+   },
+   "client_percentiles": {
+    "t": "2026-10-26T00:32:36.316Z",
+    "sinceStartMs": 182566,
+    "session_exchange": {
+     "n": 9870,
+     "p50": 47,
+     "p95": 119,
+     "p99": 157,
+     "max": 209
+    },
+    "rides_create": {
+     "n": 4935,
+     "p50": 55,
+     "p95": 116,
+     "p99": 162,
+     "max": 216
+    },
+    "driver_availability": {
+     "n": 9870,
+     "p50": 58,
+     "p95": 156,
+     "p99": 192,
+     "max": 220
+    },
+    "driver_location": {
+     "n": 4935,
+     "p50": 201,
+     "p95": 491,
+     "p99": 737,
+     "max": 942
+    },
+    "driver_offers_board": {
+     "n": 9693,
+     "p50": 26,
+     "p95": 102,
+     "p99": 146,
+     "max": 205
+    },
+    "driver_offer_accept": {
+     "n": 4938,
+     "p50": 56,
+     "p95": 136,
+     "p99": 171,
+     "max": 213
+    }
+   },
+   "span_s": 246.181
+  }
+ },
+ "buckets": {
+  "equal_http_path_acquisitions_per_window": {
    "A": {
-    "2000": {
+    "1000–1999": {
      "n": 3,
      "waitMed": 199.43414062500003
     },
-    "2500": {
-     "n": 3,
-     "waitMed": 164.03226744186045
+    "2000–2999": {
+     "n": 5,
+     "waitMed": 176.4732146204311
     },
-    "5000": {
-     "n": 4,
-     "waitMed": 291.6339368601069
+    "3000–3999": {
+     "n": 12,
+     "waitMed": 124.60401503440991
     },
-    "5500": {
-     "n": 15,
-     "waitMed": 246.74629605406585
+    "4000–4999": {
+     "n": 78,
+     "waitMed": 208.97580122628773
     },
-    "6000": {
-     "n": 35,
-     "waitMed": 223.6627640449438
+    "5000–5999": {
+     "n": 53,
+     "waitMed": 194.0055152603232
     },
-    "6500": {
-     "n": 25,
-     "waitMed": 190.49313446792596
-    },
-    "7000": {
-     "n": 24,
-     "waitMed": 176.32130933853372
-    },
-    "7500": {
-     "n": 17,
-     "waitMed": 167.16287642418934
-    },
-    "8000": {
-     "n": 10,
-     "waitMed": 122.55279907903328
-    },
-    "8500": {
+    "6000–6999": {
      "n": 9,
-     "waitMed": 105.64010615133371
-    },
-    "9000": {
-     "n": 10,
-     "waitMed": 95.61922845606283
-    },
-    "9500": {
-     "n": 3,
-     "waitMed": 95.41958427196394
+     "waitMed": 109.85711829326542
     }
    },
    "B": {
-    "2000": {
+    "2000–2999": {
      "n": 3,
-     "waitMed": 188.8623814229249
+     "waitMed": 187.43441205053452
     },
-    "5000": {
-     "n": 6,
-     "waitMed": 293.2865120336148
+    "3000–3999": {
+     "n": 14,
+     "waitMed": 201.67564814814813
     },
-    "5500": {
-     "n": 10,
-     "waitMed": 264.6448308568371
+    "4000–4999": {
+     "n": 60,
+     "waitMed": 247.99764240619396
     },
-    "6000": {
-     "n": 38,
-     "waitMed": 246.8335264698425
+    "5000–5999": {
+     "n": 69,
+     "waitMed": 210.91002626510243
     },
-    "6500": {
-     "n": 46,
-     "waitMed": 220.91258854294603
-    },
-    "7000": {
-     "n": 20,
-     "waitMed": 204.41539545703338
-    },
-    "7500": {
+    "6000–6999": {
      "n": 11,
-     "waitMed": 151.59383881735812
+     "waitMed": 127.18948680351906
+    }
+   }
+  },
+  "equal_gateway_request_acquisitions_per_window": {
+   "A": {
+    "1000–1999": {
+     "n": 3,
+     "waitMed": 199.43414062500003
     },
-    "8000": {
-     "n": 15,
-     "waitMed": 123.80071646097132
+    "2000–2999": {
+     "n": 4,
+     "waitMed": 170.25274103114577
     },
-    "8500": {
+    "4000–4999": {
+     "n": 13,
+     "waitMed": 276.57808703746804
+    },
+    "5000–5999": {
+     "n": 58,
+     "waitMed": 224.20513891838948
+    },
+    "6000–6999": {
+     "n": 41,
+     "waitMed": 178.93485766423356
+    },
+    "7000–7999": {
+     "n": 20,
+     "waitMed": 127.75680917526864
+    },
+    "8000–8999": {
+     "n": 17,
+     "waitMed": 101.59182210087654
+    },
+    "9000–9999": {
+     "n": 4,
+     "waitMed": 91.03773565682005
+    }
+   },
+   "B": {
+    "2000–2999": {
+     "n": 4,
+     "waitMed": 188.1483967367297
+    },
+    "4000–4999": {
+     "n": 16,
+     "waitMed": 282.4990265320096
+    },
+    "5000–5999": {
+     "n": 73,
+     "waitMed": 236.7479411764706
+    },
+    "6000–6999": {
+     "n": 39,
+     "waitMed": 181.49955559687615
+    },
+    "7000–7999": {
+     "n": 21,
+     "waitMed": 127.18948680351906
+    },
+    "8000–8999": {
      "n": 7,
      "waitMed": 108.45745094303675
     }
    }
   }
- }
+ },
+ "notes": []
 }
