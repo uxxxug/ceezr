@@ -1,0 +1,22 @@
+{
+ "mode": "strata",
+ "wave": "load01c2-probe-AA1-i70-M-1500",
+ "input_hashes_file": "input-sha256sums.txt",
+ "phase_epochs_ms": {
+  "start": 1793003887690,
+  "drain": 1793004067796,
+  "end": 1793004085014
+ },
+ "boundaries": {
+  "rides": [
+   19.6,
+   31.0
+  ],
+  "other": [
+   750.4,
+   818.2
+  ]
+ },
+ "injection_window_count": 36,
+ "drain_window_count": 3
+}
