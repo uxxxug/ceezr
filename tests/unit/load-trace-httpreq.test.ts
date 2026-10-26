@@ -122,6 +122,53 @@ describe("LOAD-01 — httpreq/pseat/arr1s خلف DISPATCH_TRACE_FILE", () => {
     expect(Number(pseat[0]?.runMs)).toBeGreaterThan(20);
   });
 
+  test("httpgap: مردودُ الجسرِ يُصبُّ سطرًا فردّيًا بمعرّفِ الطلبِ والمسارِ المطبَّعِ والمعدومِ لا صفرًا", async () => {
+    const file = join(mkdtempSync(join(tmpdir(), "hg1-")), "trace");
+    const trace = createLoadTrace(file);
+    if (trace === null) throw new Error("الأثرُ معطَّل");
+    // مردودٌ كاملُ الحدودِ: معرّفٌ ومسارٌ وكلُّ الطوابعِ مكتملةٌ.
+    trace.onGap({
+      requestId: "req-gap-1",
+      method: "POST",
+      pathname: "/v1/rides",
+      fetchMs: 12.34,
+      writeHeadMs: 13.01,
+      firstWriteMs: 13.55,
+      endMs: 14.02,
+      finishMs: 15.4,
+      closed: false,
+    });
+    // ومردودٌ ناقصُ الحدودِ (إغلاقٌ مبكرٌ): المعدومُ يبقى معدومًا لا صفرًا ولا يُخترعُ.
+    trace.onGap({
+      requestId: null,
+      method: "GET",
+      pathname: "/v1/rides/12345",
+      fetchMs: 5,
+      writeHeadMs: 5.6,
+      firstWriteMs: null,
+      endMs: null,
+      finishMs: null,
+      closed: true,
+    });
+    await trace.stop();
+    const all = rows(file);
+    const httpgap = all.filter((r) => r.k === "httpgap");
+    expect(httpgap).toHaveLength(2);
+    const first = httpgap[0] as Record<string, unknown>;
+    expect(first.requestId).toBe("req-gap-1");
+    expect(first.route).toBe("POST /v1/rides");
+    expect(first.closed).toBe(false);
+    expect(first.finishMs).toBe(15.4);
+    const second = httpgap[1] as Record<string, unknown>;
+    // المسارُ يُطبَّعُ (المعرّفُ يصيرُ :id) والمعدومُ يبقى معدومًا لا صفرًا.
+    expect(second.route).toBe("GET /v1/rides/:id");
+    expect(second.requestId).toBeNull();
+    expect(second.firstWriteMs).toBeNull();
+    expect(second.endMs).toBeNull();
+    expect(second.finishMs).toBeNull();
+    expect(second.closed).toBe(true);
+  });
+
   test("pseat لا يُنسَبُ لمساراتَ خلفيّةٍ (الدرينرُ بلا معرّفِ طلبٍ) والربطُ يبقى للأثرِ المجمّعِ", async () => {
     const file = join(mkdtempSync(join(tmpdir(), "hr2-")), "trace");
     const trace = createLoadTrace(file);
@@ -341,6 +388,8 @@ describe("LOAD-01 — عمودُ العميلِ (http_call)", () => {
       body: null,
       networkError: null,
       requestId: "req-cli-1",
+      ttfbMs: 100.5,
+      bodyMs: 22.96,
     };
     // بلا علمٍ (حالةُ OFF): لا سطرَ عميلٍ — فحصُ ON–OFF يقيسُ كلفةَ الأداةِ في الجانبينِ معًا.
     delete process.env.DISPATCH_TRACE_FILE;

@@ -41,6 +41,7 @@ import { appendFile } from "node:fs/promises";
 import { observeQueryTimings } from "../../../../packages/infrastructure/db/query-deadline.ts";
 import { currentRequestId } from "../../../../packages/infrastructure/observability/correlation.ts";
 import { REQUEST_ID_HEADER } from "../observability/request-id.ts";
+import type { HttpGapTiming } from "../realtime/http-bridge.ts";
 import { currentLoadPath, enableLoadPathScope, withLoadPath } from "./load-path-scope.ts";
 import type { DrainerTiming } from "./telegram-update-drainer.ts";
 
@@ -49,6 +50,12 @@ export interface LoadTrace {
   readonly onHttp: (pathname: string, method: string, ms: number, status: number) => void;
   /** يُشغِّلُ معالجةَ الطلبِ داخلَ نطاقِ مسارِه فتُنسَبُ إليه استعلاماتُه (`rsig`). */
   readonly inRoute: <T>(pathname: string, method: string, fn: () => Promise<T>) => Promise<T>;
+  /**
+   * `httpgap` (أداةُ فصلِ الفجوةِ، 2026-10-26): مردودُ رصدِ حدودِ الردّ من الجسرِ —
+   * إزاحاتٌ فردّيةٌ بساعةِ الخادمِ الواحدةِ مقرونةٌ بمعرّفِ الطلبِ القائمِ، تُصبُّ عندَ
+   * حدثِ `finish`/الإغلاقِ. قياسٌ فقط خلفَ `DISPATCH_TRACE_FILE` — لا يغيّرِ سلوكًا.
+   */
+  readonly onGap: (gap: HttpGapTiming) => void;
   readonly stop: () => Promise<void>;
 }
 
@@ -340,6 +347,24 @@ export function createLoadTrace(file: string | undefined): LoadTrace | null {
       }
       w.ms.push(ms);
       if (status >= 500) w.errors += 1;
+    },
+    onGap: (gap) => {
+      // httpgap: حدودُ الردّ كما تُرصدُ في الجسرِ — إزاحاتٌ من دخولِ معالجِهِ (بعدَ
+      // تحليلِ ترويساتِ الطلبِ لا استقبالِ أولِ بايتٍ)، بمعرّفِ الطلبِ القائمِ، حتى
+      // حدثِ finish (كُتبتِ آخرُ البياناتِ إلى نظامِ التشغيلِ — ليسَ إثباتَ استلامِ
+      // العميلِ). لا نوافذَ ولا مجاميعَ: سطرٌ لكلِّ طلبٍ.
+      emit({
+        k: "httpgap",
+        at: Date.now(),
+        requestId: gap.requestId,
+        route: normaliseRoute(gap.method, gap.pathname),
+        fetchMs: gap.fetchMs === null ? null : round2(gap.fetchMs),
+        writeHeadMs: gap.writeHeadMs === null ? null : round2(gap.writeHeadMs),
+        firstWriteMs: gap.firstWriteMs === null ? null : round2(gap.firstWriteMs),
+        endMs: gap.endMs === null ? null : round2(gap.endMs),
+        finishMs: gap.finishMs === null ? null : round2(gap.finishMs),
+        closed: gap.closed,
+      });
     },
     inRoute: (pathname, method, fn) => {
       const route = normaliseRoute(method, pathname);
