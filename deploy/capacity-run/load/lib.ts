@@ -227,6 +227,36 @@ export class PathRecorder {
     else arr.push(elapsedMs);
   }
 
+  /**
+   * `LOAD-01` (تشخيصُ انتظارِ HTTP، 2026-10-26) — عمودُ العميلِ: سطرٌ **فرديٌّ لكلِّ نداءٍ**
+   * في `load-events.jsonl` يحملُ معرّفَ الطلبِ منَ الخادمِ (`requestId` — المارَّ فعلًا في رأسِ
+   * `X-Request-Id`) وزمنَ العميلِ الكاملَ، فيُربَطُ نداءُ العميلِ بطلبِ الخادمِ مباشرةً وتُقاسُ
+   * فجوةُ العميل/الخادمِ فصلًا. ممرٌّ جديدٌ لا يجمعُ: لا مئيناتٍ ولا نوافذَ — العينةُ نفسُها.
+   */
+  httpCallLog(label: string, result: HttpResult): void {
+    // خلفَ `DISPATCH_TRACE_FILE` وحدَهِ — العلمُ نفسُهِ الذي تُقرؤُهُ البوّابةُ (يصلُ المولّدَ
+    // عبرَ secrets.env التي يحمّلُها wave.sh) — فيقيسُ فحصُ ON–OFF كلفةَ الأداةِ في
+    // الجانبينِ معًا، ولا يعملُ شيءٌ من التسجيلِ الجديدِ في الحالتينِ معًا.
+    if (process.env.DISPATCH_TRACE_FILE === undefined || process.env.DISPATCH_TRACE_FILE === "")
+      return;
+    // المسارُ يُحلُّ وقتَ النداءِ لا وقتَ تحميلِ الوحدةِ: سطرُ العميلِ يُكتبُ حيثُ يشيرُ
+    // RUN_DIR لحظةَ الكتابةِ (الوحدةُ قد تُحمَّلُ في اختباراتٍ كثيرةٍ ببيئاتٍ متغايرةٍ).
+    appendFileSync(
+      `${process.env.RUN_DIR ?? "/tmp/cap-run"}/evidence/load-events.jsonl`,
+      `${JSON.stringify({
+        t: new Date().toISOString(),
+        sinceStartMs: Date.now() - T0,
+        path: this.path,
+        gen: this.gen,
+        event: "http_call",
+        label,
+        status: result.status,
+        elapsedMs: Math.round(result.elapsedMs * 100) / 100,
+        requestId: result.requestId,
+      })}\n`,
+    );
+  }
+
   latencyPercentiles(): Record<
     string,
     { n: number; p50: number; p95: number; p99: number; max: number }
