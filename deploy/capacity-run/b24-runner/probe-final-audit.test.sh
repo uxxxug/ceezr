@@ -89,7 +89,10 @@ MODE4=$(grep -o 'mode=[a-z]*' "$TMP/gho4.txt" | head -1)
 [ "$RC4" -ne 0 ] || { echo "T4_FAIL: انهيارُ البرنامجِ النهائيِّ مُرِّرَ"; RC_TOTAL=1; }
 [ "$MODE4" = "mode=report" ] || { echo "T4_FAIL: وضعٌ $MODE4 معَ انهيارٍ — العلامةُ القديمةُ نجتْ"; RC_TOTAL=1; }
 [ ! -f "$OUTD/AUDIT_PASSED" ] || { echo "T4_FAIL: علامةٌ قديمةٌ بقيتْ — الإبطالُ في خطوةِ الاستدعاءِ مفقودٌ"; RC_TOTAL=1; }
-echo "T4_PASS (انهيارُ النهائيِّ: تقريرٌ فقط والعلامةُ القديمةُ أُبطلتْ)"
+grep -q "final_audit_exit=2" "$OUTD/final-audit-status.txt" || { echo "T4_FAIL: رمزُ انهيارِ النهائيِّ غيرُ مسجَّلٍ في تقريرِ الحالةِ"; RC_TOTAL=1; }
+grep -q "final_report_produced=no" "$OUTD/final-audit-status.txt" || { echo "T4_FAIL: تعذّرُ إنتاجِ التقريرِ النهائيِّ غيرُ مسجَّلٍ"; RC_TOTAL=1; }
+grep -q "decision=report" "$OUTD/final-audit-status.txt" || { echo "T4_FAIL: قرارُ التقريرِ غيرُ مسجَّلٍ"; RC_TOTAL=1; }
+echo "T4_PASS (انهيارُ النهائيِّ: تقريرُ حالةٍ مسجَّلٌ والعلامةُ القديمةُ أُبطلتْ)"
 
 # T5: برنامجٌ يخرجُ قبلَ حذفِ العلامةِ (محاكاةُ إصدارٍ معطوبٍ) — الإبطالُ في الخطوةِ يحمي
 OUTD=$TMP/wf-earlyexit; mkdir -p "$OUTD"
@@ -100,7 +103,9 @@ MODE5=$(grep -o 'mode=[a-z]*' "$TMP/gho5.txt" | head -1)
 [ "$RC5" -ne 0 ] || { echo "T5_FAIL: خروجٌ معطوبٌ مُرِّرَ"; RC_TOTAL=1; }
 [ "$MODE5" = "mode=report" ] || { echo "T5_FAIL: وضعٌ $MODE5 معَ خروجٍ معطوبٍ"; RC_TOTAL=1; }
 [ ! -f "$OUTD/AUDIT_PASSED" ] || { echo "T5_FAIL: علامةٌ نجتْ منَ برنامجٍ لا يحذفُها"; RC_TOTAL=1; }
-echo "T5_PASS (خروجٌ قبلَ الحذفِ: الإبطالُ في الخطوةِ يمنعُ الرفعَ)"
+grep -q "final_audit_exit=1" "$OUTD/final-audit-status.txt" || { echo "T5_FAIL: رمزُ الخروجِ المعطوبِ غيرُ مسجَّلٍ في تقريرِ الحالةِ"; RC_TOTAL=1; }
+grep -q "decision=report" "$OUTD/final-audit-status.txt" || { echo "T5_FAIL: قرارُ التقريرِ غيرُ مسجَّلٍ"; RC_TOTAL=1; }
+echo "T5_PASS (خروجٌ قبلَ الحذفِ: الإبطالُ في الخطوةِ يمنعُ الرفعَ وتقريرُ الحالةِ مسجَّلٌ)"
 
 # T6: مقابسُ إيجابيٌّ: البرنامجُ الحقيقيُّ + شجرةٌ نظيفةٌ ⇒ رفعٌ كاملٌ
 OUTD=$TMP/wf-ok; mkdir -p "$OUTD/raw"; echo artifact > "$OUTD/raw/sentinel.txt"
@@ -109,7 +114,10 @@ MODE6=$(grep -o 'mode=[a-z]*' "$TMP/gho6.txt" | head -1)
 [ "$RC6" -eq 0 ] || { echo "T6_FAIL: نظافةٌ رُفضتْ"; RC_TOTAL=1; }
 [ "$MODE6" = "mode=evidence" ] || { echo "T6_FAIL: وضعٌ $MODE6 معَ نظافةٍ"; RC_TOTAL=1; }
 [ -f "$OUTD/AUDIT_PASSED" ] || { echo "T6_FAIL: لا علامةَ بعدَ نظافةٍ"; RC_TOTAL=1; }
-echo "T6_PASS (نظافةٌ: رفعٌ كاملٌ)"
+grep -q "final_audit_exit=0" "$OUTD/final-audit-status.txt" || { echo "T6_FAIL: نجاحُ النهائيِّ غيرُ مسجَّلٍ"; RC_TOTAL=1; }
+grep -q "final_report_produced=yes" "$OUTD/final-audit-status.txt" || { echo "T6_FAIL: إنتاجُ التقريرِ غيرُ مسجَّلٍ"; RC_TOTAL=1; }
+grep -q "decision=evidence" "$OUTD/final-audit-status.txt" || { echo "T6_FAIL: قرارُ الرفعِ غيرُ مسجَّلٍ"; RC_TOTAL=1; }
+echo "T6_PASS (نظافةٌ: رفعٌ كاملٌ وتقريرُ حالةٍ)"
 
 if [ $RC_TOTAL -ne 0 ]; then echo "FINAL_AUDIT_TEST_FAIL"; exit 1; fi
 echo "FINAL_AUDIT_TEST_OK — قرارُ الرفعِ منَ تدقيقٍ نهائيٍّ جديدٍ يُبطلُ ما قبلَهُ، والتسريبُ اللاحقُ يمنعُ الرفعَ، وتوقفُ البوابةِ النظيفُ يُحفظُ"

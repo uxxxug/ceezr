@@ -77,10 +77,17 @@ jobs:
           set -e
           # الافتراضي تقريرٌ منقَّحٌ؛ الرفعُ الكاملُ لا يجوزُ إلا برمزِ 0 **و** علامةٍ جديدةٍ
           if [ "$RC" -eq 0 ] && [ -f "$PROBE_OUT/AUDIT_PASSED" ]; then
-            echo "mode=evidence" >> "$GITHUB_OUTPUT"
+            MODE=evidence
           else
-            echo "mode=report" >> "$GITHUB_OUTPUT"
+            MODE=report
           fi
+          echo "mode=$MODE" >> "$GITHUB_OUTPUT"
+          # تقريرُ حالةٍ منقَّحٌ جديدٌ لهذهِ المحاولةِ نفسِها — مستقلٌّ عنْ قدرةِ البرنامجِ
+          # النهائيِّ على البدءِ (يتضمّنُ رمزَ الخروجِ وهلْ أُنتجَ تقريرُهُ)؛ لا يُنسخُ فيهِ
+          # مخرجاتٌ عشوائيةٌ قد تحملُ أسرارًا — أرقامٌ وقرارٌ فقط.
+          printf 'final_audit_exit=%s\nfinal_report_produced=%s\ndecision=%s\ndate_utc=%s\n' \
+            "$RC" "$([ -s "$PROBE_OUT/final-secret-audit.txt" ] && echo yes || echo no)" "$MODE" "$(date -Is)" \
+            | sudo tee "$PROBE_OUT/final-audit-status.txt" >/dev/null
           # إخفاقُ التدقيقِ النهائيِّ إخفاقٌ في حالةِ التشغيلِ (خطواتُ الرفعِ تعملُ دائمًا)
           exit $RC
 
@@ -102,6 +109,7 @@ jobs:
         with:
           name: load01c2-http-wait-probe-failure-report
           path: |
+            /home/user/load01c2-probe-out/final-audit-status.txt
             /home/user/load01c2-probe-out/final-secret-audit.txt
             /home/user/load01c2-probe-out/secret-audit.txt
           if-no-files-found: ignore
