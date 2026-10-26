@@ -85,22 +85,28 @@ class Wave:
         self.drain0 = phases["phase.drain_start"]
         self.end0 = phases["phase.end"]
 
-        # arr1s http: ‏(sec, name) -> n (مجموعُ الدلتا المتأخرةِ)
+        # arr1s http: ‏(sec, route) -> n (مجموعُ الدلتا المتأخرةِ) — الصنفُ في حقلِ cls
         self.arr = {}
+        self.arr_seconds = 0
         # pdb: flush windows
         self.pdb = []  # {at, path, pool, kind, n, waitSumMs, runSumMs}
         # pseat: rows مقيدةٌ بالمجمّعِ gatewayRequest (kind≠txQuery مضمونٌ في الإصدارِ)
         self.pseat = []
         for row in read_jsonl(tr):
             k = row.get("k")
-            if k == "arr1s" and row.get("name", "").startswith("http:"):
-                name = row["name"][len("http:"):]
-                key = (row["at"], name)
+            if k == "arr1s" and row.get("cls") == "http":
+                key = (row["at"], row["name"])
+                if key not in self.arr:
+                    self.arr_seconds += 1
                 self.arr[key] = self.arr.get(key, 0) + row.get("n", 0)
             elif k == "pdb":
                 self.pdb.append(row)
             elif k == "pseat" and row.get("pool") == GATEWAY_POOL:
                 self.pseat.append(row)
+
+        # تشغيلُ المجسّ لا «صفرٌ»: موجةٌ بلا أيّ صفِّ arr1s ‏http = عطبُ أداةٍ لا معدلٌ صفريّ
+        if not self.arr and self.pseat:
+            raise SystemExit(f"ARR1S_MISSING {self.name}: لا صفوفِ وصولٍ http — عطبُ تسجيلٍ لا صفرٌ")
 
         self._windows = None
 
@@ -122,12 +128,10 @@ class Wave:
 
     # ---------- معدّلُ الوصولِ ----------
     def arr_window_total(self, wstart, wend, cls=None):
-        """‏cls=None يعني جملَ صنفِ http. الثواني الصفريةُ تدخلُ في النافذةِ تلقائيًّا."""
-        lo = int(wstart // 1000) * 1000
-        hi = int((wend - 1) // 1000) * 1000
+        """‏cls=None يعني جملَ صنفِ http. إسنادُ دلوِ الثانيةِ لموضعِ بدايتِه — كلُّ دلوٍ يُحسبُ مرةً واحدةً (لا ازدواجُ ثانيةِ الحدِّ بينَ نافذتينِ متجاورتينِ)."""
         total = 0
-        sec = lo
-        while sec <= hi:
+        sec = math.ceil(wstart / 1000.0) * 1000
+        while sec < wend:
             for (at, name), n in self.arr.items():
                 if at == sec and (cls is None or route_cls(name) == cls):
                     total += n
@@ -193,7 +197,10 @@ class Wave:
 
     # ---------- H2: نافذةُ تفريغٍ ----------
     def h2_rows(self):
-        """‏(wait, drainerSec, arrRate, ) لكلِّ نافذةِ تفريغٍ كاملةٍ داخلَ طورِ الحقنِ."""
+        """‏(wait, drainerSec, arrRate) لكلِّ نافذةِ تفريغٍ مغطّاةٍ داخلَ طورِ الحقنِ.
+        نافذةٌ مغطّاةٌ = لها صفوفُ pdb (وجودُ الرصدِ)، والحجوزاتُ على مساراتِ الدرينرِ فيها
+        صفرٌ معلنٌ لا غيابٌ (الأداةُ تعملُ في الموجةِ) — يُفصَلُ الغيابُ الكاملُ في الوضعِ ab."""
+        drain_any = any(r.get("path", "").startswith("drainer:") for r in self.pdb)
         # ثواني-مقاعدِ الدرينر: Σ runSumMs لمساراتِ drainer:* ‏(gatewayRequest)
         drain_per_at = {}
         for r in self.pdb:
@@ -209,15 +216,25 @@ class Wave:
                 a["n"] += r.get("n", 0)
                 a["w"] += r.get("waitSumMs", 0.0)
         rows = []
-        for at in sorted(set(drain_per_at) & set(wait_per_at)):
+        zero_windows = 0
+        for at in sorted(wait_per_at):
             if wait_per_at[at]["n"] > 0:
+                if at in drain_per_at:
+                    dsec = drain_per_at[at] / 1000.0
+                elif drain_any:
+                    dsec = 0.0  # نافذةٌ مغطّاةٌ بلا حجوزاتِ درينر = صفرٌ حقيقيٌّ معلن
+                    zero_windows += 1
+                else:
+                    continue  # لا دليلَ على عملِ المجسّ — لا يُفترضُ صفرًا
                 rate = self.arr_rate(at - WINDOW_MS, at, cls=None)  # جملُ صنفِ http
                 rows.append({
                     "at": at,
                     "wait": wait_per_at[at]["w"] / wait_per_at[at]["n"],
-                    "drainerSec": drain_per_at[at] / 1000.0,
+                    "drainerSec": dsec,
                     "arrRate": rate,
                 })
+        self.h2_zero_windows = zero_windows
+        self.h2_drainer_instrumented = drain_any
         return rows
 
 
@@ -231,6 +248,13 @@ def route_cls(name):
 
 def in_stratum(rate, boundaries, tercile):
     lo, hi = boundaries
+    if lo == hi:
+        # حدّانِ متطابقانِ ⇒ يُدمجانِ: شريحتانِ (r < b) و(r ≥ b) — لا إلغاءَ للتوزيعِ
+        if tercile == 0:
+            return rate < lo
+        if tercile == 1:
+            return rate >= lo
+        return False
     if tercile == 0:
         return rate < lo
     if tercile == 1:
@@ -260,10 +284,7 @@ class Strata:
                 continue
             lo = rates[max(0, (n - 1) // 3)]
             hi = rates[max(0, 2 * (n - 1) // 3)]
-            if lo == hi:
-                boundaries[c] = (MIN, MAX)
-            else:
-                boundaries[c] = (lo, hi)
+            boundaries[c] = (lo, hi)  # التطابقُ يُدمجُ في شريحتينِ (انظر in_stratum)
         meta = {
             "wave": wave.name,
             "input_hashes": wave.input_hashes,
@@ -273,6 +294,11 @@ class Strata:
 
     def label(self, cls, tercile):
         return f"{cls}#{tercile}"
+
+
+def wave_http_total(wave):
+    """جملُ طلباتِ http في الموجةِ (مقامُ عتبةِ الكتلةِ — منَ الطلباتِ لا الحجوزاتِ)."""
+    return sum(n for (_, _), n in wave.arr.items())
 
 
 def wave_requests(wave, phase, cls):
@@ -487,34 +513,54 @@ def mode_ab(wave_dirs, out_path, strata_path):
         "h1": {}, "h2": {},
     }
     # ---------- H1 ----------
+    a_waves = [waves[0], waves[3], waves[4], waves[7]]
+    total_http = sum(wave_http_total(w) for w in a_waves)
     for cls in ("rides", "other"):
         for phase in ("injection", "drain"):
-            a_waves = [waves[0], waves[3], waves[4], waves[7]]
-            total_req = mean([wave_requests(w, phase, cls) for w in a_waves])
             for tercile in (0, 1, 2):
                 key = f"{cls}|{phase}|t{tercile}"
-                sreq = mean([stratum_requests(w, phase, cls, strata, tercile) for w in a_waves])
-                mass = (sreq / total_req) if total_req else 0.0
+                # كتلةُ الشريحةِ: نسبةُ مجاميعٍ على موجاتِ A — مقامُها جملُ طلباتِ http (لا الحجوزات)
+                sreq = sum(stratum_requests(w, phase, cls, strata, tercile) for w in a_waves)
+                mass = (sreq / total_http) if total_http else 0.0
                 pairs = _pair_differences(waves, strata, cls, phase, tercile)
-                point, lo, hi = _bootstrap_pairs(pairs, rng)
                 entry = {
                     "mass_of_requests": mass,
                     "reported": mass >= MIN_MASS,
                     "pairs": pairs,
-                    "point_ms": point,
-                    "ci_ms": [lo, hi],
+                    "pair_count": len(pairs),
+                    "point_ms": None,
+                    "ci_ms": [None, None],
                 }
-                if point is not None and lo is not None:
-                    entry["rule"] = three_case_rule(point, lo, hi)
+                if len(pairs) < 4:
+                    # الأزواجُ المسجّلةُ أربعةٌ: نقصُها في شريحةٍ = غيرُ قابلٍ للحسمِ،
+                    # لا اغترافُ ما بقي فيُصدرُ حكمًا حاسمًا بعدَ إسقاطٍ صامتٍ
+                    entry["rule"] = ("غيرُ_قابلٍ_للحسم_نقصُ_الأزواجِ" if pairs
+                                     else "لا_بيانات")
+                elif not entry["reported"]:
+                    entry["rule"] = "دونَ_عتبةِ_الكتلة_لا_يُعرضُ_حكمُها"
+                    point, lo, hi = _bootstrap_pairs(pairs, rng)
+                    entry["point_ms"] = point
+                    entry["ci_ms"] = [lo, hi]
                 else:
-                    entry["rule"] = "لا_بيانات"
+                    point, lo, hi = _bootstrap_pairs(pairs, rng)
+                    entry["point_ms"] = point
+                    entry["ci_ms"] = [lo, hi]
+                    entry["rule"] = three_case_rule(point, lo, hi)
                 result["h1"][key] = entry
     # ---------- H2 ----------
     # أزواجُ الموجاتِ: (A, B) بالترتيبِ A1B1, B2A2, A3B3, B4A4
     pair_idx = [(0, 1), (3, 2), (4, 5), (7, 6)]  # ‏(A, B)
     h2_point = h2_lo = h2_hi = None
     h2_rule = "لا_بيانات"
+    h2_attempts = h2_failed = 0
+    h2_zero_windows_total = 0
+    h2_uninstrumented_waves = 0
     if all(w is not None for w in waves):
+        for w in waves:
+            w.h2_rows()
+            h2_zero_windows_total += getattr(w, "h2_zero_windows", 0)
+            if not getattr(w, "h2_drainer_instrumented", False):
+                h2_uninstrumented_waves += 1
         def build_X(pairs):
             X, y = [], []
             for ai, bi in pairs:
@@ -524,26 +570,42 @@ def mode_ab(wave_dirs, out_path, strata_path):
                         y.append(r["wait"])
             return X, y
         X, y = build_X(pair_idx)
-        if len(X) >= 8 and len(X) > len(X[0]):
+        if h2_uninstrumented_waves == len(waves):
+            h2_rule = "مانعُ_H2: لا صفوفِ درينرٍ في أيّ موجةٍ — المتغيرُ المسجّلُ لا يُشتقّ"
+        elif len(X) >= 8 and len(X) > len(X[0]):
             beta = _ols(y, X)
             if beta is not None:
                 h2_point = beta[3]
                 draws = []
                 for _ in range(BOOTSTRAP_B):
+                    h2_attempts += 1
                     sel = [pair_idx[rng.randrange(len(pair_idx))] for _ in pair_idx]
                     Xb, yb = build_X(sel)
                     if len(Xb) >= 8 and len(Xb) > len(Xb[0]):
                         bb = _ols(yb, Xb)
                         if bb is not None:
                             draws.append(bb[3])
+                        else:
+                            h2_failed += 1
+                    else:
+                        h2_failed += 1
                 h2_lo, h2_hi = percentile_interval(draws)
                 if h2_lo is not None:
-                    h2_rule = three_case_rule(h2_point, h2_lo, h2_hi)
+                    # سحباتٌ غيرُ قابلةٍ للتقديرٍ تُعلَى وتُعدّ؛ إن غلبتْ فالفاصلُ غيرُ موثوقٍ
+                    if h2_failed > 0 and len(draws) < BOOTSTRAP_B / 2:
+                        h2_rule = "غيرُ_قابلٍ_للتقدير: أغلبُ السحباتِ فاشلةٌ"
+                    else:
+                        h2_rule = three_case_rule(h2_point, h2_lo, h2_hi)
+                        if h2_failed > 0:
+                            h2_rule += f" (تحذيرٌ: {h2_failed} سحبةً غيرَ قابلةٍ للتقدير)"
     result["h2"] = {
         "unit": "flush_window_5s_completion_attributed",
         "drainer_variable": "Σ runSumMs لمساراتِ drainer:* (gatewayRequest) — استهلاكُ مقعد-ثانيةٍ لا إشغالٌ تزامنيّ",
         "n_rows": None, "point_ms": h2_point, "ci_ms": [h2_lo, h2_hi],
         "rule": h2_rule,
+        "bootstrap_attempts": h2_attempts, "bootstrap_failed": h2_failed,
+        "drainer_zero_windows": h2_zero_windows_total,
+        "uninstrumented_drainer_waves": h2_uninstrumented_waves,
     }
     n_rows = 0
     for w in waves:
@@ -569,7 +631,7 @@ def main():
     elif ns.mode == "cost":
         mode_cost(ns.args[0], ns.args[1], ns.args[2], ns.args[3], ns.args[4])
     elif ns.mode == "ab":
-        mode_ab(ns.args[:8], ns.args[8], ns.args[9])
+        mode_ab(ns.args[:8], ns.args[9], ns.args[8])  # ‏8=strata.json، ‏9=out.json — كما يستدعيه المقعد
 
 
 if __name__ == "__main__":

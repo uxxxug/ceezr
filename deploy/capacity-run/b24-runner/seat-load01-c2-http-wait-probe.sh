@@ -31,6 +31,7 @@ PA="$H/deploy/capacity-run/b24-runner/probe-analyze.py"
 
 log "اختبارٌ ذاتيٌّ للمحلّلِ على بياناتٍ مصغرةٍ معروفةِ النتائجِ (شرطُ ملحقِ البروتوكولِ)"
 python3 "$H/deploy/capacity-run/b24-runner/probe-analyze-selftest.py" || { echo "PROBE_ANALYZER_SELFTEST_FAIL — لا موجة"; exit 1; }
+bash "$H/deploy/capacity-run/b24-runner/probe-gate-stop.test.sh" || { echo "PROBE_GATE_STOP_TEST_FAIL — لا موجة"; exit 1; }
 
 log "worktree اثنان: wt-acc (مسارُ التشغيلِ للذراعين، يبدأُ من A) وwt-ref (سجلُ b24-env.json وحده، على B)"
 git -C "$H" worktree add -f --detach "$W/wt-acc" "$A_SHA" >/dev/null 2>&1
@@ -171,21 +172,23 @@ PY
 }
 bash "$H/deploy/capacity-run/b24-runner/seat-bin/run-wave-handoff.test.sh" || exit 1
 
-log "الموجتانِ A/A (ذراعُ A + الأداةِ، m5-$CONC) — بوابةُ قابليةِ إعادةِ الإنتاجِ (ملحق §2)"
+log "الموجتانِ A/A (ذراعُ A + الأداةِ، m5-$CONC، فهرسانِ 70 و71 — عيّنتا حملٍ مستقلتانِ) — بوابةُ قابليةِ إعادةِ الإنتاجِ (ملحق §2)"
+AA_IDX=70
 for SLOT in AA1 AA2; do
   V=INVALID
-  wave "$SLOT" 70
+  wave "$SLOT" "$AA_IDX"
   if [ "$V" != VALID ]; then
-    echo "قاعدةُ الإعادة: $SLOT غيرُ صالحة ⇒ إعادةٌ واحدةٌ بفهرس 80 (الأصلُ محفوظٌ مُستبدَلًا)"
-    wave "$SLOT" 80
+    echo "قاعدةُ الإعادة: $SLOT غيرُ صالحة ⇒ إعادةٌ واحدةٌ بفهرس $((AA_IDX+10)) (الأصلُ محفوظٌ مُستبدَلًا)"
+    wave "$SLOT" "$((AA_IDX+10))"
   fi
   [ "$V" = VALID ] || { echo "WAVE_INVALID $SLOT — إيقافٌ قبلَ البوابةِ"; exit 1; }
+  AA_IDX=$((AA_IDX+1))
 done
-python3 "$PA" aa "${WDIR[AA1]}" "${WDIR[AA2]}" "$OUT/aa-gate.json" >"$OUT/aa-gate.log" 2>&1 || { cat "$OUT/aa-gate.log"; echo "AA_GATE_ANALYZE_FAIL — إيقاف"; exit 1; }
-AA_VERDICT=$(python3 -c "import json;print(json.load(open('$OUT/aa-gate.json'))['verdict'])")
-echo "AA_GATE_VERDICT $AA_VERDICT"
-[ "$AA_VERDICT" = "إعادةُ_إنتاجٍ_ضمنَ_±δ" ] || { echo "PROBE_STOP: بوابةُ A/A لم تُجَز ($AA_VERDICT) — إيقافٌ وتوثيقٌ لا تخفيفَ (ملحق §2)"; exit 1; }
-log "بوابةُ A/A مُجازةٌ ($AA_VERDICT) — تُجمَّدُ حدودُ شرائحِ الوصولِ من AA1 قبلَ أيِّ موجةِ حكمٍ (ملحق §5)"
+python3 "$PA" aa "${WDIR[AA1]}" "${WDIR[AA2]}" "$OUT/aa-gate.json" >"$OUT/aa-gate.log" 2>&1 \
+  || { cat "$OUT/aa-gate.log"; echo "AA_GATE_ANALYZE_FAIL — توقفٌ"; exit 1; }
+bash "$H/deploy/capacity-run/b24-runner/probe-gate.sh" "$OUT/aa-gate.json" "إعادةُ_إنتاجٍ_ضمنَ_±δ" "A/A" "$OUT" "$B/secrets.env" "$H/deploy/capacity-run/b24-runner/seat-bin/b24-secret-audit.py" "$H/deploy/capacity-run/b24-runner" \
+  || { echo "PROBE_STOP عندَ بوابةِ A/A — الموجاتُ اللاحقةُ لا تبدأ"; exit 1; }
+log "بوابةُ A/A مُجازةٌ — تُجمَّدُ حدودُ شرائحِ الوصولِ من AA1 قبلَ أيِّ موجةِ حكمٍ (ملحق §5)"
 python3 "$PA" strata "${WDIR[AA1]}" "$OUT/strata.json" >"$OUT/strata.log" 2>&1 || { cat "$OUT/strata.log"; echo "STRATA_FAIL — إيقاف"; exit 1; }
 cat "$OUT/strata.json"
 
@@ -203,9 +206,8 @@ for SLOT in COST-ON1 COST-OFF1 COST-OFF2 COST-ON2; do
   [ "$V" = VALID ] || { echo "WAVE_INVALID $SLOT — إيقافٌ قبلَ بوابةِ الكلفةِ"; exit 1; }
 done
 python3 "$PA" cost "${WDIR[COST-ON1]}" "${WDIR[COST-OFF1]}" "${WDIR[COST-OFF2]}" "${WDIR[COST-ON2]}" "$OUT/cost-gate.json" >"$OUT/cost-gate.log" 2>&1 || { cat "$OUT/cost-gate.log"; echo "COST_GATE_ANALYZE_FAIL — إيقاف"; exit 1; }
-COST_VERDICT=$(python3 -c "import json;print(json.load(open('$OUT/cost-gate.json'))['verdict'])")
-echo "COST_GATE_VERDICT $COST_VERDICT"
-[ "$COST_VERDICT" = "كلفةٌ_محدودةٌ_بـ±δ" ] || { echo "PROBE_STOP: بوابةُ الكلفةِ لم تُجَز ($COST_VERDICT) — إيقافٌ قبلَ موجاتِ الحكمِ لا تخفيفَ (ملحق §1)"; exit 1; }
+bash "$H/deploy/capacity-run/b24-runner/probe-gate.sh" "$OUT/cost-gate.json" "كلفةٌ_محدودةٌ_بـ±δ" "COST" "$OUT" "$B/secrets.env" "$H/deploy/capacity-run/b24-runner/seat-bin/b24-secret-audit.py" "$H/deploy/capacity-run/b24-runner" \
+  || { echo "PROBE_STOP عندَ بوابةِ الكلفةِ — موجاتُ الحكمِ لا تبدأ"; exit 1; }
 echo "PRE_GATES_PASSED — الأداةُ كلفةً محدودةٌ بـ±δ، وإعادةُ الإنتاجِ ضمنَ ±δ (وصفُ البوابتينِ لا إثباتَ عدمِ ضررٍ عامًّا)"
 
 log "موجتا التحقّقِ منَ المسار (S1=A ثمّ S2=B عند conc=$SMOKE_CONC) — تحقّقُ مسارٍ لا حكم"
@@ -240,11 +242,14 @@ d=json.load(open(sys.argv[1]))
 print('H1_RIDES_INJECTION')
 for k,v in d['h1'].items():
     if k.startswith('rides|injection'):
-        print(' ',k,'mass=%.3f'%v['mass_of_requests'],'point=%s'%v['point_ms'],'ci=%s'%(v['ci_ms'],),'rule=',v['rule'])
+        flag = '' if v['reported'] else ' [دون عتبة الكتلة — لا يُعرض حكمُها]'
+        print(' ',k,'mass=%.3f'%v['mass_of_requests'],'pairs=%d'%v['pair_count'],'point=%s'%v['point_ms'],'ci=%s'%(v['ci_ms'],),'rule=',v['rule'],flag)
 print('H2',json.dumps({k:d['h2'][k] for k in ('n_rows','point_ms','ci_ms','rule')},ensure_ascii=False))
 print('RESIDUAL_NOTE',d['residual_note'])
 PY
-echo "{\"a_sha\":\"$A_SHA\",\"b_sha\":\"$B_SHA\",\"off_sha\":\"$OFF_SHA\",\"mixed_rate\":$MIXED_RATE,\"mixed_sec\":$MIXED_SEC,\"mixed_seed\":$MIXED_SEED,\"conc\":$CONC,\"smoke_conc\":$SMOKE_CONC,\"cities\":\"$CITIES\",\"aa_verdict\":\"$AA_VERDICT\",\"cost_verdict\":\"$COST_VERDICT\",\"slots\":\"AA1 AA2 COST-ON1 COST-OFF1 COST-OFF2 COST-ON2 S1 S2 A1 B1 B2 A2 A3 B3 B4 A4\"}" > "$OUT/wave-summary.json"
+AA_SUMMARY=$(python3 -c "import json;print(json.load(open('$OUT/aa-gate.json'))['verdict'])")
+COST_SUMMARY=$(python3 -c "import json;print(json.load(open('$OUT/cost-gate.json'))['verdict'])")
+echo "{\"a_sha\":\"$A_SHA\",\"b_sha\":\"$B_SHA\",\"off_sha\":\"$OFF_SHA\",\"mixed_rate\":$MIXED_RATE,\"mixed_sec\":$MIXED_SEC,\"mixed_seed\":$MIXED_SEED,\"conc\":$CONC,\"smoke_conc\":$SMOKE_CONC,\"cities\":\"$CITIES\",\"aa_verdict\":\"$AA_SUMMARY\",\"cost_verdict\":\"$COST_SUMMARY\",\"slots\":\"AA1 AA2 COST-ON1 COST-OFF1 COST-OFF2 COST-ON2 S1 S2 A1 B1 B2 A2 A3 B3 B4 A4\"}" > "$OUT/wave-summary.json"
 
 log "تدقيقُ الأسرار"
 sed -i '/^CITIES=/d;/^CITY=/d' "$B/secrets.env"
