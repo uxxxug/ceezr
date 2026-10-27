@@ -1,0 +1,40 @@
+{
+ "mode": "q",
+ "delta_ms": 15.0,
+ "min_stratum_n": 200,
+ "min_wait_share": 0.8,
+ "demand_split": 256,
+ "per_wave": [
+  {
+   "wave": "load01gap3-probe-AA1-i70-M-1500",
+   "n_D_gt256": 811,
+   "n_N_le256": 3688,
+   "U_head_mean_D": 208.306,
+   "U_head_mean_N": 3.947,
+   "queueWait_mean_D": 204.469,
+   "queueWait_mean_N": 0.163,
+   "U_resid_mean_D": 3.837,
+   "U_resid_mean_N": 3.784,
+   "resid_gap_D_minus_N": 0.053,
+   "wait_share_of_U_head_D": 0.982,
+   "status": "EXPLAINED"
+  },
+  {
+   "wave": "load01gap3-probe-AA2-i71-M-1500",
+   "n_D_gt256": 1273,
+   "n_N_le256": 3384,
+   "U_head_mean_D": 161.005,
+   "U_head_mean_N": 3.841,
+   "queueWait_mean_D": 157.39,
+   "queueWait_mean_N": 0.384,
+   "U_resid_mean_D": 3.615,
+   "U_resid_mean_N": 3.457,
+   "resid_gap_D_minus_N": 0.158,
+   "wait_share_of_U_head_D": 0.978,
+   "status": "EXPLAINED"
+  }
+ ],
+ "verdict": "الانتظارُ_في_المولّدِ_يفسّرُ_الفجوة",
+ "rule": "لكلِّ موجةٍ: D = inflightAtInvoke > 256، N = ≤ 256 (طلباتُ rides 2xx في طورِ الحقن). EXPLAINED إن (U_resid_D − U_resid_N) ≤ δ و Σwait_D / ΣU_head_D ≥ 0.80؛ ELSEWHERE إن الفرقُ > δ؛ INSUFFICIENT إن n < 200 في أيِّ طبقة؛ وإلّا UNRESOLVED. الحكمُ = الحالُ نفسُها في الموجتين، وإلّا غيرُ محسوم.",
+ "interpretable_only_if": "aa3 مُجازة ∧ cost مُجازة ∧ load مُجازة (§6) — وإلّا يُعرضُ «غيرُ قابلٍ للتفسير»."
+}

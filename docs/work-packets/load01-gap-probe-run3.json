@@ -1,0 +1,25 @@
+{
+  "id": "load01-gap-probe-run3",
+  "title": "سيمافورُ fetch المقيسُ في المولّد — إثباتُ أو نفيُ انتظارِ المولّدِ (H1) كسببِ الفجوة",
+  "status": "closed",
+  "closed_at": "2026-10-27",
+  "tags": ["load-01", "capacity", "diagnostics", "measurement-tooling", "no-product-change"],
+  "created": "2026-10-27",
+  "updated": "2026-10-27",
+  "branch": "exp/load01-gap-probe-run3",
+  "results": {
+    "workflow_run": 40459459708,
+    "protocol_commit": "cb299e8d",
+    "launch_commit": "e27f2d07",
+    "arm": "A-prime-prime-prime = A-prime-prime + RUN3 files only",
+    "verdict": "توقّفٌ موثّقٌ عندَ بوابةِ A/A (§4.4)؛ حكمُ q «غيرُ قابلٍ للتفسير» (§6)",
+    "aa_gate": "أخفقت في ttfbMs وحده (−20.72ms > δ=15)؛ حدودُ الخادمِ الخمسةُ وbodyMs تكرّرت ضمنَ −0.75ms",
+    "q_per_wave": "EXPLAINED في الموجتين (حصّةُ الانتظارِ 0.982/0.978؛ U_resid ≈ 3.84/3.62ms)",
+    "cost_gate": "لم تُحتسب (توقّفٌ قبلَ موجاتِ S/N)",
+    "load_equivalence_gate": "لم تُحتسب (توقّفٌ قبلَ موجاتِ S/N)",
+    "official_state_unchanged": ["LOAD-01 = FAIL", "LOAD-01M = NOT_MET"],
+    "reproduce": "reproduce-load01-gap-probe-run3.sh ⇒ REPRO_OK",
+    "raw_evidence": "artifact load01gap-run3 (30 يومًا)"
+  },
+  "next": "أصغرُ تجربةٍ مقترحة (لم تُنفَّذ): دورةٌ جديدةٌ بقاعدةِ A/A على ttfbResid = ttfbMs − queueWaitMs — فالبوابةُ تقيسُ إعادةَ إنتاجِ ما يراهُ الخادمُ بعدَ إزالةِ الانتظارِ المقيسِ في المولّدِ، ويصيرُ حكمُ q قابلًا للتفسيرِ إن اجتازتِ البواباتُ الثلاث. البديلُ الأكبرُ (توزيعُ المولّدِ على عمليّاتٍ) يغيّرُ شروطَ الحملِ فلا يكونُ التجربةَ الأصغر."
+}
