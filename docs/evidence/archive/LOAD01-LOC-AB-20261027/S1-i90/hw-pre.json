@@ -1,0 +1,19 @@
+{
+ "phase": "pre",
+ "date_utc": "2026-10-27T10:35:52.883743+00:00",
+ "cpu_model": "AMD EPYC 7763 64-Core Processor",
+ "arch": "x86_64",
+ "nproc": 4,
+ "cpuset_effective": "0-3",
+ "seat_cpu_max": "max 100000",
+ "kernel": "7.0.0-1017-azure",
+ "os_release": "Ubuntu 26.04.1 LTS",
+ "image_os": "ubuntu26",
+ "image_version": "20261023.163.3",
+ "cpu_flags_md5": "848e1675f7838b6e2242f2247a677ac3",
+ "bun_version": "1.4.3",
+ "cpu_stat": "usage_usec 72716796\nuser_usec 61139011\nsystem_usec 11577785\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 0\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+ "psi_cpu": "some avg10=0.00 avg60=0.94 avg300=1.83 total=12074617\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=0",
+ "steal_ticks": 0,
+ "loadavg": "0.42 0.42 0.26 1/252 6088"
+}

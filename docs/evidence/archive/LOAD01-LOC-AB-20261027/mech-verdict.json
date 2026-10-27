@@ -1,0 +1,680 @@
+{
+  "rule": {
+    "minAgree": 3,
+    "band": [
+      0.9,
+      1.1
+    ]
+  },
+  "mixedRule": {
+    "minOkShare": 0.99,
+    "maxLagP99Ms": 1000
+  },
+  "pairs": 4,
+  "contactQueueP50": {
+    "ratios": [
+      0.989,
+      1.017,
+      1.012,
+      1.004
+    ],
+    "median": 1.01,
+    "direction": "UNDECIDED"
+  },
+  "nonContactQueueP50": {
+    "ratios": [
+      0.98,
+      1.027,
+      1.004,
+      0.979
+    ],
+    "median": 1,
+    "direction": "UNDECIDED"
+  },
+  "contactFinishP50": {
+    "ratios": [
+      0.982,
+      1.012,
+      1.001,
+      1.006
+    ],
+    "median": 1.01,
+    "direction": "UNDECIDED"
+  },
+  "nonContactFinishP50": {
+    "ratios": [
+      0.984,
+      1.037,
+      1.006,
+      0.969
+    ],
+    "median": 1.01,
+    "direction": "UNDECIDED"
+  },
+  "waves": {
+    "A1": {
+      "g1": {
+        "ok": 4808,
+        "total": 12258,
+        "pct": 39.22
+      },
+      "valid": true,
+      "byKind": [
+        {
+          "kind": "contact",
+          "n": 12258,
+          "notDone": 0,
+          "queueP50": 22060.71,
+          "finishP50": 22270.89,
+          "replyP50": 49319.91,
+          "latePct": 59.81
+        },
+        {
+          "kind": "command",
+          "n": 1811,
+          "notDone": 0,
+          "queueP50": 18693.18,
+          "finishP50": 18906.59,
+          "replyP50": 49061.9,
+          "latePct": 43.9
+        },
+        {
+          "kind": "message",
+          "n": 1789,
+          "notDone": 0,
+          "queueP50": 18674.17,
+          "finishP50": 18893.15,
+          "replyP50": 48570.94,
+          "latePct": 43.49
+        }
+      ],
+      "fairness": {
+        "jainQueueMean": 0.999,
+        "jainFinishMean": 0.9991,
+        "queueP50Ratio": {
+          "contact": 1.029,
+          "command": 0.872,
+          "message": 0.871
+        },
+        "kindsCounted": [
+          "contact",
+          "command",
+          "message"
+        ]
+      },
+      "pool": {
+        "occupancyP50": 1,
+        "saturatedWindows": 39,
+        "windows": 54,
+        "drainerWaitShare": 0.098
+      },
+      "mixed": {
+        "planned": 3600,
+        "sent": 3600,
+        "ok2xx": 3600,
+        "byKind": {
+          "message": 1789,
+          "command": 1811
+        },
+        "scheduleLag": {
+          "n": 3600,
+          "p50": 0,
+          "p90": 1,
+          "p99": 3,
+          "mean": 0.47
+        },
+        "skipped": 0
+      },
+      "mixedValidity": {
+        "valid": true,
+        "reasons": []
+      }
+    },
+    "B1": {
+      "g1": {
+        "ok": 4956,
+        "total": 12263,
+        "pct": 40.41
+      },
+      "valid": true,
+      "byKind": [
+        {
+          "kind": "contact",
+          "n": 12263,
+          "notDone": 0,
+          "queueP50": 21822.56,
+          "finishP50": 21859.74,
+          "replyP50": 49135.76,
+          "latePct": 58.71
+        },
+        {
+          "kind": "command",
+          "n": 1811,
+          "notDone": 0,
+          "queueP50": 18278.34,
+          "finishP50": 18462.15,
+          "replyP50": 48964.61,
+          "latePct": 39.59
+        },
+        {
+          "kind": "message",
+          "n": 1789,
+          "notDone": 0,
+          "queueP50": 18376.68,
+          "finishP50": 18745,
+          "replyP50": 47883.1,
+          "latePct": 40.36
+        }
+      ],
+      "fairness": {
+        "jainQueueMean": 0.9987,
+        "jainFinishMean": 0.9989,
+        "queueP50Ratio": {
+          "contact": 1.042,
+          "command": 0.873,
+          "message": 0.878
+        },
+        "kindsCounted": [
+          "contact",
+          "command",
+          "message"
+        ]
+      },
+      "pool": {
+        "occupancyP50": 1,
+        "saturatedWindows": 38,
+        "windows": 54,
+        "drainerWaitShare": 0.1
+      },
+      "mixed": {
+        "planned": 3600,
+        "sent": 3600,
+        "ok2xx": 3600,
+        "byKind": {
+          "message": 1789,
+          "command": 1811
+        },
+        "scheduleLag": {
+          "n": 3600,
+          "p50": 0,
+          "p90": 1,
+          "p99": 4,
+          "mean": 0.51
+        },
+        "skipped": 0
+      },
+      "mixedValidity": {
+        "valid": true,
+        "reasons": []
+      }
+    },
+    "B2": {
+      "g1": {
+        "ok": 4861,
+        "total": 12370,
+        "pct": 39.3
+      },
+      "valid": true,
+      "byKind": [
+        {
+          "kind": "contact",
+          "n": 12370,
+          "notDone": 0,
+          "queueP50": 21707.99,
+          "finishP50": 21959.77,
+          "replyP50": 49506.92,
+          "latePct": 59.94
+        },
+        {
+          "kind": "command",
+          "n": 1811,
+          "notDone": 0,
+          "queueP50": 18365.9,
+          "finishP50": 18677.75,
+          "replyP50": 49172.56,
+          "latePct": 38.98
+        },
+        {
+          "kind": "message",
+          "n": 1789,
+          "notDone": 0,
+          "queueP50": 18503.27,
+          "finishP50": 18886.79,
+          "replyP50": 48579,
+          "latePct": 40.97
+        }
+      ],
+      "fairness": {
+        "jainQueueMean": 0.999,
+        "jainFinishMean": 0.9991,
+        "queueP50Ratio": {
+          "contact": 1.048,
+          "command": 0.887,
+          "message": 0.893
+        },
+        "kindsCounted": [
+          "contact",
+          "command",
+          "message"
+        ]
+      },
+      "pool": {
+        "occupancyP50": 1,
+        "saturatedWindows": 38,
+        "windows": 53,
+        "drainerWaitShare": 0.098
+      },
+      "mixed": {
+        "planned": 3600,
+        "sent": 3600,
+        "ok2xx": 3600,
+        "byKind": {
+          "message": 1789,
+          "command": 1811
+        },
+        "scheduleLag": {
+          "n": 3600,
+          "p50": 0,
+          "p90": 1,
+          "p99": 3,
+          "mean": 0.48
+        },
+        "skipped": 0
+      },
+      "mixedValidity": {
+        "valid": true,
+        "reasons": []
+      }
+    },
+    "A2": {
+      "g1": {
+        "ok": 5390,
+        "total": 12306,
+        "pct": 43.8
+      },
+      "valid": true,
+      "byKind": [
+        {
+          "kind": "contact",
+          "n": 12306,
+          "notDone": 0,
+          "queueP50": 21340.11,
+          "finishP50": 21696.88,
+          "replyP50": 48649.09,
+          "latePct": 55.47
+        },
+        {
+          "kind": "command",
+          "n": 1811,
+          "notDone": 0,
+          "queueP50": 17878.2,
+          "finishP50": 18008.86,
+          "replyP50": 48512.16,
+          "latePct": 37.71
+        },
+        {
+          "kind": "message",
+          "n": 1789,
+          "notDone": 0,
+          "queueP50": 18013.4,
+          "finishP50": 18218.7,
+          "replyP50": 47613.6,
+          "latePct": 38.96
+        }
+      ],
+      "fairness": {
+        "jainQueueMean": 0.999,
+        "jainFinishMean": 0.9991,
+        "queueP50Ratio": {
+          "contact": 1.062,
+          "command": 0.889,
+          "message": 0.896
+        },
+        "kindsCounted": [
+          "contact",
+          "command",
+          "message"
+        ]
+      },
+      "pool": {
+        "occupancyP50": 1,
+        "saturatedWindows": 38,
+        "windows": 52,
+        "drainerWaitShare": 0.098
+      },
+      "mixed": {
+        "planned": 3600,
+        "sent": 3600,
+        "ok2xx": 3600,
+        "byKind": {
+          "message": 1789,
+          "command": 1811
+        },
+        "scheduleLag": {
+          "n": 3600,
+          "p50": 0,
+          "p90": 1,
+          "p99": 3,
+          "mean": 0.47
+        },
+        "skipped": 0
+      },
+      "mixedValidity": {
+        "valid": true,
+        "reasons": []
+      }
+    },
+    "A3": {
+      "g1": {
+        "ok": 5306,
+        "total": 12390,
+        "pct": 42.82
+      },
+      "valid": true,
+      "byKind": [
+        {
+          "kind": "contact",
+          "n": 12390,
+          "notDone": 0,
+          "queueP50": 21694.23,
+          "finishP50": 22205.25,
+          "replyP50": 48186.47,
+          "latePct": 56.56
+        },
+        {
+          "kind": "command",
+          "n": 1811,
+          "notDone": 0,
+          "queueP50": 17865.93,
+          "finishP50": 18045.2,
+          "replyP50": 48986.69,
+          "latePct": 38.87
+        },
+        {
+          "kind": "message",
+          "n": 1789,
+          "notDone": 0,
+          "queueP50": 18047.33,
+          "finishP50": 18241,
+          "replyP50": 47900.89,
+          "latePct": 40.08
+        }
+      ],
+      "fairness": {
+        "jainQueueMean": 0.9992,
+        "jainFinishMean": 0.9993,
+        "queueP50Ratio": {
+          "contact": 1.065,
+          "command": 0.877,
+          "message": 0.886
+        },
+        "kindsCounted": [
+          "contact",
+          "command",
+          "message"
+        ]
+      },
+      "pool": {
+        "occupancyP50": 1,
+        "saturatedWindows": 38,
+        "windows": 50,
+        "drainerWaitShare": 0.096
+      },
+      "mixed": {
+        "planned": 3600,
+        "sent": 3600,
+        "ok2xx": 3600,
+        "byKind": {
+          "message": 1789,
+          "command": 1811
+        },
+        "scheduleLag": {
+          "n": 3600,
+          "p50": 0,
+          "p90": 1,
+          "p99": 3,
+          "mean": 0.48
+        },
+        "skipped": 0
+      },
+      "mixedValidity": {
+        "valid": true,
+        "reasons": []
+      }
+    },
+    "B3": {
+      "g1": {
+        "ok": 5093,
+        "total": 12418,
+        "pct": 41.01
+      },
+      "valid": true,
+      "byKind": [
+        {
+          "kind": "contact",
+          "n": 12418,
+          "notDone": 0,
+          "queueP50": 21958.8,
+          "finishP50": 22229.87,
+          "replyP50": 48744.63,
+          "latePct": 58.42
+        },
+        {
+          "kind": "command",
+          "n": 1811,
+          "notDone": 0,
+          "queueP50": 17960.74,
+          "finishP50": 18185.93,
+          "replyP50": 48732.68,
+          "latePct": 38.6
+        },
+        {
+          "kind": "message",
+          "n": 1789,
+          "notDone": 0,
+          "queueP50": 18093.49,
+          "finishP50": 18288.32,
+          "replyP50": 47705.53,
+          "latePct": 40.86
+        }
+      ],
+      "fairness": {
+        "jainQueueMean": 0.999,
+        "jainFinishMean": 0.9991,
+        "queueP50Ratio": {
+          "contact": 1.055,
+          "command": 0.863,
+          "message": 0.869
+        },
+        "kindsCounted": [
+          "contact",
+          "command",
+          "message"
+        ]
+      },
+      "pool": {
+        "occupancyP50": 1,
+        "saturatedWindows": 38,
+        "windows": 53,
+        "drainerWaitShare": 0.097
+      },
+      "mixed": {
+        "planned": 3600,
+        "sent": 3600,
+        "ok2xx": 3600,
+        "byKind": {
+          "message": 1789,
+          "command": 1811
+        },
+        "scheduleLag": {
+          "n": 3600,
+          "p50": 0,
+          "p90": 1,
+          "p99": 3,
+          "mean": 0.46
+        },
+        "skipped": 0
+      },
+      "mixedValidity": {
+        "valid": true,
+        "reasons": []
+      }
+    },
+    "B4": {
+      "g1": {
+        "ok": 5080,
+        "total": 12415,
+        "pct": 40.92
+      },
+      "valid": true,
+      "byKind": [
+        {
+          "kind": "contact",
+          "n": 12415,
+          "notDone": 0,
+          "queueP50": 21746.63,
+          "finishP50": 21899.32,
+          "replyP50": 48759.26,
+          "latePct": 58.23
+        },
+        {
+          "kind": "command",
+          "n": 1811,
+          "notDone": 0,
+          "queueP50": 17691.43,
+          "finishP50": 17894,
+          "replyP50": 49269.79,
+          "latePct": 35.78
+        },
+        {
+          "kind": "message",
+          "n": 1789,
+          "notDone": 0,
+          "queueP50": 17881.83,
+          "finishP50": 18142.67,
+          "replyP50": 48111.25,
+          "latePct": 36.33
+        }
+      ],
+      "fairness": {
+        "jainQueueMean": 0.9984,
+        "jainFinishMean": 0.9986,
+        "queueP50Ratio": {
+          "contact": 1.058,
+          "command": 0.86,
+          "message": 0.87
+        },
+        "kindsCounted": [
+          "contact",
+          "command",
+          "message"
+        ]
+      },
+      "pool": {
+        "occupancyP50": 1,
+        "saturatedWindows": 38,
+        "windows": 53,
+        "drainerWaitShare": 0.098
+      },
+      "mixed": {
+        "planned": 3600,
+        "sent": 3600,
+        "ok2xx": 3600,
+        "byKind": {
+          "message": 1789,
+          "command": 1811
+        },
+        "scheduleLag": {
+          "n": 3600,
+          "p50": 0,
+          "p90": 1,
+          "p99": 3,
+          "mean": 0.48
+        },
+        "skipped": 0
+      },
+      "mixedValidity": {
+        "valid": true,
+        "reasons": []
+      }
+    },
+    "A4": {
+      "g1": {
+        "ok": 4962,
+        "total": 12257,
+        "pct": 40.48
+      },
+      "valid": true,
+      "byKind": [
+        {
+          "kind": "contact",
+          "n": 12257,
+          "notDone": 0,
+          "queueP50": 21669.25,
+          "finishP50": 21764.68,
+          "replyP50": 49525.19,
+          "latePct": 59.17
+        },
+        {
+          "kind": "command",
+          "n": 1811,
+          "notDone": 0,
+          "queueP50": 18156.82,
+          "finishP50": 18474.05,
+          "replyP50": 49646.91,
+          "latePct": 39.37
+        },
+        {
+          "kind": "message",
+          "n": 1789,
+          "notDone": 0,
+          "queueP50": 18188.24,
+          "finishP50": 18690.57,
+          "replyP50": 48866.58,
+          "latePct": 40.53
+        }
+      ],
+      "fairness": {
+        "jainQueueMean": 0.999,
+        "jainFinishMean": 0.9991,
+        "queueP50Ratio": {
+          "contact": 1.041,
+          "command": 0.872,
+          "message": 0.873
+        },
+        "kindsCounted": [
+          "contact",
+          "command",
+          "message"
+        ]
+      },
+      "pool": {
+        "occupancyP50": 1,
+        "saturatedWindows": 38,
+        "windows": 53,
+        "drainerWaitShare": 0.1
+      },
+      "mixed": {
+        "planned": 3600,
+        "sent": 3600,
+        "ok2xx": 3600,
+        "byKind": {
+          "message": 1789,
+          "command": 1811
+        },
+        "scheduleLag": {
+          "n": 3600,
+          "p50": 0,
+          "p90": 1,
+          "p99": 3,
+          "mean": 0.49
+        },
+        "skipped": 0
+      },
+      "mixedValidity": {
+        "valid": true,
+        "reasons": []
+      }
+    }
+  }
+}

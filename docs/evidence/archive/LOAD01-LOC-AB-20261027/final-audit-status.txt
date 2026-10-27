@@ -1,0 +1,4 @@
+final_audit_exit=0
+final_report_produced=yes
+decision=evidence
+date_utc=2026-10-27T11:44:52+00:00

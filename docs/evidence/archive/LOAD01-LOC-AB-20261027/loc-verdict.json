@@ -1,0 +1,1545 @@
+{
+ "acceptance": "LOAD-01 = FAIL و LOAD-01M = NOT_MET — هذه المقارنةُ ليست قبولًا",
+ "correct_rule": {
+  "notes": [
+   "زوج 2: بوّاباتٌ فاشلةٌ جديدةٌ في B ['P2']"
+  ],
+  "ok": false
+ },
+ "g1": {
+  "decision": "NO_DETECTABLE_EFFECT",
+  "meanDPp": -1.17,
+  "why": "mean Δ -1.17pp over 4 pairs [1.19, -4.5, -1.81, 0.44]"
+ },
+ "loc_rule": {
+  "a_acq": [
+   8.0116,
+   8.005,
+   8.0064,
+   8.0034
+  ],
+  "b_acq": [
+   7.0054,
+   7.0091,
+   7.0055,
+   7.0065
+  ],
+  "drop_acq_per_req": 0.9997,
+  "ok": true,
+  "reasons": []
+ },
+ "merge": "BLOCKED — CORRECT_RULE مخالَفة",
+ "pairs": [
+  {
+   "contact_over_20s_share": [
+    0.5979,
+    0.5871
+   ],
+   "contact_p50_ms": [
+    22269,
+    21859
+   ],
+   "d_pp": 1.19,
+   "g1_a": 39.22,
+   "g1_b": 40.41,
+   "i": 1,
+   "loc_acq": [
+    8.0116,
+    7.0054
+   ],
+   "loc_server_p50": [
+    1654.4,
+    1369.3
+   ],
+   "loc_wait_ms": [
+    1442.9,
+    1219.9
+   ],
+   "onboarding_failed": [
+    7450,
+    7307
+   ],
+   "pool_hold_s": [
+    990.11,
+    975.06
+   ],
+   "pool_wait_s": [
+    44385.61,
+    42785.14
+   ]
+  },
+  {
+   "contact_over_20s_share": [
+    0.5547,
+    0.5994
+   ],
+   "contact_p50_ms": [
+    21695,
+    21958
+   ],
+   "d_pp": -4.5,
+   "g1_a": 43.8,
+   "g1_b": 39.3,
+   "i": 2,
+   "loc_acq": [
+    8.005,
+    7.0091
+   ],
+   "loc_server_p50": [
+    1376.9,
+    1426.8
+   ],
+   "loc_wait_ms": [
+    1307.1,
+    1243.8
+   ],
+   "onboarding_failed": [
+    6916,
+    7509
+   ],
+   "pool_hold_s": [
+    982.53,
+    971.01
+   ],
+   "pool_wait_s": [
+    43879.55,
+    43017.25
+   ]
+  },
+  {
+   "contact_over_20s_share": [
+    0.5656,
+    0.5842
+   ],
+   "contact_p50_ms": [
+    22202,
+    22228
+   ],
+   "d_pp": -1.81,
+   "g1_a": 42.82,
+   "g1_b": 41.01,
+   "i": 3,
+   "loc_acq": [
+    8.0064,
+    7.0055
+   ],
+   "loc_server_p50": [
+    1581.1,
+    1403.8
+   ],
+   "loc_wait_ms": [
+    1340.5,
+    1222.8
+   ],
+   "onboarding_failed": [
+    7084,
+    7325
+   ],
+   "pool_hold_s": [
+    982.56,
+    979.35
+   ],
+   "pool_wait_s": [
+    44540.95,
+    43676.24
+   ]
+  },
+  {
+   "contact_over_20s_share": [
+    0.5917,
+    0.5822
+   ],
+   "contact_p50_ms": [
+    21763,
+    21898
+   ],
+   "d_pp": 0.44,
+   "g1_a": 40.48,
+   "g1_b": 40.92,
+   "i": 4,
+   "loc_acq": [
+    8.0034,
+    7.0065
+   ],
+   "loc_server_p50": [
+    1571.1,
+    1318.8
+   ],
+   "loc_wait_ms": [
+    1394.0,
+    1200.0
+   ],
+   "onboarding_failed": [
+    7295,
+    7335
+   ],
+   "pool_hold_s": [
+    975.43,
+    971.5
+   ],
+   "pool_wait_s": [
+    42921.59,
+    42736.28
+   ]
+  }
+ ],
+ "waves": {
+  "A1": {
+   "arm": "A",
+   "base": {
+    "contact_acq": {
+     "gateAcq": 24516,
+     "jobs": 12258,
+     "per_job": 2.0
+    },
+    "failedGates": [
+     "G1"
+    ],
+    "g1": {
+     "ok": 4808,
+     "pct": 39.22,
+     "total": 12258
+    },
+    "gates": {
+     "CONC-peak": "peak 1500 / target 1500",
+     "EGRESS-CLASSIFIED": "unknown +0",
+     "G1": "39.22% (4808/12258)✗",
+     "G2": "0",
+     "G3": "0 + 0",
+     "G4": "CLEAN",
+     "G5": "0",
+     "G6": "0.00% (0)",
+     "G7": "0.00%",
+     "G8": "0",
+     "GW-STABILITY": "stable",
+     "I1-identities": "riders 12258/12258 · drivers 12258/12258",
+     "P1": "897ms",
+     "P2": "943ms",
+     "P3": "892ms",
+     "P4": "7381ms",
+     "P5": "13284ms",
+     "P6a": "1441ms",
+     "P6b": "1506ms",
+     "P6c": "1438ms",
+     "P7": "96s",
+     "P8": "0.00%",
+     "P9": "0.00%"
+    },
+    "onboarding": {
+     "contact_jobs": {
+      "max_ms": 31688,
+      "n": 12258,
+      "over_20s": 7329,
+      "over_20s_share": 0.5979,
+      "p50_ms": 22269,
+      "p90_ms": 26146,
+      "p99_ms": 31643,
+      "status": {
+       "done": 12258
+      }
+     },
+     "failed_step_patterns": {
+      "ok|200|timeout|201|True": 554,
+      "ok|200|timeout|409|False": 6896
+     },
+     "failed_with_phoneProofJob_timeout_share": 1.0,
+     "little": {
+      "contact_arrival_span_s": 179.429,
+      "exec_share_gateWait": 0.9538,
+      "jobs_per_s_measured": 88.38,
+      "lane_ceiling_jobs_per_s": 95.13,
+      "lane_utilization": 0.929,
+      "lanes": 32,
+      "per_job_ms_claim_plus_exec": 336.37
+     },
+     "onboarding_failed": 7450,
+     "timeline_all": {
+      "claim": 104.73,
+      "exec": 231.64,
+      "gateWait": 220.93,
+      "n": 15858,
+      "notDone": 0,
+      "queue": 20182.45,
+      "queue_p50": 21448.79
+     }
+    },
+    "pool": {
+     "driver_location": {
+      "drainer": false,
+      "holdS": 121.19,
+      "maxWindowP95Ms": 611.02,
+      "n": 38520,
+      "path": "http:POST /v1/driver/location",
+      "waitMsPerCall": 180.1,
+      "waitS": 6937.47
+     },
+     "saturatedWindows": 39,
+     "seats": 5,
+     "top_wait_paths": [
+      {
+       "holdS": 121.19,
+       "n": 38520,
+       "path": "http:POST /v1/driver/location",
+       "waitS": 6937.47
+      },
+      {
+       "holdS": 100.5,
+       "n": 21874,
+       "path": "http:POST /v1/session/telegram",
+       "waitS": 4542.16
+      },
+      {
+       "holdS": 88.03,
+       "n": 15858,
+       "path": "http:POST /webhook/telegram/driver",
+       "waitS": 3596.24
+      },
+      {
+       "holdS": 74.99,
+       "n": 17634,
+       "path": "http:POST /v1/onboarding/driver",
+       "waitS": 3434.54
+      },
+      {
+       "holdS": 39.73,
+       "n": 13376,
+       "path": "http:GET /v1/rides/:id/trip-events",
+       "waitS": 3157.19
+      },
+      {
+       "holdS": 77.73,
+       "n": 13325,
+       "path": "http:POST /v1/rides/:id/trip-events/ack",
+       "waitS": 3139.37
+      }
+     ],
+     "totalHoldS": 990.11,
+     "totalWaitS": 44385.61,
+     "windows": 54
+    },
+    "verdict": "FAIL",
+    "wave": "load01loc-locab-A1-i80-M-1500"
+   },
+   "location": {
+    "acq_dist": {
+     "8": 4752,
+     "9": 56
+    },
+    "acq_per_req": 8.0116,
+    "hold_ms_per_req": 25.21,
+    "non2xx_pct": 0.0,
+    "requests": 4808,
+    "server_ms": {
+     "p50": 1654.4,
+     "p95": 2423.5,
+     "p99": 2968.3
+    },
+    "sig_account": 4808,
+    "sig_combined": 0,
+    "sig_driver": 4808,
+    "sigs": {
+     "insert into tracking_sessions (driver_id, city_id, trip_id, started_at": 4808,
+     "select": 4808,
+     "select city_id, key, value, value_type from platform_settings where ci": 56,
+     "select coalesce( (select a.is_available from driver_availability a whe": 4808,
+     "select d.id as driver_id, d.city_id, u.telegram_id, u.full_name, u.pho": 4808,
+     "select id from orders where assigned_driver_id =": 4808,
+     "select role::text as role, is_blocked, language_code from users where": 4808,
+     "with current as ( select": 4808,
+     "with current as ( select id from drivers where id =": 4808
+    },
+    "status": {
+     "200": 4808
+    },
+    "wait_ms_per_req": 1442.9
+   }
+  },
+  "A2": {
+   "arm": "A",
+   "base": {
+    "contact_acq": {
+     "gateAcq": 24612,
+     "jobs": 12306,
+     "per_job": 2.0
+    },
+    "failedGates": [
+     "G1"
+    ],
+    "g1": {
+     "ok": 5390,
+     "pct": 43.8,
+     "total": 12306
+    },
+    "gates": {
+     "CONC-peak": "peak 1500 / target 1500",
+     "EGRESS-CLASSIFIED": "unknown +0",
+     "G1": "43.80% (5390/12306)✗",
+     "G2": "0",
+     "G3": "0 + 0",
+     "G4": "CLEAN",
+     "G5": "0",
+     "G6": "0.00% (0)",
+     "G7": "0.00%",
+     "G8": "0",
+     "GW-STABILITY": "stable",
+     "I1-identities": "riders 12306/12306 · drivers 12306/12306",
+     "P1": "691ms",
+     "P2": "832ms",
+     "P3": "679ms",
+     "P4": "6796ms",
+     "P5": "10829ms",
+     "P6a": "1211ms",
+     "P6b": "1350ms",
+     "P6c": "1333ms",
+     "P7": "115s",
+     "P8": "0.00%",
+     "P9": "0.00%"
+    },
+    "onboarding": {
+     "contact_jobs": {
+      "max_ms": 30001,
+      "n": 12306,
+      "over_20s": 6826,
+      "over_20s_share": 0.5547,
+      "p50_ms": 21695,
+      "p90_ms": 25462,
+      "p99_ms": 29885,
+      "status": {
+       "done": 12306
+      }
+     },
+     "failed_step_patterns": {
+      "ok|200|timeout|201|True": 540,
+      "ok|200|timeout|409|False": 6376
+     },
+     "failed_with_phoneProofJob_timeout_share": 1.0,
+     "little": {
+      "contact_arrival_span_s": 178.785,
+      "exec_share_gateWait": 0.9559,
+      "jobs_per_s_measured": 88.97,
+      "lane_ceiling_jobs_per_s": 95.64,
+      "lane_utilization": 0.9302,
+      "lanes": 32,
+      "per_job_ms_claim_plus_exec": 334.59
+     },
+     "onboarding_failed": 6916,
+     "timeline_all": {
+      "claim": 103.62,
+      "exec": 230.97,
+      "gateWait": 220.78,
+      "n": 15906,
+      "notDone": 0,
+      "queue": 19585.9,
+      "queue_p50": 20100.1
+     }
+    },
+    "pool": {
+     "driver_location": {
+      "drainer": false,
+      "holdS": 125.1,
+      "maxWindowP95Ms": 381.17,
+      "n": 43147,
+      "path": "http:POST /v1/driver/location",
+      "waitMsPerCall": 163.29,
+      "waitS": 7045.45
+     },
+     "saturatedWindows": 38,
+     "seats": 5,
+     "top_wait_paths": [
+      {
+       "holdS": 125.1,
+       "n": 43147,
+       "path": "http:POST /v1/driver/location",
+       "waitS": 7045.45
+      },
+      {
+       "holdS": 97.78,
+       "n": 23086,
+       "path": "http:POST /v1/session/telegram",
+       "waitS": 4367.05
+      },
+      {
+       "holdS": 71.33,
+       "n": 18252,
+       "path": "http:POST /v1/onboarding/driver",
+       "waitS": 3295.18
+      },
+      {
+       "holdS": 80.98,
+       "n": 15906,
+       "path": "http:POST /webhook/telegram/driver",
+       "waitS": 3249.2
+      },
+      {
+       "holdS": 39.8,
+       "n": 14812,
+       "path": "http:GET /v1/rides/:id/trip-events",
+       "waitS": 3129.71
+      },
+      {
+       "holdS": 75.62,
+       "n": 14757,
+       "path": "http:POST /v1/rides/:id/trip-events/ack",
+       "waitS": 3102.83
+      }
+     ],
+     "totalHoldS": 982.53,
+     "totalWaitS": 43879.55,
+     "windows": 52
+    },
+    "verdict": "FAIL",
+    "wave": "load01loc-locab-A2-i83-M-1500"
+   },
+   "location": {
+    "acq_dist": {
+     "8": 5363,
+     "9": 27
+    },
+    "acq_per_req": 8.005,
+    "hold_ms_per_req": 23.21,
+    "non2xx_pct": 0.0,
+    "requests": 5390,
+    "server_ms": {
+     "p50": 1376.9,
+     "p95": 2209.2,
+     "p99": 2454.7
+    },
+    "sig_account": 5390,
+    "sig_combined": 0,
+    "sig_driver": 5390,
+    "sigs": {
+     "insert into tracking_sessions (driver_id, city_id, trip_id, started_at": 5390,
+     "select": 5390,
+     "select city_id, key, value, value_type from platform_settings where ci": 27,
+     "select coalesce( (select a.is_available from driver_availability a whe": 5390,
+     "select d.id as driver_id, d.city_id, u.telegram_id, u.full_name, u.pho": 5390,
+     "select id from orders where assigned_driver_id =": 5390,
+     "select role::text as role, is_blocked, language_code from users where": 5390,
+     "with current as ( select": 5390,
+     "with current as ( select id from drivers where id =": 5390
+    },
+    "status": {
+     "200": 5390
+    },
+    "wait_ms_per_req": 1307.1
+   }
+  },
+  "A3": {
+   "arm": "A",
+   "base": {
+    "contact_acq": {
+     "gateAcq": 24780,
+     "jobs": 12390,
+     "per_job": 2.0
+    },
+    "failedGates": [
+     "G1"
+    ],
+    "g1": {
+     "ok": 5306,
+     "pct": 42.82,
+     "total": 12390
+    },
+    "gates": {
+     "CONC-peak": "peak 1500 / target 1500",
+     "EGRESS-CLASSIFIED": "unknown +0",
+     "G1": "42.82% (5306/12390)✗",
+     "G2": "0",
+     "G3": "0 + 0",
+     "G4": "CLEAN",
+     "G5": "0",
+     "G6": "0.00% (0)",
+     "G7": "0.00%",
+     "G8": "0",
+     "GW-STABILITY": "stable",
+     "I1-identities": "riders 12390/12390 · drivers 12390/12390",
+     "P1": "793ms",
+     "P2": "851ms",
+     "P3": "733ms",
+     "P4": "6639ms",
+     "P5": "12010ms",
+     "P6a": "1168ms",
+     "P6b": "1455ms",
+     "P6c": "1260ms",
+     "P7": "96s",
+     "P8": "0.00%",
+     "P9": "0.00%"
+    },
+    "onboarding": {
+     "contact_jobs": {
+      "max_ms": 30878,
+      "n": 12390,
+      "over_20s": 7008,
+      "over_20s_share": 0.5656,
+      "p50_ms": 22202,
+      "p90_ms": 25147,
+      "p99_ms": 30716,
+      "status": {
+       "done": 12390
+      }
+     },
+     "failed_step_patterns": {
+      "ok|200|timeout|201|True": 491,
+      "ok|200|timeout|409|False": 6593
+     },
+     "failed_with_phoneProofJob_timeout_share": 1.0,
+     "little": {
+      "contact_arrival_span_s": 179.693,
+      "exec_share_gateWait": 0.956,
+      "jobs_per_s_measured": 88.99,
+      "lane_ceiling_jobs_per_s": 97.1,
+      "lane_utilization": 0.9164,
+      "lanes": 32,
+      "per_job_ms_claim_plus_exec": 329.56
+     },
+     "onboarding_failed": 7084,
+     "timeline_all": {
+      "claim": 102.51,
+      "exec": 227.05,
+      "gateWait": 217.06,
+      "n": 15990,
+      "notDone": 0,
+      "queue": 19405.06,
+      "queue_p50": 20374.33
+     }
+    },
+    "pool": {
+     "driver_location": {
+      "drainer": false,
+      "holdS": 123.66,
+      "maxWindowP95Ms": 370.4,
+      "n": 42482,
+      "path": "http:POST /v1/driver/location",
+      "waitMsPerCall": 167.43,
+      "waitS": 7112.79
+     },
+     "saturatedWindows": 38,
+     "seats": 5,
+     "top_wait_paths": [
+      {
+       "holdS": 123.66,
+       "n": 42482,
+       "path": "http:POST /v1/driver/location",
+       "waitS": 7112.79
+      },
+      {
+       "holdS": 98.47,
+       "n": 23002,
+       "path": "http:POST /v1/session/telegram",
+       "waitS": 4404.78
+      },
+      {
+       "holdS": 71.42,
+       "n": 18206,
+       "path": "http:POST /v1/onboarding/driver",
+       "waitS": 3379.3
+      },
+      {
+       "holdS": 81.71,
+       "n": 15990,
+       "path": "http:POST /webhook/telegram/driver",
+       "waitS": 3337.32
+      },
+      {
+       "holdS": 41.36,
+       "n": 14988,
+       "path": "http:GET /v1/rides/:id/trip-events",
+       "waitS": 3268.34
+      },
+      {
+       "holdS": 79.18,
+       "n": 14966,
+       "path": "http:POST /v1/rides/:id/trip-events/ack",
+       "waitS": 3256.42
+      }
+     ],
+     "totalHoldS": 982.56,
+     "totalWaitS": 44540.95,
+     "windows": 50
+    },
+    "verdict": "FAIL",
+    "wave": "load01loc-locab-A3-i84-M-1500"
+   },
+   "location": {
+    "acq_dist": {
+     "8": 5272,
+     "9": 34
+    },
+    "acq_per_req": 8.0064,
+    "hold_ms_per_req": 23.31,
+    "non2xx_pct": 0.0,
+    "requests": 5306,
+    "server_ms": {
+     "p50": 1581.1,
+     "p95": 2168.6,
+     "p99": 2372.0
+    },
+    "sig_account": 5306,
+    "sig_combined": 0,
+    "sig_driver": 5306,
+    "sigs": {
+     "insert into tracking_sessions (driver_id, city_id, trip_id, started_at": 5306,
+     "select": 5306,
+     "select city_id, key, value, value_type from platform_settings where ci": 34,
+     "select coalesce( (select a.is_available from driver_availability a whe": 5306,
+     "select d.id as driver_id, d.city_id, u.telegram_id, u.full_name, u.pho": 5306,
+     "select id from orders where assigned_driver_id =": 5306,
+     "select role::text as role, is_blocked, language_code from users where": 5306,
+     "with current as ( select": 5306,
+     "with current as ( select id from drivers where id =": 5306
+    },
+    "status": {
+     "200": 5306
+    },
+    "wait_ms_per_req": 1340.5
+   }
+  },
+  "A4": {
+   "arm": "A",
+   "base": {
+    "contact_acq": {
+     "gateAcq": 24514,
+     "jobs": 12257,
+     "per_job": 2.0
+    },
+    "failedGates": [
+     "G1"
+    ],
+    "g1": {
+     "ok": 4962,
+     "pct": 40.48,
+     "total": 12257
+    },
+    "gates": {
+     "CONC-peak": "peak 1500 / target 1500",
+     "EGRESS-CLASSIFIED": "unknown +0",
+     "G1": "40.48% (4962/12257)✗",
+     "G2": "0",
+     "G3": "0 + 0",
+     "G4": "CLEAN",
+     "G5": "0",
+     "G6": "0.00% (0)",
+     "G7": "0.00%",
+     "G8": "0",
+     "GW-STABILITY": "stable",
+     "I1-identities": "riders 12257/12257 · drivers 12257/12257",
+     "P1": "701ms",
+     "P2": "871ms",
+     "P3": "742ms",
+     "P4": "6678ms",
+     "P5": "11555ms",
+     "P6a": "1155ms",
+     "P6b": "1515ms",
+     "P6c": "1424ms",
+     "P7": "104s",
+     "P8": "0.00%",
+     "P9": "0.00%"
+    },
+    "onboarding": {
+     "contact_jobs": {
+      "max_ms": 30418,
+      "n": 12257,
+      "over_20s": 7252,
+      "over_20s_share": 0.5917,
+      "p50_ms": 21763,
+      "p90_ms": 25821,
+      "p99_ms": 30334,
+      "status": {
+       "done": 12257
+      }
+     },
+     "failed_step_patterns": {
+      "ok|200|timeout|201|True": 511,
+      "ok|200|timeout|409|False": 6784
+     },
+     "failed_with_phoneProofJob_timeout_share": 1.0,
+     "little": {
+      "contact_arrival_span_s": 179.084,
+      "exec_share_gateWait": 0.9545,
+      "jobs_per_s_measured": 88.55,
+      "lane_ceiling_jobs_per_s": 96.12,
+      "lane_utilization": 0.9212,
+      "lanes": 32,
+      "per_job_ms_claim_plus_exec": 332.91
+     },
+     "onboarding_failed": 7295,
+     "timeline_all": {
+      "claim": 102.14,
+      "exec": 230.77,
+      "gateWait": 220.27,
+      "n": 15857,
+      "notDone": 0,
+      "queue": 20010.18,
+      "queue_p50": 20825.4
+     }
+    },
+    "pool": {
+     "driver_location": {
+      "drainer": false,
+      "holdS": 123.52,
+      "maxWindowP95Ms": 376.3,
+      "n": 39713,
+      "path": "http:POST /v1/driver/location",
+      "waitMsPerCall": 174.18,
+      "waitS": 6917.22
+     },
+     "saturatedWindows": 38,
+     "seats": 5,
+     "top_wait_paths": [
+      {
+       "holdS": 123.52,
+       "n": 39713,
+       "path": "http:POST /v1/driver/location",
+       "waitS": 6917.22
+      },
+      {
+       "holdS": 99.19,
+       "n": 22181,
+       "path": "http:POST /v1/session/telegram",
+       "waitS": 4325.51
+      },
+      {
+       "holdS": 84.01,
+       "n": 15857,
+       "path": "http:POST /webhook/telegram/driver",
+       "waitS": 3353.91
+      },
+      {
+       "holdS": 73.03,
+       "n": 17746,
+       "path": "http:POST /v1/onboarding/driver",
+       "waitS": 3321.27
+      },
+      {
+       "holdS": 39.43,
+       "n": 14016,
+       "path": "http:GET /v1/rides/:id/trip-events",
+       "waitS": 3073.93
+      },
+      {
+       "holdS": 75.42,
+       "n": 13962,
+       "path": "http:POST /v1/rides/:id/trip-events/ack",
+       "waitS": 3057.12
+      }
+     ],
+     "totalHoldS": 975.43,
+     "totalWaitS": 42921.59,
+     "windows": 53
+    },
+    "verdict": "FAIL",
+    "wave": "load01loc-locab-A4-i87-M-1500"
+   },
+   "location": {
+    "acq_dist": {
+     "8": 4945,
+     "9": 17
+    },
+    "acq_per_req": 8.0034,
+    "hold_ms_per_req": 24.89,
+    "non2xx_pct": 0.0,
+    "requests": 4962,
+    "server_ms": {
+     "p50": 1571.1,
+     "p95": 2286.0,
+     "p99": 2471.0
+    },
+    "sig_account": 4962,
+    "sig_combined": 0,
+    "sig_driver": 4962,
+    "sigs": {
+     "insert into tracking_sessions (driver_id, city_id, trip_id, started_at": 4962,
+     "select": 4962,
+     "select city_id, key, value, value_type from platform_settings where ci": 17,
+     "select coalesce( (select a.is_available from driver_availability a whe": 4962,
+     "select d.id as driver_id, d.city_id, u.telegram_id, u.full_name, u.pho": 4962,
+     "select id from orders where assigned_driver_id =": 4962,
+     "select role::text as role, is_blocked, language_code from users where": 4962,
+     "with current as ( select": 4962,
+     "with current as ( select id from drivers where id =": 4962
+    },
+    "status": {
+     "200": 4962
+    },
+    "wait_ms_per_req": 1394.0
+   }
+  },
+  "B1": {
+   "arm": "B",
+   "base": {
+    "contact_acq": {
+     "gateAcq": 24526,
+     "jobs": 12263,
+     "per_job": 2.0
+    },
+    "failedGates": [
+     "G1"
+    ],
+    "g1": {
+     "ok": 4956,
+     "pct": 40.41,
+     "total": 12263
+    },
+    "gates": {
+     "CONC-peak": "peak 1500 / target 1500",
+     "EGRESS-CLASSIFIED": "unknown +0",
+     "G1": "40.41% (4956/12263)✗",
+     "G2": "0",
+     "G3": "0 + 0",
+     "G4": "CLEAN",
+     "G5": "0",
+     "G6": "0.00% (0)",
+     "G7": "0.00%",
+     "G8": "0",
+     "GW-STABILITY": "stable",
+     "I1-identities": "riders 12263/12263 · drivers 12263/12263",
+     "P1": "706ms",
+     "P2": "850ms",
+     "P3": "744ms",
+     "P4": "6437ms",
+     "P5": "11336ms",
+     "P6a": "1349ms",
+     "P6b": "1493ms",
+     "P6c": "1408ms",
+     "P7": "104s",
+     "P8": "0.00%",
+     "P9": "0.00%"
+    },
+    "onboarding": {
+     "contact_jobs": {
+      "max_ms": 31010,
+      "n": 12263,
+      "over_20s": 7200,
+      "over_20s_share": 0.5871,
+      "p50_ms": 21859,
+      "p90_ms": 25987,
+      "p99_ms": 30864,
+      "status": {
+       "done": 12263
+      }
+     },
+     "failed_step_patterns": {
+      "ok|200|timeout|201|True": 512,
+      "ok|200|timeout|409|False": 6795
+     },
+     "failed_with_phoneProofJob_timeout_share": 1.0,
+     "little": {
+      "contact_arrival_span_s": 179.822,
+      "exec_share_gateWait": 0.9537,
+      "jobs_per_s_measured": 88.22,
+      "lane_ceiling_jobs_per_s": 96.48,
+      "lane_utilization": 0.9143,
+      "lanes": 32,
+      "per_job_ms_claim_plus_exec": 331.67
+     },
+     "onboarding_failed": 7307,
+     "timeline_all": {
+      "claim": 102.66,
+      "exec": 229.01,
+      "gateWait": 218.4,
+      "n": 15863,
+      "notDone": 0,
+      "queue": 20011.27,
+      "queue_p50": 20941.88
+     }
+    },
+    "pool": {
+     "driver_location": {
+      "drainer": false,
+      "holdS": 108.49,
+      "maxWindowP95Ms": 389.74,
+      "n": 34719,
+      "path": "http:POST /v1/driver/location",
+      "waitMsPerCall": 174.13,
+      "waitS": 6045.7
+     },
+     "saturatedWindows": 38,
+     "seats": 5,
+     "top_wait_paths": [
+      {
+       "holdS": 108.49,
+       "n": 34719,
+       "path": "http:POST /v1/driver/location",
+       "waitS": 6045.7
+      },
+      {
+       "holdS": 100.63,
+       "n": 22175,
+       "path": "http:POST /v1/session/telegram",
+       "waitS": 4435.16
+      },
+      {
+       "holdS": 85.9,
+       "n": 15863,
+       "path": "http:POST /webhook/telegram/driver",
+       "waitS": 3428.13
+      },
+      {
+       "holdS": 73.61,
+       "n": 17749,
+       "path": "http:POST /v1/onboarding/driver",
+       "waitS": 3377.79
+      },
+      {
+       "holdS": 39.92,
+       "n": 13772,
+       "path": "http:GET /v1/rides/:id/trip-events",
+       "waitS": 3120.89
+      },
+      {
+       "holdS": 79.32,
+       "n": 13726,
+       "path": "http:POST /v1/rides/:id/trip-events/ack",
+       "waitS": 3106.4
+      }
+     ],
+     "totalHoldS": 975.06,
+     "totalWaitS": 42785.14,
+     "windows": 54
+    },
+    "verdict": "FAIL",
+    "wave": "load01loc-locab-B1-i81-M-1500"
+   },
+   "location": {
+    "acq_dist": {
+     "7": 4929,
+     "8": 27
+    },
+    "acq_per_req": 7.0054,
+    "hold_ms_per_req": 21.89,
+    "non2xx_pct": 0.0,
+    "requests": 4956,
+    "server_ms": {
+     "p50": 1369.3,
+     "p95": 2046.6,
+     "p99": 2136.1
+    },
+    "sig_account": 0,
+    "sig_combined": 4956,
+    "sig_driver": 0,
+    "sigs": {
+     "insert into tracking_sessions (driver_id, city_id, trip_id, started_at": 4956,
+     "select": 4956,
+     "select city_id, key, value, value_type from platform_settings where ci": 27,
+     "select coalesce( (select a.is_available from driver_availability a whe": 4956,
+     "select id from orders where assigned_driver_id =": 4956,
+     "select u.role::text as role, u.is_blocked, u.language_code, d.id as dr": 4956,
+     "with current as ( select": 4956,
+     "with current as ( select id from drivers where id =": 4956
+    },
+    "status": {
+     "200": 4956
+    },
+    "wait_ms_per_req": 1219.9
+   }
+  },
+  "B2": {
+   "arm": "B",
+   "base": {
+    "contact_acq": {
+     "gateAcq": 24740,
+     "jobs": 12370,
+     "per_job": 2.0
+    },
+    "failedGates": [
+     "G1",
+     "P2"
+    ],
+    "g1": {
+     "ok": 4861,
+     "pct": 39.3,
+     "total": 12370
+    },
+    "gates": {
+     "CONC-peak": "peak 1500 / target 1500",
+     "EGRESS-CLASSIFIED": "unknown +0",
+     "G1": "39.30% (4861/12370)✗",
+     "G2": "0",
+     "G3": "0 + 0",
+     "G4": "CLEAN",
+     "G5": "0",
+     "G6": "0.00% (0)",
+     "G7": "0.00%",
+     "G8": "0",
+     "GW-STABILITY": "stable",
+     "I1-identities": "riders 12370/12370 · drivers 12370/12370",
+     "P1": "713ms",
+     "P2": "1035ms✗",
+     "P3": "698ms",
+     "P4": "6174ms",
+     "P5": "11412ms",
+     "P6a": "1309ms",
+     "P6b": "1361ms",
+     "P6c": "1345ms",
+     "P7": "109s",
+     "P8": "0.00%",
+     "P9": "0.00%"
+    },
+    "onboarding": {
+     "contact_jobs": {
+      "max_ms": 31034,
+      "n": 12370,
+      "over_20s": 7415,
+      "over_20s_share": 0.5994,
+      "p50_ms": 21958,
+      "p90_ms": 26203,
+      "p99_ms": 30959,
+      "status": {
+       "done": 12370
+      }
+     },
+     "failed_step_patterns": {
+      "ok|200|timeout|201|True": 553,
+      "ok|200|timeout|409|False": 6956
+     },
+     "failed_with_phoneProofJob_timeout_share": 1.0,
+     "little": {
+      "contact_arrival_span_s": 179.377,
+      "exec_share_gateWait": 0.9523,
+      "jobs_per_s_measured": 89.03,
+      "lane_ceiling_jobs_per_s": 98.92,
+      "lane_utilization": 0.9,
+      "lanes": 32,
+      "per_job_ms_claim_plus_exec": 323.48
+     },
+     "onboarding_failed": 7509,
+     "timeline_all": {
+      "claim": 101.09,
+      "exec": 222.39,
+      "gateWait": 211.79,
+      "n": 15970,
+      "notDone": 0,
+      "queue": 19653.52,
+      "queue_p50": 20713.32
+     }
+    },
+    "pool": {
+     "driver_location": {
+      "drainer": false,
+      "holdS": 106.42,
+      "maxWindowP95Ms": 432.8,
+      "n": 34071,
+      "path": "http:POST /v1/driver/location",
+      "waitMsPerCall": 177.45,
+      "waitS": 6045.96
+     },
+     "saturatedWindows": 38,
+     "seats": 5,
+     "top_wait_paths": [
+      {
+       "holdS": 106.42,
+       "n": 34071,
+       "path": "http:POST /v1/driver/location",
+       "waitS": 6045.96
+      },
+      {
+       "holdS": 100.4,
+       "n": 22092,
+       "path": "http:POST /v1/session/telegram",
+       "waitS": 4415.39
+      },
+      {
+       "holdS": 87.91,
+       "n": 15970,
+       "path": "http:POST /webhook/telegram/driver",
+       "waitS": 3465.58
+      },
+      {
+       "holdS": 73.08,
+       "n": 17795,
+       "path": "http:POST /v1/onboarding/driver",
+       "waitS": 3319.54
+      },
+      {
+       "holdS": 40.37,
+       "n": 13480,
+       "path": "http:GET /v1/rides/:id/trip-events",
+       "waitS": 3213.39
+      },
+      {
+       "holdS": 76.3,
+       "n": 13415,
+       "path": "http:POST /v1/rides/:id/trip-events/ack",
+       "waitS": 3172.27
+      }
+     ],
+     "totalHoldS": 971.01,
+     "totalWaitS": 43017.25,
+     "windows": 53
+    },
+    "verdict": "FAIL",
+    "wave": "load01loc-locab-B2-i82-M-1500"
+   },
+   "location": {
+    "acq_dist": {
+     "7": 4817,
+     "8": 44
+    },
+    "acq_per_req": 7.0091,
+    "hold_ms_per_req": 21.89,
+    "non2xx_pct": 0.0,
+    "requests": 4861,
+    "server_ms": {
+     "p50": 1426.8,
+     "p95": 2091.5,
+     "p99": 2277.6
+    },
+    "sig_account": 0,
+    "sig_combined": 4861,
+    "sig_driver": 0,
+    "sigs": {
+     "insert into tracking_sessions (driver_id, city_id, trip_id, started_at": 4861,
+     "select": 4861,
+     "select city_id, key, value, value_type from platform_settings where ci": 44,
+     "select coalesce( (select a.is_available from driver_availability a whe": 4861,
+     "select id from orders where assigned_driver_id =": 4861,
+     "select u.role::text as role, u.is_blocked, u.language_code, d.id as dr": 4861,
+     "with current as ( select": 4861,
+     "with current as ( select id from drivers where id =": 4861
+    },
+    "status": {
+     "200": 4861
+    },
+    "wait_ms_per_req": 1243.8
+   }
+  },
+  "B3": {
+   "arm": "B",
+   "base": {
+    "contact_acq": {
+     "gateAcq": 24836,
+     "jobs": 12418,
+     "per_job": 2.0
+    },
+    "failedGates": [
+     "G1"
+    ],
+    "g1": {
+     "ok": 5093,
+     "pct": 41.01,
+     "total": 12418
+    },
+    "gates": {
+     "CONC-peak": "peak 1500 / target 1500",
+     "EGRESS-CLASSIFIED": "unknown +0",
+     "G1": "41.01% (5093/12418)✗",
+     "G2": "0",
+     "G3": "0 + 0",
+     "G4": "CLEAN",
+     "G5": "0",
+     "G6": "0.00% (0)",
+     "G7": "0.00%",
+     "G8": "0",
+     "GW-STABILITY": "stable",
+     "I1-identities": "riders 12418/12418 · drivers 12418/12418",
+     "P1": "742ms",
+     "P2": "844ms",
+     "P3": "748ms",
+     "P4": "6587ms",
+     "P5": "11183ms",
+     "P6a": "1137ms",
+     "P6b": "1373ms",
+     "P6c": "1235ms",
+     "P7": "98s",
+     "P8": "0.00%",
+     "P9": "0.00%"
+    },
+    "onboarding": {
+     "contact_jobs": {
+      "max_ms": 31104,
+      "n": 12418,
+      "over_20s": 7254,
+      "over_20s_share": 0.5842,
+      "p50_ms": 22228,
+      "p90_ms": 25984,
+      "p99_ms": 30946,
+      "status": {
+       "done": 12418
+      }
+     },
+     "failed_step_patterns": {
+      "ok|200|timeout|201|True": 455,
+      "ok|200|timeout|409|False": 6870
+     },
+     "failed_with_phoneProofJob_timeout_share": 1.0,
+     "little": {
+      "contact_arrival_span_s": 178.805,
+      "exec_share_gateWait": 0.9531,
+      "jobs_per_s_measured": 89.58,
+      "lane_ceiling_jobs_per_s": 99.05,
+      "lane_utilization": 0.9045,
+      "lanes": 32,
+      "per_job_ms_claim_plus_exec": 323.08
+     },
+     "onboarding_failed": 7325,
+     "timeline_all": {
+      "claim": 100.7,
+      "exec": 222.38,
+      "gateWait": 211.95,
+      "n": 16018,
+      "notDone": 0,
+      "queue": 19549.27,
+      "queue_p50": 20817.99
+     }
+    },
+    "pool": {
+     "driver_location": {
+      "drainer": false,
+      "holdS": 106.61,
+      "maxWindowP95Ms": 399.52,
+      "n": 35679,
+      "path": "http:POST /v1/driver/location",
+      "waitMsPerCall": 174.54,
+      "waitS": 6227.47
+     },
+     "saturatedWindows": 38,
+     "seats": 5,
+     "top_wait_paths": [
+      {
+       "holdS": 106.61,
+       "n": 35679,
+       "path": "http:POST /v1/driver/location",
+       "waitS": 6227.47
+      },
+      {
+       "holdS": 100.09,
+       "n": 22604,
+       "path": "http:POST /v1/session/telegram",
+       "waitS": 4408
+      },
+      {
+       "holdS": 86.96,
+       "n": 16018,
+       "path": "http:POST /webhook/telegram/driver",
+       "waitS": 3401.9
+      },
+      {
+       "holdS": 73.33,
+       "n": 17979,
+       "path": "http:POST /v1/onboarding/driver",
+       "waitS": 3376.34
+      },
+      {
+       "holdS": 41.75,
+       "n": 14304,
+       "path": "http:GET /v1/rides/:id/trip-events",
+       "waitS": 3280.85
+      },
+      {
+       "holdS": 77.85,
+       "n": 14249,
+       "path": "http:POST /v1/rides/:id/trip-events/ack",
+       "waitS": 3246.79
+      }
+     ],
+     "totalHoldS": 979.35,
+     "totalWaitS": 43676.24,
+     "windows": 53
+    },
+    "verdict": "FAIL",
+    "wave": "load01loc-locab-B3-i85-M-1500"
+   },
+   "location": {
+    "acq_dist": {
+     "7": 5065,
+     "8": 28
+    },
+    "acq_per_req": 7.0055,
+    "hold_ms_per_req": 20.93,
+    "non2xx_pct": 0.0,
+    "requests": 5093,
+    "server_ms": {
+     "p50": 1403.8,
+     "p95": 2000.3,
+     "p99": 2292.7
+    },
+    "sig_account": 0,
+    "sig_combined": 5093,
+    "sig_driver": 0,
+    "sigs": {
+     "insert into tracking_sessions (driver_id, city_id, trip_id, started_at": 5093,
+     "select": 5093,
+     "select city_id, key, value, value_type from platform_settings where ci": 28,
+     "select coalesce( (select a.is_available from driver_availability a whe": 5093,
+     "select id from orders where assigned_driver_id =": 5093,
+     "select u.role::text as role, u.is_blocked, u.language_code, d.id as dr": 5093,
+     "with current as ( select": 5093,
+     "with current as ( select id from drivers where id =": 5093
+    },
+    "status": {
+     "200": 5093
+    },
+    "wait_ms_per_req": 1222.8
+   }
+  },
+  "B4": {
+   "arm": "B",
+   "base": {
+    "contact_acq": {
+     "gateAcq": 24830,
+     "jobs": 12415,
+     "per_job": 2.0
+    },
+    "failedGates": [
+     "G1"
+    ],
+    "g1": {
+     "ok": 5080,
+     "pct": 40.92,
+     "total": 12415
+    },
+    "gates": {
+     "CONC-peak": "peak 1500 / target 1500",
+     "EGRESS-CLASSIFIED": "unknown +0",
+     "G1": "40.92% (5080/12415)✗",
+     "G2": "0",
+     "G3": "0 + 0",
+     "G4": "CLEAN",
+     "G5": "0",
+     "G6": "0.00% (0)",
+     "G7": "0.00%",
+     "G8": "0",
+     "GW-STABILITY": "stable",
+     "I1-identities": "riders 12415/12415 · drivers 12415/12415",
+     "P1": "620ms",
+     "P2": "728ms",
+     "P3": "670ms",
+     "P4": "5733ms",
+     "P5": "9681ms",
+     "P6a": "1262ms",
+     "P6b": "1317ms",
+     "P6c": "1223ms",
+     "P7": "105s",
+     "P8": "0.00%",
+     "P9": "0.00%"
+    },
+    "onboarding": {
+     "contact_jobs": {
+      "max_ms": 29505,
+      "n": 12415,
+      "over_20s": 7228,
+      "over_20s_share": 0.5822,
+      "p50_ms": 21898,
+      "p90_ms": 25711,
+      "p99_ms": 29393,
+      "status": {
+       "done": 12415
+      }
+     },
+     "failed_step_patterns": {
+      "ok|200|timeout|201|True": 505,
+      "ok|200|timeout|409|False": 6830
+     },
+     "failed_with_phoneProofJob_timeout_share": 1.0,
+     "little": {
+      "contact_arrival_span_s": 180.032,
+      "exec_share_gateWait": 0.9526,
+      "jobs_per_s_measured": 88.96,
+      "lane_ceiling_jobs_per_s": 100.02,
+      "lane_utilization": 0.8894,
+      "lanes": 32,
+      "per_job_ms_claim_plus_exec": 319.94
+     },
+     "onboarding_failed": 7335,
+     "timeline_all": {
+      "claim": 99.21,
+      "exec": 220.73,
+      "gateWait": 210.27,
+      "n": 16015,
+      "notDone": 0,
+      "queue": 19513.24,
+      "queue_p50": 20561.99
+     }
+    },
+    "pool": {
+     "driver_location": {
+      "drainer": false,
+      "holdS": 105.76,
+      "maxWindowP95Ms": 371.57,
+      "n": 35593,
+      "path": "http:POST /v1/driver/location",
+      "waitMsPerCall": 171.27,
+      "waitS": 6095.94
+     },
+     "saturatedWindows": 38,
+     "seats": 5,
+     "top_wait_paths": [
+      {
+       "holdS": 105.76,
+       "n": 35593,
+       "path": "http:POST /v1/driver/location",
+       "waitS": 6095.94
+      },
+      {
+       "holdS": 98.18,
+       "n": 22575,
+       "path": "http:POST /v1/session/telegram",
+       "waitS": 4333.43
+      },
+      {
+       "holdS": 84.76,
+       "n": 16015,
+       "path": "http:POST /webhook/telegram/driver",
+       "waitS": 3306.28
+      },
+      {
+       "holdS": 73.03,
+       "n": 18017,
+       "path": "http:POST /v1/onboarding/driver",
+       "waitS": 3294.19
+      },
+      {
+       "holdS": 41.54,
+       "n": 14464,
+       "path": "http:GET /v1/rides/:id/trip-events",
+       "waitS": 3271.26
+      },
+      {
+       "holdS": 83.23,
+       "n": 14402,
+       "path": "http:POST /v1/rides/:id/trip-events/ack",
+       "waitS": 3238.23
+      }
+     ],
+     "totalHoldS": 971.5,
+     "totalWaitS": 42736.28,
+     "windows": 53
+    },
+    "verdict": "FAIL",
+    "wave": "load01loc-locab-B4-i86-M-1500"
+   },
+   "location": {
+    "acq_dist": {
+     "7": 5047,
+     "8": 33
+    },
+    "acq_per_req": 7.0065,
+    "hold_ms_per_req": 20.82,
+    "non2xx_pct": 0.0,
+    "requests": 5080,
+    "server_ms": {
+     "p50": 1318.8,
+     "p95": 2016.9,
+     "p99": 2137.1
+    },
+    "sig_account": 0,
+    "sig_combined": 5080,
+    "sig_driver": 0,
+    "sigs": {
+     "insert into tracking_sessions (driver_id, city_id, trip_id, started_at": 5080,
+     "select": 5080,
+     "select city_id, key, value, value_type from platform_settings where ci": 33,
+     "select coalesce( (select a.is_available from driver_availability a whe": 5080,
+     "select id from orders where assigned_driver_id =": 5080,
+     "select u.role::text as role, u.is_blocked, u.language_code, d.id as dr": 5080,
+     "with current as ( select": 5080,
+     "with current as ( select id from drivers where id =": 5080
+    },
+    "status": {
+     "200": 5080
+    },
+    "wait_ms_per_req": 1200.0
+   }
+  }
+ }
+}
