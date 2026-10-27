@@ -33,9 +33,66 @@ export interface WaveIn {
         readonly passesWithClaimMs: number;
         readonly pctOfPassElapsed: Record<string, number | null>;
         readonly claimMeanMs: number | null;
+        readonly claimSplit?: {
+          readonly timed: number;
+          readonly coveragePct: number | null;
+          readonly queries: number;
+          readonly skewed: number;
+          readonly pctOfClaim: Record<string, number | null>;
+          readonly perQueryMs: Record<string, number | null>;
+        } | null;
+        readonly loop?: {
+          readonly passes: number;
+          readonly delayMeanUs: number;
+          readonly delayP99Us: number;
+          readonly delayMaxUs: number;
+          readonly eluPct: number | null;
+        } | null;
       };
     };
   } | null;
+}
+
+export type ClaimSplitClass =
+  | "POOL_PIPELINE"
+  | "SERVER"
+  | "EVENT_LOOP"
+  | "POST_OTHER"
+  | "MIXED_CLAIM"
+  | "GAP";
+
+type SplitIn = NonNullable<
+  NonNullable<NonNullable<WaveIn["decomposition"]>["drainPasses"]>["pass"]
+>;
+
+/**
+ * §5.6 CLAIM_SPLIT_RULE (الملحق ج، مسجَّلٌ قبلَ موجتِه). الحصصُ من زمنِ الالتقاطِ الجداريّ:
+ * - GAP: لا تفكيك، أو تغطيةٌ < 90% من النداءات، أو أكثرُ من 1% من الاستعلاماتِ بساعتينِ غيرِ متّسقتين.
+ * - pre ≥ 50 ⇒ POOL_PIPELINE: انتظارُ اتّصالٍ أو أنبوبٍ خلفَ استعلاماتٍ أخرى، أو انتظارُ الخادمِ لـCPU.
+ * - server ≥ 50 ⇒ SERVER.
+ * - post ≥ 50 ⇒ EVENT_LOOP إن بلغَ متوسّطُ تأخّرِ الحلقةِ خلالَ الأشواطِ ≥ 50% من متوسّطِ post لكلِّ
+ *   استعلام، وإلّا POST_OTHER.
+ * - وإلّا MIXED_CLAIM.
+ */
+export function claimSplitClassOf(pass: SplitIn | undefined): ClaimSplitClass {
+  const cs = pass?.claimSplit;
+  if (cs === undefined || cs === null) return "GAP";
+  if (cs.coveragePct === null || cs.coveragePct < 90) return "GAP";
+  if (cs.queries > 0 && cs.skewed / cs.queries > 0.01) return "GAP";
+  const pre = cs.pctOfClaim.pre ?? 0;
+  const server = cs.pctOfClaim.server ?? 0;
+  const post = cs.pctOfClaim.post ?? 0;
+  if (pre >= 50) return "POOL_PIPELINE";
+  if (server >= 50) return "SERVER";
+  if (post >= 50) {
+    const perPost = cs.perQueryMs.post ?? null;
+    const loopMs =
+      pass?.loop === undefined || pass.loop === null ? null : pass.loop.delayMeanUs / 1000;
+    return perPost !== null && perPost > 0 && loopMs !== null && loopMs >= 0.5 * perPost
+      ? "EVENT_LOOP"
+      : "POST_OTHER";
+  }
+  return "MIXED_CLAIM";
 }
 
 export type DrainClass = "CLAIM_SERIAL" | "CITY_CAP" | "LANES" | "MIXED_DRAIN" | "GAP";
@@ -167,8 +224,33 @@ export function verdictOf(waves: readonly WaveIn[]) {
       : dTop !== undefined && dTop[1] >= 2 && dTop[1] > dGood.length / 2
         ? dTop[0]
         : "INCONCLUSIVE";
+  // §5.6 CLAIM_SPLIT_RULE — الموجاتُ الصالحةُ التي فيها تفكيكٌ (ذراعُ ON).
+  const splitWaves = waves
+    .filter((w) => w.valid && (w.decomposition?.drainPasses?.pass?.claimSplit ?? null) !== null)
+    .map((w) => {
+      const pass = w.decomposition?.drainPasses?.pass;
+      return {
+        slot: w.slot,
+        class: claimSplitClassOf(pass),
+        coveragePct: pass?.claimSplit?.coveragePct ?? null,
+        pctOfClaim: pass?.claimSplit?.pctOfClaim ?? null,
+        perQueryMs: pass?.claimSplit?.perQueryMs ?? null,
+        loop: pass?.loop ?? null,
+      };
+    });
+  const sGood = splitWaves.filter((x) => x.class !== "GAP");
+  const sCounts: Record<string, number> = {};
+  for (const x of sGood) sCounts[x.class] = (sCounts[x.class] ?? 0) + 1;
+  const sTop = Object.entries(sCounts).sort((a, b) => b[1] - a[1])[0];
+  const splitDecision =
+    sGood.length < 2
+      ? "MEASUREMENT_GAP"
+      : sTop !== undefined && sTop[1] >= 2 && sTop[1] > sGood.length / 2
+        ? sTop[0]
+        : "INCONCLUSIVE";
   return {
     rule: "PROTOCOL-load01-notice-trace §5",
+    claimSplit: { decision: splitDecision, classCounts: sCounts, waves: splitWaves },
     drain: { decision: drain, classCounts: dCounts, waves: drainWaves },
     validOn: on.length,
     validOff: off.length,
@@ -250,6 +332,6 @@ if (import.meta.main) {
   const verdict = { waves, ...verdictOf(waves) };
   writeFileSync(out, `${JSON.stringify(verdict, null, 2)}\n`);
   console.log(
-    `NOTICE_TRACE_VERDICT attribution=${verdict.attribution.decision} drain=${verdict.drain.decision} overhead=${verdict.overhead.decision} repro=${verdict.repro.reproduced} validOn=${verdict.validOn} validOff=${verdict.validOff}`,
+    `NOTICE_TRACE_VERDICT attribution=${verdict.attribution.decision} drain=${verdict.drain.decision} claim_split=${verdict.claimSplit.decision} overhead=${verdict.overhead.decision} repro=${verdict.repro.reproduced} validOn=${verdict.validOn} validOff=${verdict.validOff}`,
   );
 }

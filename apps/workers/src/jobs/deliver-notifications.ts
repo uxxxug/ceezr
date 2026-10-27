@@ -118,6 +118,49 @@ export function notificationAttemptTraceFromEnv(
   return { enabled, kinds, invalid: [...new Set(invalid)] };
 }
 
+/**
+ * `LOAD-01` (CLAIM-SPLIT): `NOTIFICATION_CLAIM_SPLIT=1` يُشعلُ تفكيكَ زمنِ الالتقاطِ ومسبارَ حلقةِ
+ * الأحداث. والغيابُ أو `0` = مطفأ. وقيمةٌ أخرى تُطفئُه وتُعلَن (`invalid`)، لا تُخمَّن.
+ */
+export function notificationClaimSplitFromEnv(env: Readonly<Record<string, string | undefined>>): {
+  readonly enabled: boolean;
+  readonly invalid: boolean;
+} {
+  const raw = env.NOTIFICATION_CLAIM_SPLIT?.trim() ?? "";
+  return { enabled: raw === "1", invalid: raw !== "" && raw !== "0" && raw !== "1" };
+}
+
+/** حقولُ سطرِ الشوطِ للتفكيك: أعدادٌ صحيحةٌ وحدَها (ms وµs و‰) — قائمةٌ مغلقةٌ يثبّتُها اختبار. */
+export function notificationClaimSplitLogFields(
+  split: {
+    readonly timed: number;
+    readonly queries: number;
+    readonly preMs: number;
+    readonly serverMs: number;
+    readonly postMs: number;
+    readonly skewed: number;
+  },
+  loop: {
+    readonly delayMeanUs: number;
+    readonly delayP99Us: number;
+    readonly delayMaxUs: number;
+    readonly eluPermille: number;
+  },
+): string[] {
+  return [
+    `claim_timed=${split.timed}`,
+    `claim_queries=${split.queries}`,
+    `claim_pre_ms=${Math.round(split.preMs)}`,
+    `claim_server_ms=${Math.round(split.serverMs)}`,
+    `claim_post_ms=${Math.round(split.postMs)}`,
+    `claim_skewed=${split.skewed}`,
+    `el_delay_mean_us=${loop.delayMeanUs}`,
+    `el_delay_p99_us=${loop.delayP99Us}`,
+    `el_delay_max_us=${loop.delayMaxUs}`,
+    `elu_permille=${loop.eluPermille}`,
+  ];
+}
+
 export function traceCoversKind(settings: NotificationAttemptTraceSettings, kind: string): boolean {
   return settings.enabled && (settings.kinds === null || settings.kinds.has(kind));
 }

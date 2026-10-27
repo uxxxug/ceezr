@@ -364,6 +364,41 @@ describe("القراءة", () => {
     expect(passTotalsOf([]).claimMeanMs).toBeNull();
   });
 
+  test("CLAIM-SPLIT: حصصُ pre/server/post من زمنِ الالتقاط، والحلقةُ بمتوسّطٍ موزونٍ بزمنِ الشوط", () => {
+    const line = (at: string, detail: string) =>
+      `{"at":"${at}","event":"job.ran","job":"deliver-notifications","durationMs":8000,"detail":"${detail}"}`;
+    const r = parseLog(
+      [
+        line(
+          "2026-10-27T00:00:10.000Z",
+          "claimed=100 elapsed_ms=6000 stop=budget claim_calls=100 claim_ms=1000 claim_timed=100 claim_queries=190 claim_pre_ms=600 claim_server_ms=200 claim_post_ms=150 claim_skewed=0 el_delay_mean_us=1000 el_delay_p99_us=4000 el_delay_max_us=9000 elu_permille=900",
+        ),
+        line(
+          "2026-10-27T00:00:20.000Z",
+          "claimed=50 elapsed_ms=2000 stop=budget claim_calls=100 claim_ms=1000 claim_timed=90 claim_queries=170 claim_pre_ms=400 claim_server_ms=200 claim_post_ms=-1 claim_skewed=2 el_delay_mean_us=5000 el_delay_p99_us=8000 el_delay_max_us=20000 elu_permille=-1",
+        ),
+      ].join("\n"),
+    );
+    const t = passTotalsOf(r.passes);
+    expect(t.claimSplit).toEqual({
+      timed: 190,
+      coveragePct: 95,
+      queries: 360,
+      skewed: 2,
+      pctOfClaim: { pre: 50, server: 20, post: 7.5, adapter_other: 22.6 },
+      perQueryMs: { pre: 2.78, server: 1.11, post: 0.41 },
+    });
+    expect(t.loop).toEqual({
+      passes: 2,
+      delayMeanUs: 2000,
+      delayP99Us: 5000,
+      delayMaxUs: 20000,
+      eluPct: 90,
+    });
+    expect(passTotalsOf([]).claimSplit).toBeNull();
+    expect(passTotalsOf([]).loop).toBeNull();
+  });
+
   test("parseRows: يتطلّبُ الترويسة، ويُسقطُ غيرَ العشوائيِّ ويعقّمُ الحدث", () => {
     const rows = parseRows(
       `id,kind,event,created_ms\n${ID},rider_trip_notice,MATCHED,5\nbad,rider_trip_notice,MATCHED,6\n${ID2},rider_trip_notice,hello world,7\n`,

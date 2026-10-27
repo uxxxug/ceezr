@@ -298,6 +298,21 @@ export const PASS_FIELDS = [
   "saturated_wait_ms",
   "congestion_sleep_ms",
   "congestion_requeues",
+  // CLAIM-SPLIT (الملحق ج): أجزاءُ الالتقاطِ وحلقةُ الأحداثِ خلالَ الشوط.
+  "claim_timed",
+  "claim_queries",
+  "claim_pre_ms",
+  "claim_server_ms",
+  "claim_post_ms",
+  "claim_skewed",
+] as const;
+
+/** حقولُ حلقةِ الأحداثِ لكلِّ شوط: تُجمَعُ بمتوسّطٍ موزونٍ بزمنِ الشوطِ أو بالأقصى، لا بالجمع. */
+export const LOOP_FIELDS = [
+  "el_delay_mean_us",
+  "el_delay_p99_us",
+  "el_delay_max_us",
+  "elu_permille",
 ] as const;
 
 export function passTotalsOf(passes: readonly PassWindow[]) {
@@ -316,7 +331,74 @@ export function passTotalsOf(passes: readonly PassWindow[]) {
       ? Math.round((1000 * (totals[f] ?? 0)) / el) / 10
       : null;
   const calls = totals.claim_calls;
+  // CLAIM-SPLIT: حصصُ الأجزاءِ من زمنِ الالتقاطِ الجداريّ، والباقي = عملُ المحوّلِ بينَ الاستعلامين.
+  const timed = totals.claim_timed ?? 0;
+  const cm = totals.claim_ms;
+  const ofClaim = (v: number | undefined) =>
+    cm !== undefined && cm > 0 && v !== undefined ? Math.round((1000 * v) / cm) / 10 : null;
+  const pre = totals.claim_pre_ms;
+  const srv = totals.claim_server_ms;
+  const post = totals.claim_post_ms;
+  const loopW = { w: 0, mean: 0, p99: 0, elu: 0, eluW: 0, max: 0, n: 0 };
+  for (const p of passes) {
+    const f = p.fields;
+    if (f?.el_delay_mean_us === undefined) continue;
+    const w = Math.max(1, f.elapsed_ms ?? 1);
+    loopW.n += 1;
+    loopW.w += w;
+    loopW.mean += w * f.el_delay_mean_us;
+    loopW.p99 += w * (f.el_delay_p99_us ?? 0);
+    // elu_permille = -1 ⇒ وقتُ التشغيلِ لا يوفّرها (Bun): تُستبعَدُ لا تُعَدُّ صفرًا.
+    if (f.elu_permille !== undefined && f.elu_permille >= 0) {
+      loopW.elu += w * f.elu_permille;
+      loopW.eluW += w;
+    }
+    loopW.max = Math.max(loopW.max, f.el_delay_max_us ?? 0);
+  }
+  const claimSplit =
+    timed === 0
+      ? null
+      : {
+          timed,
+          coveragePct:
+            calls !== undefined && calls > 0 ? Math.round((1000 * timed) / calls) / 10 : null,
+          queries: totals.claim_queries ?? 0,
+          skewed: totals.claim_skewed ?? 0,
+          pctOfClaim: {
+            pre: ofClaim(pre),
+            server: ofClaim(srv),
+            post: ofClaim(post),
+            adapter_other:
+              pre !== undefined && srv !== undefined && post !== undefined
+                ? ofClaim((cm ?? 0) - pre - srv - post)
+                : null,
+          },
+          /** متوسّطُ كلِّ جزءٍ لكلِّ استعلام (ms). */
+          perQueryMs: {
+            pre: totals.claim_queries
+              ? Math.round((100 * (pre ?? 0)) / totals.claim_queries) / 100
+              : null,
+            server: totals.claim_queries
+              ? Math.round((100 * (srv ?? 0)) / totals.claim_queries) / 100
+              : null,
+            post: totals.claim_queries
+              ? Math.round((100 * (post ?? 0)) / totals.claim_queries) / 100
+              : null,
+          },
+        };
+  const loop =
+    loopW.n === 0
+      ? null
+      : {
+          passes: loopW.n,
+          delayMeanUs: Math.round(loopW.mean / loopW.w),
+          delayP99Us: Math.round(loopW.p99 / loopW.w),
+          delayMaxUs: loopW.max,
+          eluPct: loopW.eluW > 0 ? Math.round(loopW.elu / loopW.eluW) / 10 : null,
+        };
   return {
+    claimSplit,
+    loop,
     totals,
     passesWithClaimMs: withClaimMs,
     /** حصصٌ من زمنِ الأشواطِ الجداريّ (%): الالتقاطُ متسلسلٌ فحصّتُه حدٌّ أدنى لزمنِ الحلقة. */
@@ -598,8 +680,8 @@ export function parseLog(text: string): {
       const m = typeof r.detail === "string" ? /stop=(\w+)/.exec(r.detail) : null;
       const fields: Record<string, number> = {};
       if (typeof r.detail === "string") {
-        for (const f of PASS_FIELDS) {
-          const x = new RegExp(`(?:^| )${f}=(\\d+)(?= |$)`).exec(r.detail);
+        for (const f of [...PASS_FIELDS, ...LOOP_FIELDS]) {
+          const x = new RegExp(`(?:^| )${f}=(-?\\d+)(?= |$)`).exec(r.detail);
           if (x?.[1] !== undefined) fields[f] = Number(x[1]);
         }
       }

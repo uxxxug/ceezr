@@ -18,9 +18,10 @@ sed -i '/^CITIES=/d;/^CITY=/d' $B/secrets.env
 [ -n "${LOAD01M_CITIES:-}" ] && printf 'CITIES=%s\n' "$LOAD01M_CITIES" >> $B/secrets.env
 [ -n "${LOAD01M_CITY:-}" ] && printf 'CITY=%s\n' "$LOAD01M_CITY" >> $B/secrets.env
 # LOAD-01 (تفكيكُ P7): أثرُ محاولاتِ التسليمِ يُشعَلُ للموجةِ بـNOTICE_TRACE_KIND وحدَه، ويُنظَّفُ قبلَها دائمًا.
-sed -i '/^NOTIFICATION_ATTEMPT_TRACE=/d;/^NOTIFICATION_ATTEMPT_TRACE_KINDS=/d' $B/secrets.env
+# CLAIM-SPLIT (الملحق ج): تفكيكُ زمنِ الالتقاطِ يتبعُ ذراعَ الأثرِ نفسَه، فكلفتُه داخلَ قياسِ §5.2.
+sed -i '/^NOTIFICATION_ATTEMPT_TRACE=/d;/^NOTIFICATION_ATTEMPT_TRACE_KINDS=/d;/^NOTIFICATION_CLAIM_SPLIT=/d' $B/secrets.env
 if [ -n "${NOTICE_TRACE_KIND:-}" ]; then
-  printf 'NOTIFICATION_ATTEMPT_TRACE=1\nNOTIFICATION_ATTEMPT_TRACE_KINDS=%s\n' "$NOTICE_TRACE_KIND" >> $B/secrets.env
+  printf 'NOTIFICATION_ATTEMPT_TRACE=1\nNOTIFICATION_ATTEMPT_TRACE_KINDS=%s\nNOTIFICATION_CLAIM_SPLIT=1\n' "$NOTICE_TRACE_KIND" >> $B/secrets.env
 fi
 for kv in ${DIAG_EXTRA:-}; do echo "$kv" >> $B/secrets.env; done
 [ -n "${DIAG_POOL:-}" ] && echo "DISPATCH_DIAG_DEDICATED_POOL=$DIAG_POOL" >> $B/secrets.env

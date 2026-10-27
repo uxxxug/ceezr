@@ -63,6 +63,24 @@ export interface FinishResult {
  */
 export type ClaimBackpressure = "CONSUMER_CONCURRENCY";
 
+/**
+ * `LOAD-01` (CLAIM-SPLIT): تفكيكُ زمنِ نداءِ الالتقاطِ الجداريّ، لكلِّ استعلامٍ فيه (الدالّةُ ثمّ قراءةُ
+ * `request_id`)، بساعةِ العاملِ وساعةِ PG على المضيفِ نفسِه:
+ * - `preMs`: من إصدارِ الاستعلامِ حتّى `statement_timestamp()`، أي انتظارُ اتّصالٍ أو أنبوبٍ خلفَ
+ *   استعلاماتٍ أخرى، أو انتظارُ الخادمِ لـCPU، مع رحلةِ الذهاب.
+ * - `serverMs`: من `statement_timestamp()` حتّى `clock_timestamp()` بعدَ الدالّة، أي التنفيذ.
+ * - `postMs`: من `clock_timestamp()` حتّى عودةِ النتيجةِ للعامل، أي رحلةُ العودةِ وتأخّرُ حلقةِ الأحداث.
+ * - `skewed`: استعلاماتٌ بقيمةٍ سالبة، أي أنّ الساعتينِ لم تتّسقا. تُعَدُّ ولا تُخفى.
+ * رصدٌ فقط: يغيّرُ نصَّ الاستعلامِ بعمودينِ للقراءة، ولا يغيّرُ الاتّصالَ ولا الترتيب.
+ */
+export interface ClaimTiming {
+  readonly queries: number;
+  readonly preMs: number;
+  readonly serverMs: number;
+  readonly postMs: number;
+  readonly skewed: number;
+}
+
 export interface NotificationOutboxPort {
   claim(): Promise<
     Result<
@@ -79,6 +97,8 @@ export interface NotificationOutboxPort {
           readonly batchLimit: number;
         } | null;
         backpressure?: ClaimBackpressure | null;
+        /** CLAIM-SPLIT: حاضرٌ حينَ يُشعَلُ تفكيكُ الالتقاطِ وحدَه. */
+        readonly timing?: ClaimTiming;
       },
       PortFailureError
     >
@@ -667,6 +687,15 @@ export interface ConcurrentDrainOutcome extends DeliveryBatchOutcome {
   readonly sendMs: number;
   readonly claimCalls: number;
   readonly claimMs: number;
+  /** CLAIM-SPLIT: نداءاتٌ مفكَّكةٌ وأجزاؤها (أصفارٌ حينَ يكونُ التفكيكُ مطفأً). */
+  readonly claimSplit: {
+    readonly timed: number;
+    readonly queries: number;
+    readonly preMs: number;
+    readonly serverMs: number;
+    readonly postMs: number;
+    readonly skewed: number;
+  };
   readonly laneFullWaitMs: number;
   readonly saturatedWaitMs: number;
   readonly stopReason: ConcurrentDrainStopReason;
@@ -726,6 +755,7 @@ export async function deliverNotificationsConcurrently(
   let sendMs = 0;
   let claimCalls = 0;
   let claimMs = 0;
+  const split = { timed: 0, queries: 0, preMs: 0, serverMs: 0, postMs: 0, skewed: 0 };
   let laneFullWaitMs = 0;
   let saturatedWaitMs = 0;
   let stopReason: ConcurrentDrainStopReason = "empty";
@@ -779,6 +809,15 @@ export async function deliverNotificationsConcurrently(
     const c = await deps.outbox.claim();
     claimCalls += 1;
     claimMs += now() - k0;
+    const timing = c.ok ? c.value.timing : undefined;
+    if (timing !== undefined) {
+      split.timed += 1;
+      split.queries += timing.queries;
+      split.preMs += timing.preMs;
+      split.serverMs += timing.serverMs;
+      split.postMs += timing.postMs;
+      split.skewed += timing.skewed;
+    }
     if (!c.ok) {
       failure.error = c.error;
       break;
@@ -848,6 +887,7 @@ export async function deliverNotificationsConcurrently(
     sendMs,
     claimCalls,
     claimMs,
+    claimSplit: split,
     laneFullWaitMs,
     saturatedWaitMs,
     stopReason,

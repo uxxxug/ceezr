@@ -140,6 +140,45 @@ describe("N1: استنزافُ صندوقِ الصادرِ المتزامن", ()
     expect(r.value.saturatedWaitMs).toBeGreaterThanOrEqual(0);
     expect(r.value.stopReason).toBe("empty");
   });
+  test("CLAIM-SPLIT: claimSplit يجمعُ timing من كلِّ نداءٍ ويبقى أصفارًا بلا timing", async () => {
+    const f = fakeOutbox(offers(10));
+    const claim = f.port.claim;
+    const port: NotificationOutboxPort = {
+      ...f.port,
+      claim: async () => {
+        const r = await claim();
+        if (!r.ok) return r;
+        const queries = r.value.delivery === null ? 1 : 2;
+        return ok({
+          ...r.value,
+          timing: { queries, preMs: 1.5 * queries, serverMs: 2, postMs: 0.5, skewed: 0 },
+        });
+      },
+    };
+    const r = await deliverNotificationsConcurrently(
+      { outbox: port, handlers: f.handlers },
+      { lanes: 4, budgetMs: 5000, maxClaims: 2000 },
+    );
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    const empty = r.value.claimCalls - 10;
+    expect(r.value.claimSplit.timed).toBe(r.value.claimCalls);
+    expect(r.value.claimSplit.queries).toBe(20 + empty);
+    expect(r.value.claimSplit.preMs).toBeCloseTo(1.5 * (20 + empty));
+    expect(r.value.claimSplit.serverMs).toBe(2 * r.value.claimCalls);
+    const plain = await deliverNotificationsConcurrently(
+      { outbox: fakeOutbox(offers(3)).port, handlers: f.handlers },
+      { lanes: 4, budgetMs: 5000, maxClaims: 2000 },
+    );
+    expect(plain.ok && plain.value.claimSplit).toEqual({
+      timed: 0,
+      queries: 0,
+      preMs: 0,
+      serverMs: 0,
+      postMs: 0,
+      skewed: 0,
+    });
+  });
   test("ترتيبُ المفتاح: صفوفُ الطلبِ نفسِه تُرسَلُ بترتيبِ التقاطِها", async () => {
     const rows: Row[] = [];
     for (let i = 0; i < 60; i++)

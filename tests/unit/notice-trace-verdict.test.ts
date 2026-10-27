@@ -1,6 +1,7 @@
 /** LOAD01-NOTICE-TRACE — قواعدُ الحكمِ المسجَّلةُ مسبقًا (§5) كما تُطبَّقُ حرفيًّا. */
 import { describe, expect, test } from "bun:test";
 import {
+  claimSplitClassOf,
   classOf,
   drainClassOf,
   sharesOf,
@@ -140,5 +141,76 @@ describe("§5.5 DRAIN_RULE (ملحق ب)", () => {
       w({ slot: "OFF1", arm: "OFF", decomposition: null }),
     ]);
     expect(gap.drain.decision).toBe("MEASUREMENT_GAP");
+  });
+});
+
+describe("§5.6 CLAIM_SPLIT_RULE (ملحق ج)", () => {
+  type Pct = { pre: number; server: number; post: number };
+  const split = (
+    pct: Pct,
+    o: { coverage?: number; skewed?: number; postMs?: number; loopUs?: number | null } = {},
+  ) => ({
+    passesWithClaimMs: 20,
+    pctOfPassElapsed: { claim: 80 },
+    claimMeanMs: 10,
+    claimSplit: {
+      timed: 1000,
+      coveragePct: o.coverage ?? 100,
+      queries: 1900,
+      skewed: o.skewed ?? 0,
+      pctOfClaim: { ...pct, adapter_other: 100 - pct.pre - pct.server - pct.post },
+      perQueryMs: { pre: 1, server: 1, post: o.postMs ?? 4 },
+    },
+    loop:
+      o.loopUs === null
+        ? null
+        : {
+            passes: 20,
+            delayMeanUs: o.loopUs ?? 3000,
+            delayP99Us: 9000,
+            delayMaxUs: 20000,
+            eluPct: 90,
+          },
+  });
+  test("الأصناف: العتبةُ 50 من زمنِ الالتقاط، وpost يُنسَبُ للحلقةِ بشرطِ تأخّرِها", () => {
+    expect(claimSplitClassOf(split({ pre: 60, server: 20, post: 15 }))).toBe("POOL_PIPELINE");
+    expect(claimSplitClassOf(split({ pre: 20, server: 55, post: 20 }))).toBe("SERVER");
+    expect(claimSplitClassOf(split({ pre: 10, server: 20, post: 65 }))).toBe("EVENT_LOOP");
+    expect(claimSplitClassOf(split({ pre: 10, server: 20, post: 65 }, { loopUs: 1000 }))).toBe(
+      "POST_OTHER",
+    );
+    expect(claimSplitClassOf(split({ pre: 10, server: 20, post: 65 }, { loopUs: null }))).toBe(
+      "POST_OTHER",
+    );
+    expect(claimSplitClassOf(split({ pre: 35, server: 30, post: 30 }))).toBe("MIXED_CLAIM");
+    expect(claimSplitClassOf(split({ pre: 60, server: 20, post: 15 }, { coverage: 80 }))).toBe(
+      "GAP",
+    );
+    expect(claimSplitClassOf(split({ pre: 60, server: 20, post: 15 }, { skewed: 40 }))).toBe("GAP");
+    expect(claimSplitClassOf(undefined)).toBe("GAP");
+  });
+  test("القرار: أغلبيّةٌ ≥2 وأكثرُ من النصف؛ وأقلُّ من موجتينِ صالحتين ⇒ MEASUREMENT_GAP", () => {
+    const d = (p: ReturnType<typeof split>) => ({
+      ...dec({ queue_wait: 90, telegram_limiter: 10 }),
+      drainPasses: { n: 20, idleShareBeforeAudit: 0.3, stopReasons: {}, pass: p },
+    });
+    const v = verdictOf([
+      w({ slot: "ON1", arm: "ON", decomposition: d(split({ pre: 60, server: 20, post: 15 })) }),
+      w({ slot: "ON2", arm: "ON", decomposition: d(split({ pre: 70, server: 10, post: 15 })) }),
+      w({ slot: "ON3", arm: "ON", decomposition: d(split({ pre: 20, server: 60, post: 15 })) }),
+      w({ slot: "OFF1", arm: "OFF", decomposition: dec({ queue_wait: 90 }) }),
+    ]);
+    expect(v.claimSplit.decision).toBe("POOL_PIPELINE");
+    expect(v.claimSplit.classCounts).toEqual({ POOL_PIPELINE: 2, SERVER: 1 });
+    expect(v.claimSplit.waves.map((x) => x.slot)).toEqual(["ON1", "ON2", "ON3"]);
+    const tie = verdictOf([
+      w({ slot: "ON1", arm: "ON", decomposition: d(split({ pre: 60, server: 20, post: 15 })) }),
+      w({ slot: "ON2", arm: "ON", decomposition: d(split({ pre: 20, server: 60, post: 15 })) }),
+    ]);
+    expect(tie.claimSplit.decision).toBe("INCONCLUSIVE");
+    const gap = verdictOf([
+      w({ slot: "ON1", arm: "ON", decomposition: d(split({ pre: 60, server: 20, post: 15 })) }),
+    ]);
+    expect(gap.claimSplit.decision).toBe("MEASUREMENT_GAP");
   });
 });

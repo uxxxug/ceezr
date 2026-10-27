@@ -101,6 +101,10 @@ import {
 } from "../../../packages/infrastructure/geo/location-archive-adapters.ts";
 import { createRedisDriverLocationHotState } from "../../../packages/infrastructure/geo/redis-driver-location-hot-state.ts";
 import {
+  createCalibratedClock,
+  createLoopProbe,
+} from "../../../packages/infrastructure/notification/claim-split-probe.ts";
+import {
   currentAttemptMeter,
   emptyDeliveryAttemptMeter,
   runWithDeliveryAttemptMeter,
@@ -196,6 +200,8 @@ import {
   deliverNotifications,
   notificationAttemptLogFields,
   notificationAttemptTraceFromEnv,
+  notificationClaimSplitFromEnv,
+  notificationClaimSplitLogFields,
   notificationDrainSettingsFromEnv,
   traceCoversKind,
 } from "./jobs/deliver-notifications.ts";
@@ -791,7 +797,15 @@ export function buildWorkerContainer(
    * وتبليغُ صاحبِ التذكرةِ بمُرسِلِ بوتِه هو — بوتُ السائقِ لسائقٍ وبوتُ الراكبِ
    * لراكبٍ — لأنَّ رسالةً خاصّةً من بوتٍ لم يبدأ معه محادثةً لا تصلُ أصلاً.
    */
-  const notificationOutbox = createNotificationOutboxPort(sql);
+  // `LOAD-01` (CLAIM-SPLIT): تفكيكُ زمنِ الالتقاطِ — مُطفأٌ ما لم يُشعَلْ صراحةً؛ والاستعلامُ الافتراضيُّ بنصِّه.
+  const claimSplit = notificationClaimSplitFromEnv(process.env);
+  if (claimSplit.invalid) log.error("notification.claim_split_invalid", {});
+  const claimClock = claimSplit.enabled ? createCalibratedClock() : undefined;
+  const loopProbe = claimSplit.enabled ? createLoopProbe() : undefined;
+  const notificationOutbox = createNotificationOutboxPort(
+    sql,
+    claimClock === undefined ? {} : { claimSplit: claimClock },
+  );
   /**
    * مُراسِلٌ **لكلِّ نوعٍ** لا مُراسِلٌ واحدٌ لثلاثةِ أنواعٍ (`F6-07`): الوسمُ يجري
    * عندَ بناءِ المُرسِلِ، فمُراسِلٌ واحدٌ مشتركٌ كانَ سيَسِمُ الأنواعَ الثلاثةَ بوسمِ
@@ -1648,6 +1662,8 @@ export function buildWorkerContainer(
                 everySeconds: JOB_INTERVALS.deliverNotifications,
                 runOnStart: true,
                 run: async () => {
+                  claimClock?.calibrate();
+                  loopProbe?.start();
                   const report = await deliverNotifications(
                     {
                       outbox: notificationOutbox,
@@ -1706,6 +1722,13 @@ export function buildWorkerContainer(
                           `claim_ms=${report.value.claimMs}`,
                           `lane_full_wait_ms=${report.value.laneFullWaitMs}`,
                           `saturated_wait_ms=${report.value.saturatedWaitMs}`,
+                          // CLAIM-SPLIT: أجزاءُ الالتقاطِ وحلقةُ الأحداثِ خلالَ الشوط (حينَ يُشعَلُ وحدَه).
+                          ...(loopProbe === undefined
+                            ? []
+                            : notificationClaimSplitLogFields(
+                                report.value.claimSplit,
+                                loopProbe.read(),
+                              )),
                         ]
                       : []),
                   ].join(" ");
@@ -1992,6 +2015,7 @@ export function buildWorkerContainer(
     },
 
     close: async () => {
+      loopProbe?.stop();
       // تجمّع القفل يُغلق أولاً: اتصالٌ يحمل قفلاً يُنهى فيسقط القفل معه فوراً،
       // فلا تنتظر النسخة التالية انقضاء مهلة اتصال ميت لتأخذ ما هو متروك أصلاً.
       if (overrides.lockSql === undefined) await lockSql.end({ timeout: 5 });
