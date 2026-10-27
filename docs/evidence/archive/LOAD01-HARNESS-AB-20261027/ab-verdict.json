@@ -1,0 +1,260 @@
+{
+ "rule": {
+  "minPairs": 3,
+  "effectPp": 5,
+  "nullPp": 2
+ },
+ "controlStatements": 22,
+ "waves": [
+  {
+   "slot": "A1",
+   "superseded": false,
+   "raw": "/home/user/load01harness-out/raw/load01harness-harab-A1-i80-M-1500",
+   "seat": {
+    "cpuModel": "AMD EPYC 7763 64-Core Processor",
+    "idleSpeedProbeMs": 339.2,
+    "idlePgProbeMs": 373.8
+   },
+   "valid": true,
+   "g1": {
+    "ok": 5477,
+    "total": 12445,
+    "pct": 44.01
+   },
+   "pairedComparability": {
+    "verdict": "COMPARABLE",
+    "reasons": []
+   },
+   "hardwareFactor": 1,
+   "claimMeanMs": 3.48,
+   "contactQueueP50Ms": 21145.25,
+   "contactExecMeanMs": 206.42,
+   "sweepsTruncatedShare": 0.958
+  },
+  {
+   "slot": "B1",
+   "superseded": false,
+   "raw": "/home/user/load01harness-out/raw/load01harness-harab-B1-i81-M-1500",
+   "seat": {
+    "cpuModel": "AMD EPYC 7763 64-Core Processor",
+    "idleSpeedProbeMs": 338.9,
+    "idlePgProbeMs": 375.7
+   },
+   "valid": true,
+   "g1": {
+    "ok": 6756,
+    "total": 12294,
+    "pct": 54.95
+   },
+   "pairedComparability": {
+    "verdict": "COMPARABLE",
+    "reasons": []
+   },
+   "hardwareFactor": 0.93,
+   "claimMeanMs": 3.37,
+   "contactQueueP50Ms": 18592.3,
+   "contactExecMeanMs": 219.65,
+   "sweepsTruncatedShare": 0.958
+  },
+  {
+   "slot": "B2",
+   "superseded": false,
+   "raw": "/home/user/load01harness-out/raw/load01harness-harab-B2-i82-M-1500",
+   "seat": {
+    "cpuModel": "AMD EPYC 7763 64-Core Processor",
+    "idleSpeedProbeMs": 339.4,
+    "idlePgProbeMs": 372.7
+   },
+   "valid": true,
+   "g1": {
+    "ok": 6819,
+    "total": 12319,
+    "pct": 55.35
+   },
+   "pairedComparability": {
+    "verdict": "COMPARABLE",
+    "reasons": []
+   },
+   "hardwareFactor": 0.94,
+   "claimMeanMs": 3.21,
+   "contactQueueP50Ms": 18757.13,
+   "contactExecMeanMs": 227.09,
+   "sweepsTruncatedShare": 0.958
+  },
+  {
+   "slot": "A2",
+   "superseded": false,
+   "raw": "/home/user/load01harness-out/raw/load01harness-harab-A2-i83-M-1500",
+   "seat": {
+    "cpuModel": "AMD EPYC 7763 64-Core Processor",
+    "idleSpeedProbeMs": 339.1,
+    "idlePgProbeMs": 375.1
+   },
+   "valid": true,
+   "g1": {
+    "ok": 5575,
+    "total": 12420,
+    "pct": 44.89
+   },
+   "pairedComparability": {
+    "verdict": "COMPARABLE",
+    "reasons": []
+   },
+   "hardwareFactor": 1,
+   "claimMeanMs": 3.53,
+   "contactQueueP50Ms": 20938.49,
+   "contactExecMeanMs": 213.73,
+   "sweepsTruncatedShare": 0.958
+  },
+  {
+   "slot": "A3",
+   "superseded": false,
+   "raw": "/home/user/load01harness-out/raw/load01harness-harab-A3-i84-M-1500",
+   "seat": {
+    "cpuModel": "AMD EPYC 7763 64-Core Processor",
+    "idleSpeedProbeMs": 339.4,
+    "idlePgProbeMs": 374.9
+   },
+   "valid": true,
+   "g1": {
+    "ok": 5355,
+    "total": 12367,
+    "pct": 43.3
+   },
+   "pairedComparability": {
+    "verdict": "COMPARABLE",
+    "reasons": []
+   },
+   "hardwareFactor": 1,
+   "claimMeanMs": 3.3,
+   "contactQueueP50Ms": 21079.96,
+   "contactExecMeanMs": 208.39,
+   "sweepsTruncatedShare": 0.958
+  },
+  {
+   "slot": "B3",
+   "superseded": false,
+   "raw": "/home/user/load01harness-out/raw/load01harness-harab-B3-i85-M-1500",
+   "seat": {
+    "cpuModel": "AMD EPYC 7763 64-Core Processor",
+    "idleSpeedProbeMs": 339,
+    "idlePgProbeMs": 374.4
+   },
+   "valid": true,
+   "g1": {
+    "ok": 6568,
+    "total": 12391,
+    "pct": 53.01
+   },
+   "pairedComparability": {
+    "verdict": "COMPARABLE",
+    "reasons": []
+   },
+   "hardwareFactor": 0.95,
+   "claimMeanMs": 3.46,
+   "contactQueueP50Ms": 19238.14,
+   "contactExecMeanMs": 212.88,
+   "sweepsTruncatedShare": 0.958
+  },
+  {
+   "slot": "B4",
+   "superseded": false,
+   "raw": "/home/user/load01harness-out/raw/load01harness-harab-B4-i86-M-1500",
+   "seat": {
+    "cpuModel": "AMD EPYC 7763 64-Core Processor",
+    "idleSpeedProbeMs": 338.9,
+    "idlePgProbeMs": 371.8
+   },
+   "valid": true,
+   "g1": {
+    "ok": 6656,
+    "total": 12432,
+    "pct": 53.54
+   },
+   "pairedComparability": {
+    "verdict": "COMPARABLE",
+    "reasons": []
+   },
+   "hardwareFactor": 0.95,
+   "claimMeanMs": 3.27,
+   "contactQueueP50Ms": 19156.4,
+   "contactExecMeanMs": 207.34,
+   "sweepsTruncatedShare": 0.958
+  },
+  {
+   "slot": "A4",
+   "superseded": false,
+   "raw": "/home/user/load01harness-out/raw/load01harness-harab-A4-i87-M-1500",
+   "seat": {
+    "cpuModel": "AMD EPYC 7763 64-Core Processor",
+    "idleSpeedProbeMs": 339.2,
+    "idlePgProbeMs": 375.8
+   },
+   "valid": true,
+   "g1": {
+    "ok": 5481,
+    "total": 12452,
+    "pct": 44.02
+   },
+   "pairedComparability": {
+    "verdict": "COMPARABLE",
+    "reasons": []
+   },
+   "hardwareFactor": 1,
+   "claimMeanMs": 3.52,
+   "contactQueueP50Ms": 21266.63,
+   "contactExecMeanMs": 204.26,
+   "sweepsTruncatedShare": 0.958
+  }
+ ],
+ "claimMeanMsByArm": {
+  "A": 3.46,
+  "B": 3.33
+ },
+ "verdict": {
+  "decision": "B_BETTER",
+  "why": "mean Δ 10.16pp ≥ 5 and every pair Δ > 0",
+  "pairs": [
+   {
+    "pair": 1,
+    "a": 44.01,
+    "b": 54.95,
+    "dPp": 10.94
+   },
+   {
+    "pair": 2,
+    "a": 44.89,
+    "b": 55.35,
+    "dPp": 10.46
+   },
+   {
+    "pair": 3,
+    "a": 43.3,
+    "b": 53.01,
+    "dPp": 9.71
+   },
+   {
+    "pair": 4,
+    "a": 44.02,
+    "b": 53.54,
+    "dPp": 9.52
+   }
+  ],
+  "excluded": [],
+  "meanDPp": 10.16,
+  "armG1": {
+   "A": {
+    "n": 4,
+    "pooledPct": 44.05,
+    "min": 43.3,
+    "max": 44.89
+   },
+   "B": {
+    "n": 4,
+    "pooledPct": 54.21,
+    "min": 53.01,
+    "max": 55.35
+   }
+  }
+ }
+}
