@@ -1518,6 +1518,20 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     whyNotRun: null,
   },
   {
+    file: "tests/integration/notification-claim-split.test.ts",
+    suites: ["تفكيكُ زمنِ الالتقاط — CLAIM-SPLIT"],
+    skipped: 1,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "يُثبِتُ أنَّ ختمَي الخادمِ (`statement_timestamp`/`clock_timestamp`) حولَ `claim_notification_delivery()` مرتّبانِ ويقعانِ بينَ إصدارِ الاستعلامِ واستلامِه، وأنَّ المسارَ الافتراضيَّ بلا توقيت (`LOAD-01` CLAIM-SPLIT). ولا يُثبَتُ ذلك ببديلٍ في الذاكرة: المقصودُ ساعةُ PostgreSQL نفسُها وترتيبُ تقييمِه لقائمةِ الأهدافِ مع `offset 0`.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بالهجرات مطبَّقة. يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي»، ويفعله المطورُ محلّياً بحاويةِ postgres.",
+    owner: "منفّذ المستودع",
+    criticalPath: null,
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+  {
     file: "tests/integration/traffic-priority-claim.test.ts",
     suites: ["أولويّاتُ المرورِ في المُطالِبِ على PostgreSQL فعلية (F6-07)"],
     skipped: 9,

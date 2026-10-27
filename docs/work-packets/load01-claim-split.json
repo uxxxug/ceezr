@@ -17,6 +17,7 @@
     "packages/application/notification/deliver-notification.ts",
     "packages/infrastructure/notification/claim-split-probe.ts",
     "packages/infrastructure/notification/notification-outbox-adapters.ts",
+    "scripts/lib/skip-registry.ts",
     "tests/integration/notification-claim-split.test.ts",
     "tests/unit/notice-decompose.test.ts",
     "tests/unit/notice-trace-verdict.test.ts",
