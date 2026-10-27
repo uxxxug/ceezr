@@ -1,0 +1,198 @@
+{
+  "generatedBy": "deploy/capacity-run/monitor/collect-evidence.ts",
+  "hashes": "SHA256SUMS",
+  "missing": [],
+  "absentOptional": [],
+  "undeclaredPresent": [
+    {
+      "name": "db-audit-post.out",
+      "bytes": 55
+    },
+    {
+      "name": "db-audit-pre.out",
+      "bytes": 733
+    },
+    {
+      "name": "diag-env.txt",
+      "bytes": 140
+    },
+    {
+      "name": "dispatch-trace.jsonl.load.jsonl",
+      "bytes": 182730949
+    },
+    {
+      "name": "gateway.pid",
+      "bytes": 6
+    },
+    {
+      "name": "gateway.wave.log",
+      "bytes": 49320599
+    },
+    {
+      "name": "notice-rows.csv",
+      "bytes": 5731849
+    },
+    {
+      "name": "notification-outbox.csv",
+      "bytes": 15483070
+    },
+    {
+      "name": "pgss-top.txt",
+      "bytes": 3798
+    },
+    {
+      "name": "telegram-mock.jsonl",
+      "bytes": 10268505
+    },
+    {
+      "name": "wave-report.err",
+      "bytes": 0
+    }
+  ],
+  "entries": [
+    {
+      "source": "b24-env.json",
+      "stored": "b24-env.json",
+      "bytes": 201,
+      "storedBytes": 201
+    },
+    {
+      "source": "db-audit-post.json",
+      "stored": "db-audit-post.json",
+      "bytes": 10886,
+      "storedBytes": 10886
+    },
+    {
+      "source": "db-audit-pre.json",
+      "stored": "db-audit-pre.json",
+      "bytes": 1124,
+      "storedBytes": 1124
+    },
+    {
+      "source": "resources.jsonl",
+      "stored": "resources.jsonl",
+      "bytes": 33706,
+      "storedBytes": 33706
+    },
+    {
+      "source": "timeline.jsonl",
+      "stored": "timeline.jsonl",
+      "bytes": 328,
+      "storedBytes": 328
+    },
+    {
+      "source": "wave-report.json",
+      "stored": "wave-report.json",
+      "bytes": 4283,
+      "storedBytes": 4283
+    },
+    {
+      "source": "session-limit.json",
+      "stored": "session-limit.json",
+      "bytes": 231,
+      "storedBytes": 231
+    },
+    {
+      "source": "mock-stats-pre.json",
+      "stored": "mock-stats-pre.json",
+      "bytes": 320,
+      "storedBytes": 320
+    },
+    {
+      "source": "mock-stats-post.json",
+      "stored": "mock-stats-post.json",
+      "bytes": 320,
+      "storedBytes": 320
+    },
+    {
+      "source": "conn-samples.csv",
+      "stored": "conn-samples.csv.gz",
+      "bytes": 33511,
+      "storedBytes": 3037
+    },
+    {
+      "source": "load-trace.jsonl",
+      "stored": "load-trace.jsonl.gz",
+      "bytes": 182730949,
+      "storedBytes": 21575535
+    },
+    {
+      "source": "miniapp-load-events.jsonl",
+      "stored": "miniapp-load-events.jsonl.gz",
+      "bytes": 20364454,
+      "storedBytes": 1640878
+    },
+    {
+      "source": "load-events.jsonl",
+      "stored": "load-events.jsonl.gz",
+      "bytes": 55444303,
+      "storedBytes": 6445094
+    },
+    {
+      "source": "rl-window.jsonl",
+      "stored": "rl-window.jsonl.gz",
+      "bytes": 25896,
+      "storedBytes": 3229
+    },
+    {
+      "source": "pgss-full.csv",
+      "stored": "pgss-full.csv.gz",
+      "bytes": 39072,
+      "storedBytes": 12078
+    },
+    {
+      "source": "telegram-jobs.csv",
+      "stored": "telegram-jobs.csv.gz",
+      "bytes": 735621,
+      "storedBytes": 105914
+    },
+    {
+      "source": "update-jobs.csv",
+      "stored": "update-jobs.csv.gz",
+      "bytes": 975451,
+      "storedBytes": 138123
+    },
+    {
+      "source": "sched-samples.jsonl",
+      "stored": "sched-samples.jsonl.gz",
+      "bytes": 125991,
+      "storedBytes": 9501
+    },
+    {
+      "source": "dispatch-trace.jsonl",
+      "stored": "dispatch-trace.jsonl.gz",
+      "bytes": 3434071,
+      "storedBytes": 850244
+    },
+    {
+      "source": "orders.csv",
+      "stored": "orders.csv.gz",
+      "bytes": 422200,
+      "storedBytes": 176940
+    },
+    {
+      "source": "offers.csv",
+      "stored": "offers.csv.gz",
+      "bytes": 2793640,
+      "storedBytes": 406750
+    },
+    {
+      "source": "mixed-sent.jsonl",
+      "stored": "mixed-sent.jsonl.gz",
+      "bytes": 552828,
+      "storedBytes": 61206
+    },
+    {
+      "source": "notice-decompose.json",
+      "stored": "notice-decompose.json",
+      "bytes": 3186,
+      "storedBytes": 3186
+    },
+    {
+      "source": "notice-trace.jsonl",
+      "stored": "notice-trace.jsonl.gz",
+      "bytes": 2720506,
+      "storedBytes": 220269
+    }
+  ]
+}

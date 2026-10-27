@@ -1,0 +1,4 @@
+FROZEN_CONSTANTS_OK gatewayRequest=5 IMMEDIATE_REDISPATCH_LIMIT=50 protected_files_unchanged_vs_main
+OVERLAY_OK files=4 parent=2c1bd4fc
+PRODUCT_DIFF_VS_MAIN files=5 (لا هجرة: 0)
+TELEGRAM_DRAIN_LANES=32

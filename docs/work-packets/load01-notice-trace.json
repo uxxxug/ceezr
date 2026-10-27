@@ -1,7 +1,7 @@
 {
   "id": "load01-notice-trace",
-  "title": "تشخيصُ اختناقِ الإشعارات (G4/P7): أثرٌ لكلِّ محاولةِ تسليمٍ وأداةُ تفكيكِ عمرِ المعلَّقِ وبروتوكولٌ تشخيصيّ — لا قبول",
-  "status": "open",
+  "title": "تشخيصُ اختناقِ الإشعارات (G4/P7): أثرٌ لكلِّ محاولةِ تسليم، وعدّاداتُ زمنِ الشوط، وأداةُ تفكيك، وبروتوكولٌ تشخيصيّ — لا قبول",
+  "status": "done",
   "tags": ["load-01", "capacity", "measurement-tooling", "diagnostic"],
   "created": "2026-10-27",
   "updated": "2026-10-27",
@@ -22,17 +22,33 @@
     "packages/infrastructure/notification/rate-aware-telegram-sender.ts",
     "tests/unit/notice-decompose.test.ts",
     "tests/unit/notice-trace-verdict.test.ts",
-    "tests/unit/notification-attempt-trace.test.ts"
+    "tests/unit/notification-attempt-trace.test.ts",
+    "tests/unit/notification-outbox-concurrent-drain.test.ts"
   ],
   "state": ["docs/SYSTEM_STATE.md"],
   "roadmap": ["ROADMAP.md"],
   "affected_docs": [
     "docs/roadmap/execution/STATUS.md",
-    "docs/evidence/capacity/LOAD01-NOTICE-TRACE-20261027/PROTOCOL-load01-notice-trace.md"
+    "docs/evidence/capacity/LOAD01-NOTICE-TRACE-20261027/PROTOCOL-load01-notice-trace.md",
+    "docs/evidence/capacity/LOAD01-NOTICE-TRACE-20261027/RESULT.md",
+    "docs/evidence/capacity/LOAD01-NOTICE-TRACE-20261027/SHA256SUMS",
+    "docs/evidence/archive/LOAD01-NOTICE-TRACE-20261027/"
   ],
   "results": {
-    "status": "pending — التشغيلُ التشخيصيُّ لم يكتملْ بعد",
+    "status": "تشخيصٌ مكتمل — لا قبول",
+    "runs": {
+      "40523141202": "أوقفَتْه بوّابةُ S1 (عيبانِ في الأداة، الملحقُ أ) — لا حكم",
+      "40526004708": "QUEUE 3/3، وOVERHEAD_OK (ΔP7 +10.0ث على الحدّ)، وrepro=true (ON2 122ث)",
+      "40536532116": "QUEUE 3/3، وdrain=CLAIM_SERIAL 6/6، وOVERHEAD_OK (ΔP7 +0.33ث)، وrepro=true (5/6 > 120ث)"
+    },
+    "p7_split": "أقدمُ 20 معلّقًا: طابور 75.3–99.7%، ومحدِّد 0.4–24.6%، ومعالجة ≤ 0.2%، وAPI تيليجرام 0%، وغيرُ منسوب 0%",
+    "drain": "الالتقاطُ المتسلسلُ 78–87% من زمنِ الشوط؛ والجداريُّ 7.5–14.3ms عندَ 1500 مقابل 4.6ms عندَ 100؛ وتنفيذُ PG 1.2–3.8ms في 5/6",
+    "telegram": "بوتُ الراكب 14.0–18.2/ث في المتوسّط (< 25/ث)، و0 رسائلَ 429",
+    "not_proven": [
+      "تفكيكُ زمنِ الالتقاطِ الجداريّ: المجمّع، أو الشبكة، أو حلقةُ الأحداث",
+      "أيُّ إصلاحٍ يخفّضُ P7"
+    ],
     "official_state_unchanged": ["LOAD-01 = FAIL", "LOAD-01M = NOT_MET"]
   },
-  "next": "تشغيلُ البروتوكولِ على فرعِ exp/load01-notice-trace-run ثمّ RESULT."
+  "next": "رصدُ زمنِ الحصولِ على اتّصالٍ من المجمّع، والرحلةِ إلى PG، وتأخّرِ حلقةِ الأحداث داخلَ الالتقاط (رصدٌ فقط، بقاعدةٍ مسجَّلةٍ مسبقًا)؛ ثمّ تجربةُ تدخّلٍ واحدةٌ مقترنة (التقاطٌ مجمَّع، أو خطُّ التقاطٍ مستقلّ) لا تمسُّ الحدودَ المحميّة."
 }
