@@ -1,0 +1,108 @@
+name: LOAD-01-MAIN-BASELINE · خط أساس G1 على main (مقعد 4 vCPU)
+
+# قياسٌ على فرعِ القياسِ وحدَه، ولا يُدمَجُ حكمَ قبول. PROTOCOL-load01-main-baseline.md مثبَّتٌ على الفرعِ قبلَ أيِّ موجة.
+# أربعُ موجاتٍ m5-1500 + حملٌ مختلط على الالتزامِ M = main (A‴ + #663 وحدَه) بلا أيِّ تعديلٍ سلوكيّ، والمولّدُ بسلوكِه
+# الافتراضيّ. gatewayRequest 5 وIMMEDIATE_REDISPATCH_LIMIT 50 دونَ تغيير. لا قاعدةَ إنتاج، لا Render، لا تيليجرامَ حقيقي.
+
+on:
+  push:
+    branches: [exp/load01-main-baseline]
+    paths:
+      - deploy/capacity-run/b24-runner/seat-load01-main-baseline.sh
+      - deploy/capacity-run/b24-runner/base-analyze.py
+      - deploy/capacity-run/b24-runner/base-analyze-selftest.py
+      - docs/evidence/capacity/LOAD01-MAIN-BASELINE-20261027/PROTOCOL-load01-main-baseline.md
+      - .github/workflows/load01-main-baseline.yml
+
+permissions:
+  contents: read
+
+env:
+  # M_SHA = main @ دمجِ #679 (A‴ + #663 في شيفرةِ المقعد)؛ A3_SHA = A‴ لفحصِ الفرق.
+  M_SHA: 829309f1249d8b805cce7a68a2417aa7bb82aecc
+  A3_SHA: 63bc7b0fbe42a1b02a02af5c7a6bed7f3f785a50
+  MIXED_RATE: "20"
+  MIXED_SEED: "1"
+
+jobs:
+  seat:
+    name: "main-baseline (4 waves m5-1500 + mixed, arm M = main)"
+    runs-on: ubuntu-26.04
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: تجهيز المقعد
+        run: sudo bash deploy/capacity-run/b24-runner/provision-root.sh
+
+      - name: نسخة المستودع للمستخدم user
+        run: |
+          sudo cp -a "$GITHUB_WORKSPACE" /home/user/workspace/ceezr
+          sudo chown -R user:user /home/user/workspace/ceezr
+          for X in "$M_SHA" "$A3_SHA"; do sudo -u user git -C /home/user/workspace/ceezr cat-file -e "$X^{commit}"; done
+
+      - name: المقعد والموجات (داخل ceezrseat.slice)
+        run: |
+          sudo systemd-run --quiet --wait --pipe --collect --slice=ceezrseat.slice \
+            --uid=user --gid=user -p LimitNOFILE=65536 -p WorkingDirectory=/home/user \
+            --setenv=M_SHA="$M_SHA" --setenv=A3_SHA="$A3_SHA" --setenv=IMAGE_OS="${ImageOS:-}" --setenv=IMAGE_VERSION="${ImageVersion:-}" --setenv=MIXED_RATE="$MIXED_RATE" --setenv=MIXED_SEED="$MIXED_SEED" --setenv=CONC="1500" --setenv=CITIES="JED,MKK,RUH,TIF,MED" \
+            bash /home/user/workspace/ceezr/deploy/capacity-run/b24-runner/seat-load01-main-baseline.sh
+
+      # قرارُ الرفعِ منَ تدقيقٍ نهائيٍّ جديدٍ بعدَ انتهاءِ المقعدِ (دائمًا) يُبطلُ أيَّ تصريحٍ
+      # سابقٍ — علامةُ بوابةٍ أو ختامٍ سابقٍ لا تُجيزُ رفعَ محتوىً لاحقٍ لم يجتزْ تدقيقًا.
+      - name: التدقيق النهائي وقرار الرفع
+        id: gatecheck
+        if: always()
+        env:
+          PROBE_OUT: /home/user/load01base-out
+          PROBE_SECRETS: /srv/ceezr-cap-20261016/secrets.env
+          PROBE_AUDIT_PY: /home/user/workspace/ceezr/deploy/capacity-run/b24-runner/seat-bin/b24-secret-audit.py
+          PROBE_FINAL: /home/user/workspace/ceezr/deploy/capacity-run/b24-runner/probe-final-audit.sh
+        run: |
+          set +e
+          # إبطالُ أيِّ تصريحٍ سابقٍ في خطوةِ الاستدعاءِ نفسِها قبلَ أيِّ شيءٍ آخر —
+          # فلا تنجوَ علامةٌ قديمةٌ ولو تعذّرَ تشغيلُ البرنامجِ النهائيِّ نفسُه.
+          sudo rm -f "$PROBE_OUT/AUDIT_PASSED"
+          sudo bash "$PROBE_FINAL" "$PROBE_OUT" "$PROBE_SECRETS" "$PROBE_AUDIT_PY"
+          RC=$?
+          set -e
+          # الافتراضي تقريرٌ منقَّحٌ؛ الرفعُ الكاملُ لا يجوزُ إلا برمزِ 0 **و** علامةٍ جديدةٍ
+          if [ "$RC" -eq 0 ] && [ -f "$PROBE_OUT/AUDIT_PASSED" ]; then
+            MODE=evidence
+          else
+            MODE=report
+          fi
+          echo "mode=$MODE" >> "$GITHUB_OUTPUT"
+          # تقريرُ حالةٍ منقَّحٌ جديدٌ لهذهِ المحاولةِ نفسِها — مستقلٌّ عنْ قدرةِ البرنامجِ
+          # النهائيِّ على البدءِ (يتضمّنُ رمزَ الخروجِ وهلْ أُنتجَ تقريرُهُ)؛ لا يُنسخُ فيهِ
+          # مخرجاتٌ عشوائيةٌ قد تحملُ أسرارًا — أرقامٌ وقرارٌ فقط.
+          printf 'final_audit_exit=%s\nfinal_report_produced=%s\ndecision=%s\ndate_utc=%s\n' \
+            "$RC" "$([ -s "$PROBE_OUT/final-secret-audit.txt" ] && echo yes || echo no)" "$MODE" "$(date -Is)" \
+            | sudo tee "$PROBE_OUT/final-audit-status.txt" >/dev/null
+          # إخفاقُ التدقيقِ النهائيِّ إخفاقٌ في حالةِ التشغيلِ (خطواتُ الرفعِ تعملُ دائمًا)
+          exit $RC
+
+      # الدليلُ يُرفعُ في مساري النجاحِ والتوقفِ المُوثَّقِ كليهما إذا اجتازَ المحتوى النهائيُّ
+      # تدقيقَ الأسرارِ (AUDIT_PASSED) — فتوقُّفُ البوابةِ نتيجةٌ تشخيصيةٌ تُحفظُ لا تُستبدلُ؛
+      # وعندَ إخفاقِ التدقيقِ لا يُرفعُ إلا التقريرُ المنقَّحُ (الأثرُ الخامُ سقطَ في المقعدِ).
+      - name: رفع الدليل (نجاحٌ أو توقفٌ موثَّقٌ بعد تدقيقٍ نظيف)
+        if: always() && steps.gatecheck.outputs.mode == 'evidence'
+        uses: actions/upload-artifact@v5
+        with:
+          name: load01base
+          path: /home/user/load01base-out/
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: رفع تقرير الفشل المنقح (تقريرُ التدقيقِ النهائيِّ أولًا)
+        if: always() && steps.gatecheck.outputs.mode == 'report'
+        uses: actions/upload-artifact@v5
+        with:
+          name: load01base-failure-report
+          path: |
+            /home/user/load01base-out/final-audit-status.txt
+            /home/user/load01base-out/final-secret-audit.txt
+            /home/user/load01base-out/secret-audit.txt
+          if-no-files-found: ignore
