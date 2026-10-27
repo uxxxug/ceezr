@@ -269,6 +269,11 @@ export async function call(
       invokeMs: null,
       inflightAtInvoke: null,
       headersOverdueMs: null,
+      queueWaitMs: null,
+      waitersAtInvoke: null,
+      activeAtSend: null,
+      demandAtInvoke: null,
+      fetchCap: null,
     });
     throw error;
   }

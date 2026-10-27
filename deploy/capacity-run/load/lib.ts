@@ -19,6 +19,7 @@ import { createHmac } from "node:crypto";
 import { appendFileSync, mkdirSync } from "node:fs";
 import postgres from "postgres";
 import { startLoopProbe } from "../../../packages/infrastructure/observability/loop-probe.ts";
+import { fetchGate, type SlotInfo } from "./fetch-gate.ts";
 
 export const RUN_DIR = process.env.RUN_DIR ?? "/tmp/cap-run";
 export const EV = `${RUN_DIR}/evidence`;
@@ -123,6 +124,17 @@ export interface HttpResult {
   readonly invokeMs: number | null;
   readonly inflightAtInvoke: number | null;
   readonly headersOverdueMs: number | null;
+  /**
+   * LOAD-01-GAP-PROBE-RUN3 (2026-10-27) — بوابةُ `fetch` المقيسةُ (`fetch-gate.ts`): `queueWaitMs` = انتظارُ
+   * الفتحةِ بعدَ `invokeMs` وقبلَ استدعاءِ `fetch` (0 بلا سعة)؛ `waitersAtInvoke` المنتظرونَ أمامَه؛
+   * `activeAtSend` الجاريةُ لحظةَ الإرسالِ (شاملًا)؛ `demandAtInvoke` الجاريةُ + المنتظرونَ + هذا، لكلِّ
+   * `fetch` في العمليّة (التسجيلُ أيضًا). `ttfbMs` يبقى من بدءِ النداءِ فيشملُ الانتظارَ — لا يُخفى شيء.
+   */
+  readonly queueWaitMs: number | null;
+  readonly waitersAtInvoke: number | null;
+  readonly activeAtSend: number | null;
+  readonly demandAtInvoke: number | null;
+  readonly fetchCap: number | null;
 }
 
 /** نداءاتُ `fetch` الجاريةُ في هذهِ العمليّة (عبرَ `http`) — عدٌّ لا يغيّرُ سلوكًا. */
@@ -154,7 +166,15 @@ export function startClientLoopProbe(
     pid: process.pid,
     bunVersion: typeof Bun === "undefined" ? null : Bun.version,
     maxHttpRequestsEnv: process.env.BUN_CONFIG_MAX_HTTP_REQUESTS ?? null,
+    // RUN3: سعةُ بوابةِ المولّدِ كما في البيئة (null = بلا حدٍّ صريح) والمفعولةُ فعلًا.
+    fetchCapEnv: process.env.LOAD_GEN_FETCH_CAP ?? null,
+    fetchCap: fetchGate().cap,
   });
+  // RUN3: عدّاداتُ البوابةِ لكلِّ ثانيةٍ — معدّلُ النداءِ والإرسالِ والإكمالِ والمنتظرون (في الذراعينِ معًا).
+  const semTimer = setInterval(
+    () => write({ event: "gen_sem", at: Date.now(), ...fetchGate().takeSample() }),
+    opts.sampleMs ?? 1_000,
+  );
   const probe = startLoopProbe({
     intervalMs: opts.intervalMs ?? 10,
     sampleMs: opts.sampleMs ?? 1_000,
@@ -162,6 +182,7 @@ export function startClientLoopProbe(
   });
   setClientLoopOverdue(() => probe.overdueMs());
   return () => {
+    clearInterval(semTimer);
     probe.stop();
     setClientLoopOverdue(null);
   };
@@ -181,6 +202,9 @@ export async function http(
   let invokeMs: number | null = null;
   let inflightAtInvoke: number | null = null;
   let counted = false;
+  let slot: SlotInfo | null = null;
+  let held = false;
+  const gate = fetchGate();
   try {
     const url = `${gatewayBase()}${path}`;
     const reqInit: RequestInit = {
@@ -197,6 +221,9 @@ export async function http(
     counted = true;
     inflightAtInvoke = fetchInFlight;
     invokeMs = performance.now() - started;
+    // RUN3: الفتحةُ بعدَ invokeMs وقبلَ fetch — المسارُ السريعُ متزامن (بلا سعةٍ: لا قفزةَ إضافيّة).
+    slot = gate.tryAcquire() ?? (await gate.acquire(reqInit.signal ?? undefined));
+    held = true;
     const response = await fetch(url, reqInit);
     const ttfb = performance.now() - started;
     const headersOverdueMs = clientLoopOverdue === null ? null : clientLoopOverdue();
@@ -221,6 +248,7 @@ export async function http(
       invokeMs: Math.round(invokeMs * 100) / 100,
       inflightAtInvoke,
       headersOverdueMs: headersOverdueMs === null ? null : Math.round(headersOverdueMs * 100) / 100,
+      ...slotFields(slot, gate.cap),
     };
   } catch (error) {
     return {
@@ -238,11 +266,30 @@ export async function http(
       invokeMs: invokeMs === null ? null : Math.round(invokeMs * 100) / 100,
       inflightAtInvoke,
       headersOverdueMs: null,
+      ...slotFields(slot, gate.cap),
     };
   } finally {
     // حدُّ Bun يعدُّ الطلبَ حتى انتهائِهِ (الجسمُ مقروءٌ) — فالعدُّ يُنقصُ هنا لا عندَ الترويسات.
     if (counted) fetchInFlight -= 1;
+    // والفتحةُ تُحرَّرُ في اللحظةِ نفسِها؛ إلغاءٌ أثناءَ الانتظارِ لم يحجزْ فتحةً فلا تحرير.
+    if (held) gate.release();
   }
+}
+
+function slotFields(
+  slot: SlotInfo | null,
+  cap: number | null,
+): Pick<
+  HttpResult,
+  "queueWaitMs" | "waitersAtInvoke" | "activeAtSend" | "demandAtInvoke" | "fetchCap"
+> {
+  return {
+    queueWaitMs: slot === null ? null : Math.round(slot.queueWaitMs * 100) / 100,
+    waitersAtInvoke: slot?.waitersAtInvoke ?? null,
+    activeAtSend: slot?.activeAtSend ?? null,
+    demandAtInvoke: slot?.demandAtInvoke ?? null,
+    fetchCap: cap,
+  };
 }
 
 /* ───────── مقاييسُ المسارِ — 429 مفكَّكةٌ لا مختلطةٌ ───────── */
@@ -355,6 +402,11 @@ export class PathRecorder {
         invokeMs: result.invokeMs,
         inflightAtInvoke: result.inflightAtInvoke,
         headersOverdueMs: result.headersOverdueMs,
+        queueWaitMs: result.queueWaitMs,
+        waitersAtInvoke: result.waitersAtInvoke,
+        activeAtSend: result.activeAtSend,
+        demandAtInvoke: result.demandAtInvoke,
+        fetchCap: result.fetchCap,
       })}\n`,
     );
   }
