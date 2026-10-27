@@ -167,6 +167,12 @@ N=$(echo "$CITIES" | tr ',' '\n' | grep -c .)
 if [ "$N" -gt 1 ]; then export LOAD01M_CITIES="$CITIES"; unset LOAD01M_CITY; else export LOAD01M_CITY="$CITIES"; unset LOAD01M_CITIES; fi
 declare -A WDIR WVAL WARM
 SPECS=()
+# قيمُ ضبطِ الأثرِ ليست أسرارًا، و`rider_trip_notice` يظهرُ مشروعًا في كلِّ دليل؛ يكتبُها fresh-db.sh لكلِّ
+# موجة. تُزالُ فورَ انتهاءِ كلِّ موجةٍ وعندَ أيِّ خروج (حادثةُ التشغيلِ 40523141202: خروجُ بوّابةِ S1 المبكّرُ
+# تخطّى الإزالةَ فعدَّها التدقيقُ النهائيُّ سرًّا مطابَقًا وأسقطَ الخام).
+drop_trace_cfg() { sed -i '/^NOTIFICATION_ATTEMPT_TRACE=/d;/^NOTIFICATION_ATTEMPT_TRACE_KINDS=/d' "$B/secrets.env" 2>/dev/null || true; }
+trap drop_trace_cfg EXIT
+
 wave() { # SLOT(ON1|OFF1|S1…) IDX [CONC] ⇒ يضبطُ V
   local SLOT=$1 IDX=$2 WCONC=${3:-$CONC} ARM NAME
   case "$SLOT" in ON*|S1) ARM=ON;; OFF*) ARM=OFF;; *) echo "SLOT_ARM_UNKNOWN $SLOT"; V=INVALID; return;; esac
@@ -177,7 +183,7 @@ wave() { # SLOT(ON1|OFF1|S1…) IDX [CONC] ⇒ يضبطُ V
   log "موجةُ القياس $NAME trace=$ARM code=$ARM_SHA conc=$WCONC (مدن=$N)"
   hwfp "$OUT/hw-$NAME-pre.json" pre
   "$B/bin/b24-seq.sh" "$NAME" "$WCONC" "$IDX" "M:cand:$ARM_SHA" > "$OUT/seq-$NAME.log" 2>&1 || true
-  unset NOTICE_TRACE_KIND
+  unset NOTICE_TRACE_KIND; drop_trace_cfg
   local RUN=load01noticetrace-$NAME-M-$WCONC E D
   grep -E "^SEQ|QUAL_DONE|WAVE_DONE|INVALID|PREFLIGHT|INFLIGHT|TEMPLATE|NOTICE_DECOMPOSE" "$OUT/seq-$NAME.log" || true
   E=$B/runs/$RUN/evidence; D=$OUT/raw/$RUN; mkdir -p "$D"

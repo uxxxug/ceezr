@@ -41,7 +41,9 @@ export type Outcome =
   | "abandon"
   | "undeliverable"
   | "no_message"
-  | "error";
+  | "error"
+  /** حُسِمَ الصفُّ في القاعدةِ خارجَ العامل (مثلًا تأكيدُ التطبيق `miniapp_ack` بـSQL مباشر) — لا محاولةَ له. */
+  | "external";
 
 const TERMINAL: ReadonlySet<Outcome> = new Set([
   "telegram",
@@ -74,6 +76,13 @@ export interface Row {
   readonly kind: string;
   readonly event: string | null;
   readonly createdMs: number;
+  /**
+   * وقتُ الحسمِ في القاعدة (delivered_at/died_at) إن حُسِمَ؛ يُستعملُ حصرًا حينَ لا محاولةَ نهائيّةً
+   * قبلَه في الأثر — أي حُسِمَ خارجَ العامل (تأكيدُ التطبيقِ يحدّثُ الصفَّ مباشرةً بلا سطرِ محاولة).
+   */
+  readonly settledMs?: number | null;
+  /** قناةُ/حالةُ الحسمِ الآمنة (`miniapp_ack`، `dead`…) — رمزٌ قصيرٌ لا نصّ. */
+  readonly settledVia?: string | null;
 }
 
 export const SEGMENTS = [
@@ -113,6 +122,8 @@ export interface RowTimeline {
   readonly breakdown: Breakdown;
   readonly congestionScopes: { chat: number; global: number };
   readonly unmeteredAttempts: number;
+  /** قناةُ الحسمِ الخارجيّ إن كانت `terminalOutcome = external`. */
+  readonly settledVia?: string | null;
 }
 
 const clamp = (x: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, x));
@@ -122,6 +133,24 @@ const clamp = (x: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, x
  * وما بدأَ بعدَ T لا يُحتسب. مجموعُ المقاطعِ = ageMs (يثبّتُه اختبار).
  */
 export function timelineOf(row: Row, attemptsIn: readonly Attempt[], tMs: number): RowTimeline {
+  const r = traceTimeline(row, attemptsIn, tMs);
+  const s = row.settledMs;
+  if (r.terminalAtMs !== null || s === null || s === undefined || !(s < tMs)) return r;
+  // حُسِمَ خارجَ العاملِ قبلَ T: يُقطعُ الخطُّ الزمنيُّ عندَ الحسمِ ويُعدُّ مُنتهيًا لا معلّقًا.
+  const at = Math.max(row.createdMs, s);
+  const cut = traceTimeline(row, attemptsIn, at);
+  return {
+    ...cut,
+    terminalAtMs: at,
+    terminalOutcome: "external",
+    pendingAtT: false,
+    sendingAtT: false,
+    ageMs: at - row.createdMs,
+    settledVia: row.settledVia ?? null,
+  };
+}
+
+function traceTimeline(row: Row, attemptsIn: readonly Attempt[], tMs: number): RowTimeline {
   const attempts = [...attemptsIn]
     .filter((a) => a.startedAtMs < tMs)
     .sort((a, b) => a.startedAtMs - b.startedAtMs);
@@ -385,7 +414,10 @@ export function decompose(input: {
   const byOutcome: Record<string, number> = {};
   for (const t of delivered) {
     addInto(delB, t.breakdown);
-    const k = t.terminalOutcome ?? "none";
+    const k =
+      t.terminalOutcome === "external"
+        ? `external:${t.settledVia ?? "unknown"}`
+        : (t.terminalOutcome ?? "none");
     byOutcome[k] = (byOutcome[k] ?? 0) + 1;
   }
   const lat = delivered.map((t) => t.ageMs).sort((a, b) => a - b);
@@ -520,13 +552,17 @@ export function parseLog(text: string): {
   return { attempts, passes, riderEvents };
 }
 
-/** `notice-rows.csv` بترويسة: id,kind,event,created_ms (من `db-export.sh`). */
+/**
+ * `notice-rows.csv` بترويسة: id,kind,event,created_ms[,settled_ms,settled_via] (من `db-export.sh`).
+ * العمودانِ الأخيرانِ اختياريّان (التوافقُ معَ تصديرٍ أقدم).
+ */
 export function parseRows(csv: string): Row[] {
   const lines = csv.split("\n").filter((l) => l.trim() !== "");
   const head = (lines.shift() ?? "").split(",");
   const ix = (n: string) => head.indexOf(n);
   const [iId, iKind, iEv, iC] = [ix("id"), ix("kind"), ix("event"), ix("created_ms")];
   if ([iId, iKind, iEv, iC].some((i) => i < 0)) throw new Error("ترويسةُ notice-rows.csv ناقصة");
+  const [iS, iV] = [ix("settled_ms"), ix("settled_via")];
   const out: Row[] = [];
   for (const l of lines) {
     const c = l.split(",");
@@ -534,11 +570,16 @@ export function parseRows(csv: string): Row[] {
     const created = Number(c[iC]);
     if (!UUID.test(id) || !Number.isFinite(created)) continue;
     const ev = c[iEv] ?? "";
+    const sRaw = iS < 0 ? "" : (c[iS] ?? "");
+    const settled = sRaw === "" ? null : Number(sRaw);
+    const via = iV < 0 ? "" : (c[iV] ?? "");
     out.push({
       id,
       kind: c[iKind] ?? "",
       event: /^[A-Z][A-Z0-9_]{0,31}$/.test(ev) ? ev : null,
       createdMs: created,
+      settledMs: settled !== null && Number.isFinite(settled) ? settled : null,
+      settledVia: /^[a-z_]{1,32}$/.test(via) ? via : null,
     });
   }
   return out;

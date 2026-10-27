@@ -162,6 +162,56 @@ describe("timelineOf: الطابورُ بعدَ إعادةِ المحدّد", ()
   });
 });
 
+describe("timelineOf: الحسمُ خارجَ العامل (miniapp_ack بـSQL مباشر)", () => {
+  const settled = (settledMs: number): Row => ({ ...row(0), settledMs, settledVia: "miniapp_ack" });
+
+  test("حُسِمَ قبلَ T بلا محاولةٍ نهائيّة ⇒ مُنتهٍ external يُقطعُ خطُّه عندَ الحسم", () => {
+    const t = timelineOf(
+      settled(2_500),
+      [att({ startedAtMs: 1_000, durationMs: 50, outcome: "signal_wait", retryAfterMs: 3_000 })],
+      120_000,
+    );
+    expect(t.pendingAtT).toBe(false);
+    expect(t.terminalOutcome).toBe("external");
+    expect(t.settledVia).toBe("miniapp_ack");
+    expect(t.terminalAtMs).toBe(2_500);
+    expect(t.ageMs).toBe(2_500);
+    expect(t.breakdown.app_ack_wait).toBe(1_450);
+    expect(sum(t.breakdown)).toBe(t.ageMs);
+  });
+
+  test("محاولةٌ نهائيّةٌ في الأثرِ تتقدّمُ على وقتِ القاعدة؛ والحسمُ بعدَ T لا يُحتسب", () => {
+    const viaTrace = timelineOf(
+      settled(5_000),
+      [att({ startedAtMs: 1_000, durationMs: 100 })],
+      120_000,
+    );
+    expect(viaTrace.terminalOutcome).toBe("telegram");
+    expect(viaTrace.terminalAtMs).toBe(1_100);
+    const later = timelineOf(settled(200_000), [], 120_000);
+    expect(later.pendingAtT).toBe(true);
+    expect(later.ageMs).toBe(120_000);
+  });
+
+  test("decompose: المحسومُ خارجيًّا خارجَ المعلّقِ ويُعدُّ external:<قناة>", () => {
+    const { summary } = decompose({
+      kind: "rider_trip_notice",
+      auditAtMs: 130_000,
+      passes: [],
+      rows: [settled(4_000), row(10_000, ID2)],
+      attempts: [
+        att({ startedAtMs: 1_000, durationMs: 50, outcome: "signal_wait", retryAfterMs: 3_000 }),
+      ],
+      auditPending: 1,
+      auditOldestPendingSec: 120,
+    });
+    expect(summary.pendingAtAudit).toBe(1);
+    expect(summary.reconstructedOldestPendingSec).toBe(120);
+    expect(summary.delivered.byOutcome).toEqual({ "external:miniapp_ack": 1 });
+    expect(summary.validity.reasons).not.toContain("pending_count_mismatch");
+  });
+});
+
 describe("decompose", () => {
   const base = {
     kind: "rider_trip_notice",
@@ -286,10 +336,38 @@ describe("القراءة", () => {
       `id,kind,event,created_ms\n${ID},rider_trip_notice,MATCHED,5\nbad,rider_trip_notice,MATCHED,6\n${ID2},rider_trip_notice,hello world,7\n`,
     );
     expect(rows).toEqual([
-      { id: ID, kind: "rider_trip_notice", event: "MATCHED", createdMs: 5 },
-      { id: ID2, kind: "rider_trip_notice", event: null, createdMs: 7 },
+      {
+        id: ID,
+        kind: "rider_trip_notice",
+        event: "MATCHED",
+        createdMs: 5,
+        settledMs: null,
+        settledVia: null,
+      },
+      {
+        id: ID2,
+        kind: "rider_trip_notice",
+        event: null,
+        createdMs: 7,
+        settledMs: null,
+        settledVia: null,
+      },
     ]);
     expect(() => parseRows("id,kind\n")).toThrow();
+  });
+
+  test("parseRows: settled_ms/settled_via اختياريّان ويُعقَّمُ الرمز", () => {
+    const rows = parseRows(
+      `id,kind,event,created_ms,settled_ms,settled_via\n${ID},rider_trip_notice,MATCHED,5,900,miniapp_ack\n${ID2},rider_trip_notice,MATCHED,7,,\n`,
+    );
+    expect(rows[0]?.settledMs).toBe(900);
+    expect(rows[0]?.settledVia).toBe("miniapp_ack");
+    expect(rows[1]?.settledMs).toBeNull();
+    expect(rows[1]?.settledVia).toBeNull();
+    const bad = parseRows(
+      `id,kind,event,created_ms,settled_ms,settled_via\n${ID},k,E,5,9,Chat 123\n`,
+    );
+    expect(bad[0]?.settledVia).toBeNull();
   });
 
   test("auditOf: يفضّلُ pendingAgeByKind ويرجعُ إلى byKind", () => {
