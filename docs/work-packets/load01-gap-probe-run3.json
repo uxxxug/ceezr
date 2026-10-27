@@ -14,12 +14,8 @@
     "tests/unit/load-trace-httpreq.test.ts",
     "tests/unit/load01-gap-probe-run3.test.ts"
   ],
-  "state": [
-    "docs/SYSTEM_STATE.md"
-  ],
-  "roadmap": [
-    "ROADMAP.md"
-  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
   "affected_docs": [
     "docs/SYSTEM_STATE.md",
     "ROADMAP.md",
@@ -42,13 +38,7 @@
   "no_other_affected_docs_reason": "كلُّ وثيقةٍ متأثرةٍ مُدرجةٌ أعلاهُ (أدلةُ الدورةِ + الحوكمة).",
   "status": "closed",
   "closed_at": "2026-10-27",
-  "tags": [
-    "load-01",
-    "capacity",
-    "diagnostics",
-    "measurement-tooling",
-    "no-product-change"
-  ],
+  "tags": ["load-01", "capacity", "diagnostics", "measurement-tooling", "no-product-change"],
   "created": "2026-10-27",
   "updated": "2026-10-27",
   "branch": "exp/load01-gap-probe-run3",
@@ -62,10 +52,7 @@
     "q_per_wave": "EXPLAINED في الموجتين (حصّةُ الانتظارِ 0.982/0.978؛ U_resid ≈ 3.84/3.62ms)",
     "cost_gate": "لم تُحتسب (توقّفٌ قبلَ موجاتِ S/N)",
     "load_equivalence_gate": "لم تُحتسب (توقّفٌ قبلَ موجاتِ S/N)",
-    "official_state_unchanged": [
-      "LOAD-01 = FAIL",
-      "LOAD-01M = NOT_MET"
-    ],
+    "official_state_unchanged": ["LOAD-01 = FAIL", "LOAD-01M = NOT_MET"],
     "reproduce": "reproduce-load01-gap-probe-run3.sh ⇒ REPRO_OK",
     "raw_evidence": "artifact load01gap-run3 (30 يومًا)"
   },
