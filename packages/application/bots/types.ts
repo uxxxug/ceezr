@@ -19,6 +19,7 @@ import type {
   ServiceType,
 } from "../../shared/kernel/index.ts";
 import type { Result } from "../../shared/result/index.ts";
+import type { ViewerAccount, ViewerLookupFailure } from "../identity/ports.ts";
 import type { PortFailureError } from "../ports/index.ts";
 
 /** ما يصل من المنصّة، مُجرَّداً من شكل تلغرام. */
@@ -434,6 +435,18 @@ export interface DriverSenderContext {
   readonly driver: DriverProfile | null;
 }
 
+/**
+ * LOAD-01 · `driver/location` — حسابُ المشاهدِ وملفُّ السائقِ من **جملةٍ واحدة** (users
+ * يسارًا ثمّ drivers اختياريًا)، بدلَ قراءةِ التفويضِ (`findByTelegramUserId`) ثمّ
+ * `findByTelegramId` في حجزَينِ منفصلَين. النتيجتانِ مستقلّتانِ بقصد: الحسابُ يمرُّ
+ * بحكمِ `authorizeViewer` نفسِه بلا تغيير، والملفُّ يُقرأ كما يُقرأُ اليوم. غيابُ
+ * المستخدمِ ⇒ الحسابُ `null` والملفُّ `null`؛ تعذّرُ القاعدةِ ⇒ الاثنانِ خطأ.
+ */
+export interface DriverViewerLookup {
+  readonly account: Result<ViewerAccount | null, ViewerLookupFailure>;
+  readonly driver: Result<DriverProfile | null, PortFailureError>;
+}
+
 export interface DriverDirectory {
   findByTelegramId(telegramUserId: string): Promise<Result<DriverProfile | null, PortFailureError>>;
   /**
@@ -444,6 +457,11 @@ export interface DriverDirectory {
   findSenderContext?(
     telegramUserId: string,
   ): Promise<Result<DriverSenderContext | null, PortFailureError>>;
+  /**
+   * LOAD-01 · `driver/location` — حسابُ المشاهدِ وملفُّ السائقِ بجملةٍ واحدة. اختياريٌّ:
+   * غيابُهُ يُبقي القراءتَينِ منفصلتَينِ كما كانتا.
+   */
+  findViewerAndDriver?(telegramUserId: string): Promise<DriverViewerLookup>;
   register(input: RegisterDriverInput): Promise<Result<DriverProfile, PortFailureError>>;
   setAvailability(
     driverId: DriverId,

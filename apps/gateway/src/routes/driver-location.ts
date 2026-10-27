@@ -33,7 +33,10 @@
  */
 
 import { type Context, Hono } from "hono";
-import type { DriverProfile } from "../../../../packages/application/bots/types.ts";
+import type {
+  DriverProfile,
+  DriverViewerLookup,
+} from "../../../../packages/application/bots/types.ts";
 import {
   type UpdateDriverLocationDeps,
   type UpdateDriverLocationFailureReason,
@@ -58,6 +61,11 @@ import { readBounded } from "./telegram-webhook.ts";
  */
 export interface DriverLocationDirectory {
   findByTelegramId(telegramUserId: string): Promise<Result<DriverProfile | null, PortFailureError>>;
+  /**
+   * LOAD-01 — حسابُ المشاهدِ وملفُّ السائقِ بجملةٍ واحدة (حجزٌ واحدٌ من المجمّعِ بدلَ اثنين).
+   * اختياريٌّ: غيابُهُ يُبقي المسارَ على قارئِ الحسابِ ثمّ `findByTelegramId` كما كان حرفيًا.
+   */
+  findViewerAndDriver?(telegramUserId: string): Promise<DriverViewerLookup>;
 }
 
 export interface DriverLocationDependencies {
@@ -157,16 +165,48 @@ export function parseDriverFix(body: unknown): ParsedDriverFix | { readonly erro
   };
 }
 
+/**
+ * ملفُّ السائقِ المقروءُ مع الحسابِ في جملةِ التفويضِ نفسِها، محفوظًا للطلبِ الواحدِ
+ * وحدَه ومقيَّدًا بالمعرّفِ الذي قُرئ به — فلا يُستعملُ لهويّةٍ غيرِها.
+ */
+interface PrefetchedDriver {
+  readonly telegramUserId: string;
+  readonly driver: Result<DriverProfile | null, PortFailureError>;
+}
+
 async function authenticate(
   c: Context,
   deps: DriverLocationDependencies,
-): Promise<{ readonly viewer: AuthorizedViewer } | { readonly response: Response }> {
+): Promise<
+  | { readonly viewer: AuthorizedViewer; readonly prefetched: PrefetchedDriver | null }
+  | { readonly response: Response }
+> {
   if (deps.viewer === undefined || deps.drivers === undefined || deps.ingest === undefined) {
     deps.log?.("driver_location.route_disabled", {});
     return { response: rejected(c, "SESSION_NOT_AVAILABLE", 503) };
   }
   const accessToken = bearerTokenFrom(c.req.header("authorization"));
-  const authorized = await authorizeViewer({ accessToken }, deps.viewer);
+  /**
+   * LOAD-01 — القراءةُ المدمجةُ تحلُّ محلَّ قارئِ الحسابِ **لهذا الطلبِ وحدَه**: حكمُ
+   * `authorizeViewer` (التوقيعُ أوّلًا، ثمّ الإبطالُ، ثمّ الحسابُ، ثمّ الحجبُ) لا يتغيّرُ،
+   * ولا تُقرأُ القاعدةُ قبلَ التحقّقِ من الرمزِ لأنَّ القارئَ لا يُنادى إلّا بعدَه.
+   */
+  let prefetched: PrefetchedDriver | null = null;
+  const combined = deps.drivers.findViewerAndDriver?.bind(deps.drivers);
+  const viewerDeps: ResolveViewerDeps =
+    combined === undefined
+      ? deps.viewer
+      : {
+          ...deps.viewer,
+          accounts: {
+            findByTelegramUserId: async (telegramUserId: string) => {
+              const lookup = await combined(telegramUserId);
+              prefetched = { telegramUserId, driver: lookup.driver };
+              return lookup.account;
+            },
+          },
+        };
+  const authorized = await authorizeViewer({ accessToken }, viewerDeps);
   if (!authorized.ok) {
     return {
       response: rejected(
@@ -176,7 +216,7 @@ async function authenticate(
       ),
     };
   }
-  return { viewer: authorized.value };
+  return { viewer: authorized.value, prefetched };
 }
 
 export function createDriverLocationRoutes(deps: DriverLocationDependencies): Hono {
@@ -248,7 +288,11 @@ export function createDriverLocationRoutes(deps: DriverLocationDependencies): Ho
      * يُرقّى مجهولٌ إلى سائقٍ عندَ الشكِّ.
      */
     const lookupStartedAt = performance.now();
-    const found = await directory.findByTelegramId(auth.viewer.telegramUserId);
+    const prefetched = auth.prefetched;
+    const found =
+      prefetched !== null && prefetched.telegramUserId === auth.viewer.telegramUserId
+        ? prefetched.driver
+        : await directory.findByTelegramId(auth.viewer.telegramUserId);
     timings.lookupMs = Math.round(performance.now() - lookupStartedAt);
     if (!found.ok) return rejected(c, "DRIVER_LOOKUP_FAILED", 503);
     if (found.value === null) return rejected(c, "DRIVER_NOT_REGISTERED", 404);
