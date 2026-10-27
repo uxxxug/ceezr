@@ -92,7 +92,18 @@ describe("محوّلُ الصندوقِ مع CLAIM-SPLIT", () => {
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.value.delivery?.deliveryId).toBe(DID);
-    expect(r.value.timing).toEqual({ queries: 2, preMs: 6, serverMs: 4, postMs: 2, skewed: 0 });
+    expect(r.value.timing).toMatchObject({
+      queries: 2,
+      preMs: 6,
+      serverMs: 4,
+      postMs: 2,
+      skewed: 0,
+    });
+    // CLAIM-WAIT: تفصيلٌ لكلِّ استعلام؛ والمزيّفُ لا يمرُّ بمراحلِ postgres.js فلا يُعَدُّ مرصودًا.
+    expect(r.value.timing?.detail?.map((d) => [d.index, d.preMs, d.stamped, d.inflight])).toEqual([
+      [1, 3, false, null],
+      [2, 3, false, null],
+    ]);
     expect(f.texts.every((t) => t.includes("statement_timestamp"))).toBe(true);
     expect(f.texts[0]).toContain("offset 0");
 
@@ -101,13 +112,14 @@ describe("محوّلُ الصندوقِ مع CLAIM-SPLIT", () => {
       claimSplit: { realtimeMs: () => clock.t },
     }).claim();
     expect(e.ok && e.value.delivery).toBeNull();
-    expect(e.ok && e.value.timing).toEqual({
+    expect(e.ok && e.value.timing).toMatchObject({
       queries: 1,
       preMs: 3,
       serverMs: 2,
       postMs: 1,
       skewed: 0,
     });
+    expect(e.ok && e.value.timing?.detail?.length).toBe(1);
   });
 });
 

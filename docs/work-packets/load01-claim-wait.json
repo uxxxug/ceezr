@@ -1,0 +1,56 @@
+{
+  "id": "load01-claim-wait",
+  "title": "مراحلُ ما قبلَ تنفيذِ الالتقاطِ وما بعدَه لكلِّ استعلام، وما في الطيرانِ على workerJobs، وعيّناتُ pg_stat_activity — رصدٌ لا قبول، ثمّ تجربةُ رحلةٍ واحدةٍ مشروطة",
+  "status": "in-progress",
+  "tags": [
+    "load-01",
+    "capacity",
+    "measurement-tooling"
+  ],
+  "created": "2026-10-28",
+  "updated": "2026-10-28",
+  "branch": "exp/load01-claim-wait",
+  "implementation": [
+    ".github/workflows/load01-notice-trace.yml",
+    "apps/workers/src/container.ts",
+    "apps/workers/src/jobs/deliver-notifications.ts",
+    "deploy/capacity-run/b24-runner/seat-load01-notice-trace.sh",
+    "deploy/capacity-run/monitor/claim-wait-corroborate.ts",
+    "deploy/capacity-run/monitor/claim-wait-overhead.ts",
+    "deploy/capacity-run/monitor/notice-decompose.ts",
+    "deploy/capacity-run/monitor/notice-trace-verdict.ts",
+    "deploy/capacity-run/monitor/wave-evidence-manifest.json",
+    "packages/application/notification/deliver-notification.ts",
+    "packages/infrastructure/notification/claim-split-probe.ts",
+    "packages/infrastructure/notification/notification-outbox-adapters.ts",
+    "scripts/lib/skip-registry.ts",
+    "tests/integration/notification-claim-wait.test.ts",
+    "tests/unit/claim-wait-corroborate.test.ts",
+    "tests/unit/notification-claim-split.test.ts",
+    "tests/unit/notification-claim-wait.test.ts",
+    "tests/unit/notification-outbox-concurrent-drain.test.ts",
+    "tests/unit/skip-audit.test.ts"
+  ],
+  "state": [
+    "docs/SYSTEM_STATE.md"
+  ],
+  "roadmap": [
+    "ROADMAP.md"
+  ],
+  "results": {
+    "status": "المرحلةُ الأولى: القاعدةُ §5.7 و§5.8 مسجَّلتانِ قبلَ التشغيل؛ لا نتيجةَ بعد",
+    "official_state_unchanged": [
+      "LOAD-01 = FAIL",
+      "LOAD-01M = NOT_MET"
+    ],
+    "local_overhead": "select 1 محلّيًّا: +2–3µs عندَ تزامن 1، و+7–16µs عندَ 8 (تقديرٌ محلّيّ)"
+  },
+  "next": "تشغيلُ exp/load01-notice-trace-run5 (S1 ON1 OFF1 OFF2 ON2 ON3 OFF3) والحكمُ بـ§5.7؛ والمرحلةُ الثانيةُ فقط إن قامَ مبرّرُها.",
+  "affected_docs": [
+    "docs/roadmap/execution/STATUS.md",
+    "docs/evidence/capacity/LOAD01-NOTICE-TRACE-20261027/PROTOCOL-load01-notice-trace.md",
+    "docs/evidence/capacity/LOAD01-NOTICE-TRACE-20261027/RESULT.md",
+    "docs/evidence/capacity/LOAD01-NOTICE-TRACE-20261027/SHA256SUMS",
+    "docs/evidence/capacity/LOAD01-NOTICE-TRACE-20261027/claim-wait-local/overhead-local.jsonl"
+  ]
+}

@@ -6,6 +6,7 @@
  * تزيدُ عليها abandon.
  */
 import type {
+  ClaimQueryDetail,
   ClaimTiming,
   FinishOutcome,
   NotificationOutboxPort,
@@ -14,6 +15,7 @@ import type {
 import type { CityId } from "../../shared/kernel/index.ts";
 import { guard, readEnvelope, type Sql, withRequestContext } from "../db/client.ts";
 import { readCorrelationId } from "../observability/correlation.ts";
+import { observeQuery } from "./claim-split-probe.ts";
 
 const FINISH_OUTCOMES: readonly string[] = ["delivered", "dead", "retried"];
 
@@ -35,6 +37,10 @@ function envelope(value: unknown, name: string): Record<string, unknown> {
 /** ساعةُ الزمنِ الحقيقيِّ بدقّةٍ دونَ الملّي ثانية (ms منذ الحقبة)، لمقارنتِها بساعةِ PG على المضيفِ نفسِه. */
 export interface ClaimSplitClock {
   realtimeMs(): number;
+  /** CLAIM-WAIT: ما في الطيرانِ على تجمّعِ هذا المنفذِ الآن (غيابُه = لا عدّ). */
+  inflight?(): { readonly queries: number; readonly transactions: number };
+  /** سعةُ التجمّع، لوسمِ الإصدارِ حينَ يبلغُ ما في الطيرانِ السعة. */
+  readonly poolMax?: number;
 }
 
 export interface NotificationOutboxPortOptions {
@@ -56,14 +62,68 @@ export function splitOfQuery(t0: number, t1: number, row: Stamped | undefined) {
   return { preMs, serverMs, postMs, skewed: preMs < 0 || postMs < 0 || serverMs < 0 ? 1 : 0 };
 }
 
-function addSplit(a: ClaimTiming, b: ReturnType<typeof splitOfQuery>): ClaimTiming {
+function addSplit(
+  a: ClaimTiming,
+  b: ReturnType<typeof splitOfQuery>,
+  detail?: ClaimQueryDetail,
+): ClaimTiming {
   return {
     queries: a.queries + 1,
     preMs: a.preMs + b.preMs,
     serverMs: a.serverMs + b.serverMs,
     postMs: a.postMs + b.postMs,
     skewed: a.skewed + b.skewed,
+    ...(detail === undefined ? {} : { detail: [...(a.detail ?? []), detail] }),
   };
+}
+
+/**
+ * CLAIM-WAIT: يُصدِرُ استعلامًا مختومًا ويرصدُ مراحلَه على كائنِ الاستعلامِ نفسِه (`observeQuery`)،
+ * ويقرأُ ما في الطيرانِ قبلَ الإصدار. فيُرجعُ الصفوفَ والأجزاءَ الثلاثةَ والتفصيل.
+ */
+async function timedQuery<R extends Stamped>(
+  clock: ClaimSplitClock,
+  index: 1 | 2,
+  build: () => PromiseLike<R[]>,
+): Promise<{ rows: R[]; part: ReturnType<typeof splitOfQuery>; detail: ClaimQueryDetail }> {
+  const inflight = clock.inflight?.() ?? null;
+  const t0 = clock.realtimeMs();
+  const q = build();
+  const obs = observeQuery(q as object, clock.realtimeMs);
+  const rows = await q;
+  const t1 = clock.realtimeMs();
+  const row = rows[0];
+  const part = splitOfQuery(t0, t1, row);
+  // مرصودٌ = ثلاثةُ الأختامِ حاضرةٌ ومرتّبةٌ على ساعةِ العاملِ نفسِها (t0 ≤ كتابة ≤ رأس ≤ resolve ≤ t1).
+  // وغيرُ المرتّبِ يُعَدُّ غيرَ مرصود، فيظهرُ في نسبةِ التغطيةِ ولا يُخمَّن.
+  const stamped =
+    obs.tWrite !== null &&
+    obs.tActive !== null &&
+    obs.tResolved !== null &&
+    row !== undefined &&
+    t0 <= obs.tWrite &&
+    obs.tWrite <= obs.tActive &&
+    obs.tActive <= obs.tResolved &&
+    obs.tResolved <= t1;
+  const detail: ClaimQueryDetail = {
+    index,
+    preMs: part.preMs,
+    serverMs: part.serverMs,
+    postMs: part.postMs,
+    poolMs: stamped ? (obs.tWrite as number) - t0 : 0,
+    pipeMs: stamped ? (obs.tActive as number) - (obs.tWrite as number) : 0,
+    postWireMs: stamped ? (obs.tResolved as number) - row.ct_ms : 0,
+    contMs: stamped ? t1 - (obs.tResolved as number) : 0,
+    stamped,
+    pipelined: obs.pipelined === true,
+    skewed: part.skewed === 1,
+    inflight,
+    busyAtIssue:
+      inflight === null || clock.poolMax === undefined
+        ? null
+        : inflight.queries + inflight.transactions >= clock.poolMax,
+  };
+  return { rows, part, detail };
 }
 
 const NO_TIMING: ClaimTiming = { queries: 0, preMs: 0, serverMs: 0, postMs: 0, skewed: 0 };
@@ -82,14 +142,17 @@ export function createNotificationOutboxPort(
           rows = await sql<{ result: unknown }[]>`select claim_notification_delivery() result`;
         } else {
           // `offset 0` يحجزُ الدالّةَ في استعلامٍ فرعيّ: لا يُقرأُ `clock_timestamp()` إلّا بعدَها.
-          const t0 = clock.realtimeMs();
-          const stamped = await sql<({ result: unknown } & Stamped)[]>`
+          const r = await timedQuery(
+            clock,
+            1,
+            () => sql<({ result: unknown } & Stamped)[]>`
             select x.result,
                    (extract(epoch from statement_timestamp()) * 1000)::float8 as st_ms,
                    (extract(epoch from clock_timestamp()) * 1000)::float8 as ct_ms
-              from (select claim_notification_delivery() result offset 0) x`;
-          timing = addSplit(NO_TIMING, splitOfQuery(t0, clock.realtimeMs(), stamped[0]));
-          rows = stamped;
+              from (select claim_notification_delivery() result offset 0) x`,
+          );
+          timing = addSplit(NO_TIMING, r.part, r.detail);
+          rows = r.rows;
         }
         const row = envelope(rows[0]?.result, "claim_notification_delivery");
         if (row.ok !== true) throw new Error(String(row.error ?? "UNKNOWN"));
@@ -138,13 +201,16 @@ export function createNotificationOutboxPort(
         `;
         } else {
           // استعلامٌ قياسيٌّ (scalar) فيُرجعُ صفًّا واحدًا دائمًا، ومعه ختما الخادم.
-          const t0 = clock.realtimeMs();
-          const stamped = await sql<({ request_id: string | null } & Stamped)[]>`
+          const r = await timedQuery(
+            clock,
+            2,
+            () => sql<({ request_id: string | null } & Stamped)[]>`
             select (select request_id from notification_outbox where id = ${deliveryId}::uuid) as request_id,
                    (extract(epoch from statement_timestamp()) * 1000)::float8 as st_ms,
-                   (extract(epoch from clock_timestamp()) * 1000)::float8 as ct_ms`;
-          timing = addSplit(timing ?? NO_TIMING, splitOfQuery(t0, clock.realtimeMs(), stamped[0]));
-          correlationRows = stamped;
+                   (extract(epoch from clock_timestamp()) * 1000)::float8 as ct_ms`,
+          );
+          timing = addSplit(timing ?? NO_TIMING, r.part, r.detail);
+          correlationRows = r.rows;
         }
 
         return {

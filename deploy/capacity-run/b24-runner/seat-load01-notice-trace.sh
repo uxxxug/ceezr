@@ -21,6 +21,8 @@ log() { echo "[$(date -u +%T)] $*"; }
 BA="$H/deploy/capacity-run/b24-runner/base-analyze.py"
 G2="$H/deploy/capacity-run/b24-runner/gap2-analyze.py"
 VT="$H/deploy/capacity-run/monitor/notice-trace-verdict.ts"
+CWC="$H/deploy/capacity-run/monitor/claim-wait-corroborate.ts"
+CW_APP=claimwait-sampler; CW_PSQL="sudo ip netns exec ceezrsbx2 psql -h 127.0.0.1 -p 55432 -U postgres"
 
 log "اختباراتٌ ذاتيّةٌ (§4) وفحوصُ المقعدِ الموروثة"
 python3 "$H/deploy/capacity-run/b24-runner/base-analyze-selftest.py" || { echo "BASE_ANALYZER_SELFTEST_FAIL — لا موجة"; exit 1; }
@@ -34,7 +36,7 @@ git -C "$H" worktree add -f --detach "$W/wt-ref" "$ARM_SHA" >/dev/null 2>&1
 (cd "$W/wt-acc" && bun install --frozen-lockfile >"$OUT/bun-install-wt-acc.log" 2>&1)
 (cd "$W/wt-acc/docker/upstash-rest-shim" && bun install --frozen-lockfile >>"$OUT/bun-install-wt-acc.log" 2>&1)
 # اختباراتُ أدواتِ القياسِ الذاتيّةُ في شجرةِ الذراعِ نفسِها (فيها الاعتمادات) — الإخفاقُ يوقفُ قبلَ أيِّ موجة
-(cd "$W/wt-acc" && bun test tests/unit/notice-decompose.test.ts tests/unit/notice-trace-verdict.test.ts tests/unit/notification-attempt-trace.test.ts tests/unit/notification-claim-split.test.ts >"$OUT/selftest.log" 2>&1) || { tail -20 "$OUT/selftest.log"; echo "NOTICE_TOOLS_SELFTEST_FAIL — لا موجة"; exit 1; }
+(cd "$W/wt-acc" && bun test tests/unit/notice-decompose.test.ts tests/unit/notice-trace-verdict.test.ts tests/unit/notification-attempt-trace.test.ts tests/unit/notification-claim-split.test.ts tests/unit/notification-claim-wait.test.ts tests/unit/claim-wait-corroborate.test.ts >"$OUT/selftest.log" 2>&1) || { tail -20 "$OUT/selftest.log"; echo "NOTICE_TOOLS_SELFTEST_FAIL — لا موجة"; exit 1; }
 BUDGET_SRC=$(git -C "$H" show "$ARM_SHA:packages/shared/config/connection-budget.ts")
 CONTAINER_SRC=$(git -C "$H" show "$ARM_SHA:apps/gateway/src/container.ts")
 [[ "$BUDGET_SRC" == *$'\n  gatewayRequest: 5,'* ]] || { echo "GATEWAY_REQUEST_NOT_5 — لا موجة"; exit 1; }
@@ -182,11 +184,21 @@ wave() { # SLOT(ON1|OFF1|S1…) IDX [CONC] ⇒ يضبطُ V
   if [ "$ARM" = ON ]; then export NOTICE_TRACE_KIND=$TRACE_KIND; else unset NOTICE_TRACE_KIND; fi
   log "موجةُ القياس $NAME trace=$ARM code=$ARM_SHA conc=$WCONC (مدن=$N)"
   hwfp "$OUT/hw-$NAME-pre.json" pre
+  # الملحق د (CLAIM-WAIT): عيّناتُ pg_stat_activity كلَّ 100ms في الذراعينِ معًا (كلفتُها على الذراعينِ بالتساوي).
+  # نبضةُ `__tick__` في كلِّ عيّنةٍ تجعلُ التغطيةَ قابلةً للعدّ، و`statement_timestamp()` ختمٌ واحدٌ للنبضة.
+  rm -f "$B/claimwait-cur.csv"
+  ( printf "%s\n" "set application_name='$CW_APP';" "select (extract(epoch from statement_timestamp())*1000)::bigint, '__tick__', '', '', '', false, 0 union all select (extract(epoch from statement_timestamp())*1000)::bigint, coalesce(application_name,''), coalesce(state,''), coalesce(wait_event_type,''), coalesce(wait_event,''), coalesce(state = 'active' and query like '%claim_notification_delivery%', false), count(*) from pg_stat_activity where datname='ceezr_cap_20261016' and backend_type='client backend' and pid <> pg_backend_pid() group by 2,3,4,5,6 \\watch 0.1" | $CW_PSQL -d postgres -At -F, > "$B/claimwait-cur.csv" 2>/dev/null ) &
+  local CWP=$!
   "$B/bin/b24-seq.sh" "$NAME" "$WCONC" "$IDX" "M:cand:$ARM_SHA" > "$OUT/seq-$NAME.log" 2>&1 || true
+  $CW_PSQL -d postgres -Atc "select count(pg_terminate_backend(pid)) from pg_stat_activity where application_name='$CW_APP'" >/dev/null 2>&1 || true
+  wait "$CWP" 2>/dev/null || true
   unset NOTICE_TRACE_KIND; drop_trace_cfg
   local RUN=load01noticetrace-$NAME-M-$WCONC E D
   grep -E "^SEQ|QUAL_DONE|WAVE_DONE|INVALID|PREFLIGHT|INFLIGHT|TEMPLATE|NOTICE_DECOMPOSE" "$OUT/seq-$NAME.log" || true
   E=$B/runs/$RUN/evidence; D=$OUT/raw/$RUN; mkdir -p "$D"
+  # تُطابَقُ العيّناتُ بنوافذِ الأشواطِ قبلَ الجمع، فيدخلُ الناتجُ والخامُّ في البيانِ وSHA256SUMS.
+  cp "$B/claimwait-cur.csv" "$E/pg-activity.csv" 2>/dev/null || echo "PG_ACTIVITY_ABSENT $NAME"
+  (cd "$W/wt-acc" && bun "$CWC" "$E" "$E/claim-wait.json") || echo "CLAIM_WAIT_CORROBORATE_FAILED $NAME"
   hwfp "$D/hw-post.json" post; mv "$OUT/hw-$NAME-pre.json" "$D/hw-pre.json"
   # الذراعُ كما قرأتها البوّابةُ الحيّة (diag-env.txt منقولٌ إلى الأدلّة في wave-full.sh)
   # الملحق ج: ذراعُ ON = الأثرُ والتفكيكُ معًا؛ أحدُهما وحدَه = SPLIT_ONLY/TRACE_ONLY ⇒ عدمُ تطابقٍ يُبطلُ الموجة.
@@ -207,7 +219,7 @@ wave() { # SLOT(ON1|OFF1|S1…) IDX [CONC] ⇒ يضبطُ V
   [ "$(cat "$D/trace-arm-seen.txt")" = "$ARM" ] || { echo "TRACE_ARM_MISMATCH $NAME"; V=INVALID_ARM; }
   echo "VALIDITY_$NAME $V"; cat "$D/validity.json"; echo
   python3 "$BA" wave "$D" "$D/base-wave.json" 2>"$D/base-wave.err" && python3 -c "import json,sys;d=json.load(open(sys.argv[1]));print('BASE_WAVE',d['wave'],d['g1'],d['failedGates'])" "$D/base-wave.json" || echo "BASE_WAVE_ANALYZE_FAIL $NAME"
-  [ -f "$D/notice-decompose.json" ] && python3 -c "import json,sys;d=json.load(open(sys.argv[1]));print('NOTICE_DECOMPOSE',sys.argv[2],json.dumps({'valid':d['validity'],'attempts':d['attemptsSeen'],'pending':[d['pendingAtAudit'],d['auditPending']],'oldest':[d['reconstructedOldestPendingSec'],d['auditOldestPendingSec']],'oldest20':d['oldest20']['groupsPct'],'pass':(d.get('drainPasses') or {}).get('pass',{}).get('pctOfPassElapsed'),'claimMeanMs':(d.get('drainPasses') or {}).get('pass',{}).get('claimMeanMs'),'claimSplit':(d.get('drainPasses') or {}).get('pass',{}).get('claimSplit'),'loop':(d.get('drainPasses') or {}).get('pass',{}).get('loop')},ensure_ascii=False))" "$D/notice-decompose.json" "$NAME" || echo "NOTICE_DECOMPOSE_ABSENT $NAME arm=$ARM"
+  [ -f "$D/notice-decompose.json" ] && python3 -c "import json,sys;d=json.load(open(sys.argv[1]));print('NOTICE_DECOMPOSE',sys.argv[2],json.dumps({'valid':d['validity'],'attempts':d['attemptsSeen'],'pending':[d['pendingAtAudit'],d['auditPending']],'oldest':[d['reconstructedOldestPendingSec'],d['auditOldestPendingSec']],'oldest20':d['oldest20']['groupsPct'],'pass':(d.get('drainPasses') or {}).get('pass',{}).get('pctOfPassElapsed'),'claimMeanMs':(d.get('drainPasses') or {}).get('pass',{}).get('claimMeanMs'),'claimSplit':(d.get('drainPasses') or {}).get('pass',{}).get('claimSplit'),'claimWait':(d.get('drainPasses') or {}).get('pass',{}).get('claimWait'),'loop':(d.get('drainPasses') or {}).get('pass',{}).get('loop')},ensure_ascii=False))" "$D/notice-decompose.json" "$NAME" || echo "NOTICE_DECOMPOSE_ABSENT $NAME arm=$ARM"
   case "$SLOT" in S*) ;; *) WDIR["$SLOT"]=$D; WVAL["$SLOT"]=$V; WARM["$SLOT"]=$ARM ;; esac
 }
 bash "$H/deploy/capacity-run/b24-runner/seat-bin/run-wave-handoff.test.sh" || exit 1

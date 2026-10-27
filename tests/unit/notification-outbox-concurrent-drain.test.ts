@@ -11,6 +11,8 @@ import {
 } from "../../apps/workers/src/jobs/deliver-notifications.ts";
 import {
   deliverNotificationsConcurrently,
+  emptyClaimInflightAggregate,
+  emptyClaimQueryAggregate,
   type NotificationOutboxPort,
   notificationLaneKey,
   type OutboxDelivery,
@@ -177,6 +179,9 @@ describe("N1: استنزافُ صندوقِ الصادرِ المتزامن", ()
       serverMs: 0,
       postMs: 0,
       skewed: 0,
+      q1: emptyClaimQueryAggregate(),
+      q2: emptyClaimQueryAggregate(),
+      inflight: emptyClaimInflightAggregate(),
     });
   });
   test("ترتيبُ المفتاح: صفوفُ الطلبِ نفسِه تُرسَلُ بترتيبِ التقاطِها", async () => {

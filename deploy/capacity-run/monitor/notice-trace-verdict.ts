@@ -41,6 +41,7 @@ export interface WaveIn {
           readonly pctOfClaim: Record<string, number | null>;
           readonly perQueryMs: Record<string, number | null>;
         } | null;
+        readonly claimWait?: ClaimWaitIn | null;
         readonly loop?: {
           readonly passes: number;
           readonly delayMeanUs: number;
@@ -51,6 +52,129 @@ export interface WaveIn {
       };
     };
   } | null;
+  /** الملحق د: مطابقةُ عيّناتِ الخادمِ بنوافذِ الأشواط (claim-wait.json). */
+  readonly corroboration?: CorroborationIn | null;
+}
+
+export interface ClaimWaitQueryIn {
+  readonly n: number;
+  readonly stamped: number;
+  readonly pipelinedPctOfStamped: number | null;
+  readonly skewed: number;
+  readonly perQueryMs: Record<string, number | null>;
+  readonly pctOfClaim: Record<string, number | null>;
+}
+
+export interface ClaimWaitIn {
+  readonly q1: ClaimWaitQueryIn;
+  readonly q2: ClaimWaitQueryIn;
+  readonly stampedPct: number | null;
+  readonly inflight: {
+    readonly n: number;
+    readonly meanQueries: number;
+    readonly meanTransactions: number;
+    readonly max: number;
+    readonly busyAtIssuePct: number;
+  } | null;
+  readonly calDriftMaxUs: number | null;
+}
+
+export interface CorroborationIn {
+  readonly activity: {
+    readonly coverage: number | null;
+    readonly lockLikeShare: number | null;
+  } | null;
+  readonly sched: {
+    readonly coverage: number | null;
+    readonly postgres: { readonly waitPerRun: number | null } | null;
+  } | null;
+}
+
+export type PreClass =
+  | "POOL_QUEUE"
+  | "PIPELINE"
+  | "PRE_REST_CPU_WAIT"
+  | "PRE_REST_LOCK_WAIT"
+  | "PRE_REST_UNSEPARATED"
+  | "PRE_MIXED"
+  | "GAP";
+
+/**
+ * §5.7 CLAIM_WAIT_RULE (الملحق د، مسجَّلٌ قبلَ موجتِه). صلاحيّةُ القياسِ في الموجة، وإلّا GAP مع السبب:
+ * تغطيةُ نداءاتِ الالتقاط ≥ 90%، والاستعلاماتُ بساعتينِ غيرِ متّسقتين ≤ 1%، والمرصودُ ≥ 99% من الاستعلامات،
+ * وأقصى انحرافِ معايرةٍ بينَ شوطين ≤ 1000µs، ونبضاتُ pg_stat_activity ≥ 50% من المتوقَّع (10/ث)،
+ * وعيّناتُ الجدولة ≥ 80% من الثواني.
+ * ثمّ يُصنَّفُ زمنُ ما قبلَ التنفيذِ (pre المرصود للاستعلامين معًا) بحصّةِ كلِّ جزءٍ منه:
+ * pool ≥ 50% ⇒ POOL_QUEUE، pipe ≥ 50% ⇒ PIPELINE، rest ≥ 50% ⇒ PRE_REST_*، وإلّا PRE_MIXED.
+ * وrest يُسندُ بالخادم: انتظارُ طابورِ المعالجِ لـpostgres / تشغيلُه ≥ 0.25 ⇒ CPU_WAIT، وإلّا حصّةُ عيّناتِ
+ * workerJobs النشطةِ المنتظرةِ Lock/LWLock/IO/IPC/BufferPin ≥ 0.25 ⇒ LOCK_WAIT، وإلّا UNSEPARATED.
+ */
+export function claimWaitValidityOf(
+  split:
+    | { readonly coveragePct: number | null; readonly queries: number; readonly skewed: number }
+    | null
+    | undefined,
+  cw: ClaimWaitIn | null | undefined,
+  co: CorroborationIn | null | undefined,
+): string[] {
+  const r: string[] = [];
+  if (cw === null || cw === undefined) return ["claim_wait_missing"];
+  if (split === null || split === undefined || split.coveragePct === null || split.coveragePct < 90)
+    r.push("claim_coverage_lt_90");
+  if (
+    split !== null &&
+    split !== undefined &&
+    split.queries > 0 &&
+    split.skewed / split.queries > 0.01
+  )
+    r.push("skewed_gt_1pct");
+  if (cw.stampedPct === null || cw.stampedPct < 99) r.push("stamped_lt_99");
+  if (cw.calDriftMaxUs === null || cw.calDriftMaxUs > 1000) r.push("cal_drift_gt_1ms");
+  if (co === null || co === undefined) r.push("corroboration_missing");
+  else {
+    if (co.activity === null || co.activity.coverage === null || co.activity.coverage < 0.5)
+      r.push("pg_activity_coverage_lt_50");
+    if (co.sched === null || co.sched.coverage === null || co.sched.coverage < 0.8)
+      r.push("sched_coverage_lt_80");
+  }
+  return r;
+}
+
+/** مجموعُ ms لجزءٍ من pre على المرصود للاستعلامين (متوسّطٌ × عددُ المرصود). */
+function preSum(cw: ClaimWaitIn, part: string): number {
+  const one = (q: ClaimWaitQueryIn) => (q.perQueryMs[part] ?? 0) * q.stamped;
+  return one(cw.q1) + one(cw.q2);
+}
+
+export function preClassOf(cw: ClaimWaitIn, co: CorroborationIn | null | undefined): PreClass {
+  const pool = preSum(cw, "pool");
+  const pipe = preSum(cw, "pipe");
+  const rest = preSum(cw, "rest");
+  const total = pool + pipe + rest;
+  if (!(total > 0)) return "PRE_MIXED";
+  if (pool / total >= 0.5) return "POOL_QUEUE";
+  if (pipe / total >= 0.5) return "PIPELINE";
+  if (rest / total >= 0.5) {
+    const wpr = co?.sched?.postgres?.waitPerRun ?? null;
+    if (wpr !== null && wpr >= 0.25) return "PRE_REST_CPU_WAIT";
+    const lock = co?.activity?.lockLikeShare ?? null;
+    if (lock !== null && lock >= 0.25) return "PRE_REST_LOCK_WAIT";
+    return "PRE_REST_UNSEPARATED";
+  }
+  return "PRE_MIXED";
+}
+
+/**
+ * §5.7 مبرّرُ المرحلةِ الثانية (مسجَّلٌ قبلَ موجتِه): ما يُزيلُه دمجُ الاستعلامين هو ما قبلَ التنفيذِ وما بعدَه
+ * للاستعلامِ الثاني (تبقى كلفتُه على الخادم). المبرّرُ قائمٌ إن بلغَ (q2.pre + q2.post) ≥ 20% من زمنِ الالتقاط
+ * في موجتَي ON صالحتينِ على الأقلّ، ولم يكن حكمُ القياسِ MEASUREMENT_GAP.
+ */
+export function q2RemovablePctOf(cw: ClaimWaitIn): number | null {
+  const pre = cw.q2.pctOfClaim.pre;
+  const post = cw.q2.pctOfClaim.post;
+  return pre === null || pre === undefined || post === null || post === undefined
+    ? null
+    : Math.round(10 * (pre + post)) / 10;
 }
 
 export type ClaimSplitClass =
@@ -248,8 +372,55 @@ export function verdictOf(waves: readonly WaveIn[]) {
       : sTop !== undefined && sTop[1] >= 2 && sTop[1] > sGood.length / 2
         ? sTop[0]
         : "INCONCLUSIVE";
+  // §5.7 CLAIM_WAIT_RULE — موجاتُ ON الصالحةُ التي فيها CLAIM-WAIT.
+  const waitWaves = on
+    .filter((w) => (w.decomposition?.drainPasses?.pass?.claimWait ?? null) !== null)
+    .map((w) => {
+      const pass = w.decomposition?.drainPasses?.pass;
+      const cw = pass?.claimWait ?? null;
+      const co = w.corroboration ?? null;
+      const reasons = claimWaitValidityOf(pass?.claimSplit, cw, co);
+      return {
+        slot: w.slot,
+        reasons,
+        class: reasons.length > 0 || cw === null ? ("GAP" as PreClass) : preClassOf(cw, co),
+        q2RemovablePct: cw === null ? null : q2RemovablePctOf(cw),
+        preMsSum:
+          cw === null
+            ? null
+            : {
+                pool: Math.round(preSum(cw, "pool")),
+                pipe: Math.round(preSum(cw, "pipe")),
+                rest: Math.round(preSum(cw, "rest")),
+              },
+        claimWait: cw,
+        corroboration: co,
+      };
+    });
+  const wGood = waitWaves.filter((x) => x.class !== "GAP");
+  const wCounts: Record<string, number> = {};
+  for (const x of wGood) wCounts[x.class] = (wCounts[x.class] ?? 0) + 1;
+  const wTop = Object.entries(wCounts).sort((a, b) => b[1] - a[1])[0];
+  const waitDecision =
+    wGood.length < 2
+      ? "MEASUREMENT_GAP"
+      : wTop !== undefined && wTop[1] >= 2 && wTop[1] > wGood.length / 2
+        ? wTop[0]
+        : "INCONCLUSIVE";
+  const q2Hits = wGood.filter((x) => (x.q2RemovablePct ?? 0) >= 20).length;
+  const phase2Justified = waitDecision !== "MEASUREMENT_GAP" && q2Hits >= 2;
   return {
     rule: "PROTOCOL-load01-notice-trace §5",
+    claimWait: {
+      decision: waitDecision,
+      classCounts: wCounts,
+      phase2: {
+        justified: phase2Justified,
+        wavesQ2RemovableGe20: q2Hits,
+        rule: "§5.7: q2.pre+q2.post ≥ 20% في ≥ 2 موجتَي ON صالحتين",
+      },
+      waves: waitWaves,
+    },
     claimSplit: { decision: splitDecision, classCounts: sCounts, waves: splitWaves },
     drain: { decision: drain, classCounts: dCounts, waves: drainWaves },
     validOn: on.length,
@@ -316,6 +487,7 @@ export function waveFromDir(slot: string, arm: "ON" | "OFF", valid: boolean, dir
     riderPending: typeof r?.pending === "number" ? r.pending : null,
     failedGates: base?.failedGates ?? [],
     decomposition: d,
+    corroboration: readJson(join(dir, "claim-wait.json")) as CorroborationIn | null,
   };
 }
 
@@ -332,6 +504,6 @@ if (import.meta.main) {
   const verdict = { waves, ...verdictOf(waves) };
   writeFileSync(out, `${JSON.stringify(verdict, null, 2)}\n`);
   console.log(
-    `NOTICE_TRACE_VERDICT attribution=${verdict.attribution.decision} drain=${verdict.drain.decision} claim_split=${verdict.claimSplit.decision} overhead=${verdict.overhead.decision} repro=${verdict.repro.reproduced} validOn=${verdict.validOn} validOff=${verdict.validOff}`,
+    `NOTICE_TRACE_VERDICT attribution=${verdict.attribution.decision} drain=${verdict.drain.decision} claim_split=${verdict.claimSplit.decision} claim_wait=${verdict.claimWait.decision} phase2=${verdict.claimWait.phase2.justified} overhead=${verdict.overhead.decision} repro=${verdict.repro.reproduced} validOn=${verdict.validOn} validOff=${verdict.validOff}`,
   );
 }

@@ -83,3 +83,139 @@ export function createLoopProbe(resolutionMs = 10): LoopProbe {
     },
   };
 }
+
+/**
+ * `LOAD-01` (CLAIM-WAIT) — مراحلُ استعلامٍ واحدٍ في postgres.js 3.4.9 كما يسجّلُها كائنُ الاستعلامِ نفسُه،
+ * بلا `reserve()` ولا تغييرِ مسارِه:
+ * - `executed` يُضبَطُ في `handle()`: الإصدار.
+ * - `state` يُضبَطُ في `connection.execute()` لحظةَ الكتابةِ إلى المقبس. ما قبلَها انتظارٌ في طابورِ
+ *   التجمّع (لا اتّصالَ بسعة) مع مهمّةٍ دقيقةٍ واحدة (`await 1`).
+ * - `active` يُضبَطُ في الاستدعاءِ نفسِه إن كان الاتّصالُ خاليًا. وإلّا فعندَ انتهاءِ ما قبلَه على
+ *   الاتّصالِ نفسِه (`ReadyForQuery`)، أي أنّ الاستعلامَ ظلَّ في الأنبوبِ خلفَ غيره.
+ * - `resolve` يُستدعى عندَ `ReadyForQuery` لهذا الاستعلام. وما بعدَه حتّى عودةِ `await` = الاستكمال.
+ * المراقبةُ خصائصُ وصولٍ على الكائنِ نفسِه تحفظُ القيمةَ كما هي، فلا يتغيّرُ سلوكُه.
+ */
+export interface QueryObservation {
+  /** لحظةُ الكتابةِ إلى المقبس (ms، ساعةُ `realtimeMs`)، أو null إن لم تُرصد. */
+  tWrite: number | null;
+  /** لحظةُ صيرورتِه رأسَ الاتّصال. */
+  tActive: number | null;
+  /** صارَ رأسًا لاحقًا لا فورَ الكتابة، أي انتظرَ خلفَ استعلامٍ آخرَ على الاتّصالِ نفسِه. */
+  pipelined: boolean | null;
+  /** لحظةُ `resolve` (وصولُ `ReadyForQuery` ومعالجتُه). */
+  tResolved: number | null;
+}
+
+export function observeQuery(query: object, now: () => number): QueryObservation {
+  const obs: QueryObservation = { tWrite: null, tActive: null, pipelined: null, tResolved: null };
+  const q = query as { state: unknown; active: unknown; resolve: unknown };
+  let state = q.state;
+  let active = q.active;
+  let sameTurn = false;
+  Object.defineProperty(q, "state", {
+    configurable: true,
+    enumerable: true,
+    get: () => state,
+    set: (v: unknown) => {
+      if (v != null && obs.tWrite === null) {
+        obs.tWrite = now();
+        sameTurn = true;
+        queueMicrotask(() => {
+          sameTurn = false;
+        });
+      }
+      state = v;
+    },
+  });
+  Object.defineProperty(q, "active", {
+    configurable: true,
+    enumerable: true,
+    get: () => active,
+    set: (v: unknown) => {
+      if (v === true && obs.tActive === null) {
+        obs.tActive = now();
+        obs.pipelined = !sameTurn;
+      }
+      active = v;
+    },
+  });
+  const resolve = q.resolve;
+  if (typeof resolve === "function") {
+    q.resolve = (x: unknown) => {
+      if (obs.tResolved === null) obs.tResolved = now();
+      return (resolve as (x: unknown) => unknown)(x);
+    };
+  }
+  return obs;
+}
+
+/**
+ * عدّادُ ما في الطيرانِ على تجمّعٍ واحد: استعلاماتٌ أُصدِرَت ولم تنتهِ (`queries`)، ومعاملاتٌ مفتوحة
+ * (`transactions`، كلٌّ منها يحجزُ اتّصالًا طوالَ عمرِه). يُقرأُ لحظةَ إصدارِ استعلامِ الالتقاط.
+ * استعلاماتُ المعاملةِ الداخليّةُ لا تُعَدُّ مرّتين، فهي على الاتّصالِ المحجوزِ نفسِه.
+ */
+export interface PoolInflight {
+  readonly queries: number;
+  readonly transactions: number;
+}
+
+export interface PoolInflightCounter {
+  read(): PoolInflight;
+}
+
+/**
+ * يلفُّ `sql` تجمّعٍ بـProxy عدٍّ فقط: النداءُ الموسوم، و`unsafe`، و`begin`. والاستعلامُ يُعَدُّ حينَ يُنفَّذُ
+ * فعلًا (`executed`)، فالمقاطعُ المتداخلةُ التي لا تُنفَّذُ وحدَها لا تُعَدّ. ويُنقَصُ عندَ استقرارِه
+ * (`Symbol.species` = Promise فلا يُبنى استعلامٌ جديد). ولا يغيّرُ التوجيهَ ولا الترتيبَ ولا الاتّصال.
+ */
+export function instrumentPoolSql<T extends object>(
+  sql: T,
+): { readonly sql: T; readonly counter: PoolInflightCounter } {
+  let queries = 0;
+  let transactions = 0;
+  const done = () => {
+    queries -= 1;
+  };
+  const wrapQuery = (q: unknown): unknown => {
+    if (q === null || typeof q !== "object" || !("executed" in q) || !("handle" in q)) return q;
+    const target = q as { executed: unknown };
+    let executed = target.executed;
+    Object.defineProperty(target, "executed", {
+      configurable: true,
+      enumerable: true,
+      get: () => executed,
+      set: (v: unknown) => {
+        if (v === true && executed !== true) {
+          queries += 1;
+          Promise.prototype.then.call(target, done, done);
+        }
+        executed = v;
+      },
+    });
+    return q;
+  };
+  const proxy = new Proxy(sql, {
+    apply(fn, thisArg, args) {
+      return wrapQuery(Reflect.apply(fn as (...a: unknown[]) => unknown, thisArg, args));
+    },
+    get(obj, prop, receiver) {
+      const v = Reflect.get(obj, prop, receiver);
+      if (prop === "unsafe" && typeof v === "function") {
+        return (...a: unknown[]) => wrapQuery((v as (...b: unknown[]) => unknown)(...a));
+      }
+      if (prop === "begin" && typeof v === "function") {
+        return (...a: unknown[]) => {
+          transactions += 1;
+          const p = (v as (...b: unknown[]) => Promise<unknown>)(...a);
+          const end = () => {
+            transactions -= 1;
+          };
+          p.then(end, end);
+          return p;
+        };
+      }
+      return v;
+    },
+  });
+  return { sql: proxy, counter: { read: () => ({ queries, transactions }) } };
+}

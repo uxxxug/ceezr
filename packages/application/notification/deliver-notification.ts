@@ -79,6 +79,117 @@ export interface ClaimTiming {
   readonly serverMs: number;
   readonly postMs: number;
   readonly skewed: number;
+  /** CLAIM-WAIT: تفصيلُ كلِّ استعلامٍ على حدة (1 = الالتقاط، 2 = قراءةُ `request_id`). */
+  readonly detail?: readonly ClaimQueryDetail[];
+}
+
+/**
+ * `LOAD-01` (CLAIM-WAIT): مراحلُ استعلامٍ واحدٍ من استعلامَي الالتقاط (ms). وكلُّها مقيسٌ لا مقدَّر:
+ * - `preMs` = `poolMs` + `pipeMs` + الباقي. والباقي مشتقٌّ بالطرح: الكتابةُ والشبكةُ وجدولةُ الخادمِ حتّى
+ *   `statement_timestamp()`. وقد يكونُ سالبًا في الأنبوب، لأنّ الخادمَ يبدأُ قبلَ أن يرى العاملُ نهايةَ ما قبلَه.
+ * - `poolMs`: من الإصدارِ حتّى الكتابةِ إلى المقبس، أي طابورُ التجمّعِ (لا اتّصالَ بسعة) ومهمّةٌ دقيقة.
+ * - `pipeMs`: من الكتابةِ حتّى صيرورتِه رأسَ الاتّصال، أي الانتظارُ خلفَ استعلامٍ آخرَ على الاتّصالِ نفسِه.
+ * - `postMs` = `postWireMs` + `contMs`. الأوّلُ من `clock_timestamp()` حتّى `resolve` (رحلةُ العودة،
+ *   وتأخّرُ الحلقةِ قبلَ قراءةِ المقبس، والتحليل)، والثاني من `resolve` حتّى استئنافِ `await`.
+ * - `stamped`: رُصدت الكتابةُ والرأسُ و`resolve` كلُّها. وغيرُ المرصودِ يُعَدُّ ولا يُخمَّن.
+ * - `inflight`: ما في الطيرانِ على التجمّعِ لحظةَ الإصدار، و`busyAtIssue` = بلغَ مجموعُه سعةَ التجمّع،
+ *   فلا اتّصالَ خاليًا مضمونًا. و`null` = لا عدّاد.
+ */
+export interface ClaimQueryDetail {
+  readonly index: 1 | 2;
+  readonly preMs: number;
+  readonly poolMs: number;
+  readonly pipeMs: number;
+  readonly serverMs: number;
+  readonly postMs: number;
+  readonly postWireMs: number;
+  readonly contMs: number;
+  readonly stamped: boolean;
+  readonly pipelined: boolean;
+  readonly skewed: boolean;
+  readonly inflight: { readonly queries: number; readonly transactions: number } | null;
+  readonly busyAtIssue: boolean | null;
+}
+
+/** مجموعُ استعلاماتِ موضعٍ واحد (1 أو 2) في شوطٍ: أزمنةٌ بالـms وعدّاداتٌ صحيحة. */
+export interface ClaimQueryAggregate {
+  n: number;
+  stamped: number;
+  pipelined: number;
+  skewed: number;
+  preMs: number;
+  /** pre على المرصودِ وحدَه، ليُطرَحَ منه pool وpipe على القاعدةِ نفسِها. */
+  stampedPreMs: number;
+  poolMs: number;
+  pipeMs: number;
+  serverMs: number;
+  postMs: number;
+  postWireMs: number;
+  contMs: number;
+}
+
+/** ما في الطيرانِ لحظةَ إصدارِ استعلاماتِ الالتقاطِ في شوط. */
+export interface ClaimInflightAggregate {
+  n: number;
+  queriesSum: number;
+  transactionsSum: number;
+  max: number;
+  busyAtIssue: number;
+}
+
+export function emptyClaimQueryAggregate(): ClaimQueryAggregate {
+  return {
+    n: 0,
+    stamped: 0,
+    pipelined: 0,
+    skewed: 0,
+    preMs: 0,
+    stampedPreMs: 0,
+    poolMs: 0,
+    pipeMs: 0,
+    serverMs: 0,
+    postMs: 0,
+    postWireMs: 0,
+    contMs: 0,
+  };
+}
+
+export function emptyClaimInflightAggregate(): ClaimInflightAggregate {
+  return { n: 0, queriesSum: 0, transactionsSum: 0, max: 0, busyAtIssue: 0 };
+}
+
+/** يضيفُ تفصيلَ استعلامٍ إلى مجموعِ موضعِه وإلى مجموعِ ما في الطيران. لا يرمي، ولا يخمّنُ غيرَ المرصود. */
+export function addClaimQueryDetail(
+  agg: {
+    readonly q1: ClaimQueryAggregate;
+    readonly q2: ClaimQueryAggregate;
+    readonly inflight: ClaimInflightAggregate;
+  },
+  d: ClaimQueryDetail,
+): void {
+  const a = d.index === 1 ? agg.q1 : agg.q2;
+  a.n += 1;
+  if (d.skewed) a.skewed += 1;
+  a.preMs += d.preMs;
+  a.serverMs += d.serverMs;
+  a.postMs += d.postMs;
+  if (d.stamped) {
+    a.stamped += 1;
+    if (d.pipelined) a.pipelined += 1;
+    a.stampedPreMs += d.preMs;
+    a.poolMs += d.poolMs;
+    a.pipeMs += d.pipeMs;
+    a.postWireMs += d.postWireMs;
+    a.contMs += d.contMs;
+  }
+  if (d.inflight !== null) {
+    const total = d.inflight.queries + d.inflight.transactions;
+    agg.inflight.n += 1;
+    agg.inflight.queriesSum += d.inflight.queries;
+    agg.inflight.transactionsSum += d.inflight.transactions;
+    if (total > agg.inflight.max) agg.inflight.max = total;
+    if (d.busyAtIssue === true) agg.inflight.busyAtIssue += 1;
+  }
 }
 
 export interface NotificationOutboxPort {
@@ -695,6 +806,10 @@ export interface ConcurrentDrainOutcome extends DeliveryBatchOutcome {
     readonly serverMs: number;
     readonly postMs: number;
     readonly skewed: number;
+    /** CLAIM-WAIT: مجموعا الاستعلامين منفصلين وما في الطيرانِ لحظةَ الإصدار (أصفارٌ بلا تفصيل). */
+    readonly q1: ClaimQueryAggregate;
+    readonly q2: ClaimQueryAggregate;
+    readonly inflight: ClaimInflightAggregate;
   };
   readonly laneFullWaitMs: number;
   readonly saturatedWaitMs: number;
@@ -755,7 +870,17 @@ export async function deliverNotificationsConcurrently(
   let sendMs = 0;
   let claimCalls = 0;
   let claimMs = 0;
-  const split = { timed: 0, queries: 0, preMs: 0, serverMs: 0, postMs: 0, skewed: 0 };
+  const split = {
+    timed: 0,
+    queries: 0,
+    preMs: 0,
+    serverMs: 0,
+    postMs: 0,
+    skewed: 0,
+    q1: emptyClaimQueryAggregate(),
+    q2: emptyClaimQueryAggregate(),
+    inflight: emptyClaimInflightAggregate(),
+  };
   let laneFullWaitMs = 0;
   let saturatedWaitMs = 0;
   let stopReason: ConcurrentDrainStopReason = "empty";
@@ -817,6 +942,7 @@ export async function deliverNotificationsConcurrently(
       split.serverMs += timing.serverMs;
       split.postMs += timing.postMs;
       split.skewed += timing.skewed;
+      for (const d of timing.detail ?? []) addClaimQueryDetail(split, d);
     }
     if (!c.ok) {
       failure.error = c.error;

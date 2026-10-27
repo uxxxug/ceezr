@@ -103,6 +103,7 @@ import { createRedisDriverLocationHotState } from "../../../packages/infrastruct
 import {
   createCalibratedClock,
   createLoopProbe,
+  instrumentPoolSql,
 } from "../../../packages/infrastructure/notification/claim-split-probe.ts";
 import {
   currentAttemptMeter,
@@ -202,6 +203,7 @@ import {
   notificationAttemptTraceFromEnv,
   notificationClaimSplitFromEnv,
   notificationClaimSplitLogFields,
+  notificationClaimWaitLogFields,
   notificationDrainSettingsFromEnv,
   traceCoversKind,
 } from "./jobs/deliver-notifications.ts";
@@ -593,7 +595,10 @@ export function buildWorkerContainer(
   config: AppConfig,
   overrides: WorkerContainerOverrides = {},
 ): WorkerContainer {
-  const sql =
+  // `LOAD-01` (CLAIM-SPLIT/CLAIM-WAIT): يُقرأُ مبكّرًا لأنّ عدّادَ ما في الطيرانِ يلفُّ تجمّعَ `workerJobs`
+  // نفسَه (Proxy عدٍّ فقط، لا يغيّرُ التوجيهَ ولا السعة). مطفأٌ ⇒ التجمّعُ كما هو حرفيًّا.
+  const claimSplit = notificationClaimSplitFromEnv(process.env);
+  const rawSql =
     overrides.sql ??
     createSql({
       connectionString: config.databaseUrl,
@@ -601,6 +606,8 @@ export function buildWorkerContainer(
       applicationName: "ceezr:workerJobs",
       prepare: false,
     });
+  const pooled = claimSplit.enabled ? instrumentPoolSql(rawSql) : undefined;
+  const sql = pooled?.sql ?? rawSql;
   // سجلٌّ من المُصدِرِ الوحيدِ لا دالّةٌ رابعةٌ بشكلٍ رابعٍ (`F8-03` · ADR 0078).
   const log: JobLogger = overrides.log ?? createStructuredLogger({ service: "worker" });
   // `LOAD-01` (تفكيكُ P7): أثرُ كلِّ محاولةِ تسليمٍ — مُطفأٌ ما لم يُشعَلْ صراحةً.
@@ -798,13 +805,23 @@ export function buildWorkerContainer(
    * لراكبٍ — لأنَّ رسالةً خاصّةً من بوتٍ لم يبدأ معه محادثةً لا تصلُ أصلاً.
    */
   // `LOAD-01` (CLAIM-SPLIT): تفكيكُ زمنِ الالتقاطِ — مُطفأٌ ما لم يُشعَلْ صراحةً؛ والاستعلامُ الافتراضيُّ بنصِّه.
-  const claimSplit = notificationClaimSplitFromEnv(process.env);
   if (claimSplit.invalid) log.error("notification.claim_split_invalid", {});
   const claimClock = claimSplit.enabled ? createCalibratedClock() : undefined;
   const loopProbe = claimSplit.enabled ? createLoopProbe() : undefined;
+  // CLAIM-WAIT: انحرافُ المعايرةِ بينَ شوطينِ متتاليين (|Δ الفرق|)، يُسجَّلُ لصلاحيّةِ الأختام.
+  let claimCalOffset: number | null = null;
+  let claimCalDriftUs = 0;
   const notificationOutbox = createNotificationOutboxPort(
     sql,
-    claimClock === undefined ? {} : { claimSplit: claimClock },
+    claimClock === undefined
+      ? {}
+      : {
+          claimSplit: {
+            realtimeMs: claimClock.realtimeMs,
+            ...(pooled === undefined ? {} : { inflight: pooled.counter.read }),
+            poolMax: DB_POOL_MAX.workerJobs,
+          },
+        },
   );
   /**
    * مُراسِلٌ **لكلِّ نوعٍ** لا مُراسِلٌ واحدٌ لثلاثةِ أنواعٍ (`F6-07`): الوسمُ يجري
@@ -1662,7 +1679,12 @@ export function buildWorkerContainer(
                 everySeconds: JOB_INTERVALS.deliverNotifications,
                 runOnStart: true,
                 run: async () => {
-                  claimClock?.calibrate();
+                  if (claimClock !== undefined) {
+                    const offset = claimClock.calibrate();
+                    claimCalDriftUs =
+                      claimCalOffset === null ? 0 : Math.abs(offset - claimCalOffset) * 1000;
+                    claimCalOffset = offset;
+                  }
                   loopProbe?.start();
                   const report = await deliverNotifications(
                     {
@@ -1725,10 +1747,16 @@ export function buildWorkerContainer(
                           // CLAIM-SPLIT: أجزاءُ الالتقاطِ وحلقةُ الأحداثِ خلالَ الشوط (حينَ يُشعَلُ وحدَه).
                           ...(loopProbe === undefined
                             ? []
-                            : notificationClaimSplitLogFields(
-                                report.value.claimSplit,
-                                loopProbe.read(),
-                              )),
+                            : [
+                                ...notificationClaimSplitLogFields(
+                                  report.value.claimSplit,
+                                  loopProbe.read(),
+                                ),
+                                ...notificationClaimWaitLogFields(
+                                  report.value.claimSplit,
+                                  claimCalDriftUs,
+                                ),
+                              ]),
                         ]
                       : []),
                   ].join(" ");

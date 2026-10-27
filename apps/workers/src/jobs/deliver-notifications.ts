@@ -8,6 +8,8 @@
  */
 
 import {
+  type ClaimInflightAggregate,
+  type ClaimQueryAggregate,
   type ConcurrentDrainOutcome,
   type DeliveryBatchOutcome,
   deliverNotificationBatch,
@@ -158,6 +160,45 @@ export function notificationClaimSplitLogFields(
     `el_delay_p99_us=${loop.delayP99Us}`,
     `el_delay_max_us=${loop.delayMaxUs}`,
     `elu_permille=${loop.eluPermille}`,
+  ];
+}
+
+/**
+ * `LOAD-01` (CLAIM-WAIT): حقولُ تفصيلِ الاستعلامين (µs أعدادٌ صحيحة)، وما في الطيرانِ لحظةَ الإصدار،
+ * وانحرافُ المعايرةِ منذُ الشوطِ السابق. قائمةٌ مغلقةٌ يثبّتُها اختبار، وتُلحَقُ بحقولِ CLAIM-SPLIT.
+ */
+export function notificationClaimWaitLogFields(
+  split: {
+    readonly q1: ClaimQueryAggregate;
+    readonly q2: ClaimQueryAggregate;
+    readonly inflight: ClaimInflightAggregate;
+  },
+  calDriftUs: number,
+): string[] {
+  const us = (ms: number) => Math.round(ms * 1000);
+  const q = (k: string, a: ClaimQueryAggregate) => [
+    `claim_${k}_n=${a.n}`,
+    `claim_${k}_stamped=${a.stamped}`,
+    `claim_${k}_piped=${a.pipelined}`,
+    `claim_${k}_skewed=${a.skewed}`,
+    `claim_${k}_pre_us=${us(a.preMs)}`,
+    `claim_${k}_spre_us=${us(a.stampedPreMs)}`,
+    `claim_${k}_pool_us=${us(a.poolMs)}`,
+    `claim_${k}_pipe_us=${us(a.pipeMs)}`,
+    `claim_${k}_server_us=${us(a.serverMs)}`,
+    `claim_${k}_post_us=${us(a.postMs)}`,
+    `claim_${k}_wire_us=${us(a.postWireMs)}`,
+    `claim_${k}_cont_us=${us(a.contMs)}`,
+  ];
+  return [
+    ...q("q1", split.q1),
+    ...q("q2", split.q2),
+    `claim_infl_n=${split.inflight.n}`,
+    `claim_infl_q_sum=${split.inflight.queriesSum}`,
+    `claim_infl_tx_sum=${split.inflight.transactionsSum}`,
+    `claim_infl_max=${split.inflight.max}`,
+    `claim_infl_busy=${split.inflight.busyAtIssue}`,
+    `claim_cal_drift_us=${Math.round(calDriftUs)}`,
   ];
 }
 

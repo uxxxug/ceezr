@@ -1532,6 +1532,20 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     whyNotRun: null,
   },
   {
+    file: "tests/integration/notification-claim-wait.test.ts",
+    suites: ["مراحلُ الاستعلامِ وما في الطيران — CLAIM-WAIT"],
+    skipped: 5,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "يُثبِتُ أنَّ خطّافاتِ مراحلِ الاستعلامِ في postgres.js 3.4.9 (`state` و`active` و`resolve`) تميّزُ انتظارَ التجمّعِ عن الأنبوبِ عن الخلوّ على اتّصالٍ حقيقيّ، وأنَّ عدّادَ ما في الطيرانِ يعودُ صفرًا ولا يعدُّ المقطعَ المتداخل، وأنَّ المحوّلَ المشعَلَ يُرجعُ تفصيلًا مرصودًا للاستعلامين (`LOAD-01` CLAIM-WAIT). ولا يُثبَتُ ذلك ببديلٍ في الذاكرة: المقصودُ ترتيبُ postgres.js الداخليُّ للكتابةِ والأنبوبِ وReadyForQuery.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بالهجرات مطبَّقة. يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي»، ويفعله المطورُ محلّياً بحاويةِ postgres.",
+    owner: "منفّذ المستودع",
+    criticalPath: null,
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+  {
     file: "tests/integration/traffic-priority-claim.test.ts",
     suites: ["أولويّاتُ المرورِ في المُطالِبِ على PostgreSQL فعلية (F6-07)"],
     skipped: 9,

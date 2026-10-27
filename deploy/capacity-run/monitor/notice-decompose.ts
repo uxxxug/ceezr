@@ -307,6 +307,102 @@ export const PASS_FIELDS = [
   "claim_skewed",
 ] as const;
 
+/**
+ * CLAIM-WAIT (الملحق د): مراحلُ كلِّ استعلامٍ من استعلامَي الالتقاطِ بالميكروثانية، وما في الطيرانِ لحظةَ الإصدار،
+ * وانحرافُ المعايرة. تُجمَعُ بالجمعِ إلّا `claim_infl_max` و`claim_cal_drift_us` فبالأقصى.
+ */
+const WAIT_PARTS = ["pre", "spre", "pool", "pipe", "server", "post", "wire", "cont"] as const;
+const WAIT_COUNTS = ["n", "stamped", "piped", "skewed"] as const;
+export const WAIT_FIELDS = [
+  ...(["q1", "q2"] as const).flatMap((q) => [
+    ...WAIT_COUNTS.map((c) => `claim_${q}_${c}`),
+    ...WAIT_PARTS.map((x) => `claim_${q}_${x}_us`),
+  ]),
+  "claim_infl_n",
+  "claim_infl_q_sum",
+  "claim_infl_tx_sum",
+  "claim_infl_busy",
+] as const;
+export const WAIT_MAX_FIELDS = ["claim_infl_max", "claim_cal_drift_us"] as const;
+
+type WaitQuery = {
+  n: number;
+  stamped: number;
+  pipelinedPctOfStamped: number | null;
+  skewed: number;
+  /** متوسّطُ كلِّ مرحلةٍ لكلِّ استعلام (ms): pre/server/post على الكلّ، والباقي على المرصودِ وحدَه. */
+  perQueryMs: Record<string, number | null>;
+  /** حصّةُ كلِّ مرحلةٍ من زمنِ الالتقاطِ الجداريّ في الشوط (%). */
+  pctOfClaim: Record<string, number | null>;
+};
+
+/** CLAIM-WAIT: تجميعُ مراحلِ الاستعلامين. مقيسٌ كلُّه؛ `rest` = pre − pool − pipe على المرصود (مشتقٌّ بالطرح). */
+export function claimWaitOf(
+  totals: Readonly<Record<string, number>>,
+  maxes: Readonly<Record<string, number>>,
+) {
+  if ((totals.claim_q1_n ?? 0) === 0) return null;
+  const cm = totals.claim_ms ?? 0;
+  const r2 = (x: number) => Math.round(100 * x) / 100;
+  const r1 = (x: number) => Math.round(10 * x) / 10;
+  const q = (k: "q1" | "q2"): WaitQuery => {
+    const t = (f: string) => totals[`claim_${k}_${f}`] ?? 0;
+    const n = t("n");
+    const st = t("stamped");
+    const ms = (f: string) => t(`${f}_us`) / 1000;
+    // pre وserver وpost على كلِّ الاستعلامات؛ وأجزاءُ pre وpost على المرصودِ وحدَه (spre = pre المرصود).
+    // الحصّةُ من زمنِ الالتقاطِ لأجزاءِ pre تُحسَبُ على المرصودِ مكبَّرةً بنسبةِ n/stamped (مقدَّرٌ إن نقصت التغطية).
+    const per = (v: number, d: number) => (d > 0 ? r2(v / d) : null);
+    const pct = (v: number) => (cm > 0 ? r1((100 * v) / cm) : null);
+    const scale = st > 0 ? n / st : 0;
+    const rest = st > 0 ? ms("spre") - ms("pool") - ms("pipe") : null;
+    return {
+      n,
+      stamped: st,
+      pipelinedPctOfStamped: st > 0 ? r1((100 * t("piped")) / st) : null,
+      skewed: t("skewed"),
+      perQueryMs: {
+        pre: per(ms("pre"), n),
+        pool: per(ms("pool"), st),
+        pipe: per(ms("pipe"), st),
+        rest: rest === null ? null : per(rest, st),
+        server: per(ms("server"), n),
+        post: per(ms("post"), n),
+        wire: per(ms("wire"), st),
+        cont: per(ms("cont"), st),
+      },
+      pctOfClaim: {
+        pre: pct(ms("pre")),
+        pool: st > 0 ? pct(ms("pool") * scale) : null,
+        pipe: st > 0 ? pct(ms("pipe") * scale) : null,
+        rest: rest === null ? null : pct(rest * scale),
+        server: pct(ms("server")),
+        post: pct(ms("post")),
+        total: pct(ms("pre") + ms("server") + ms("post")),
+      },
+    };
+  };
+  const q1 = q("q1");
+  const q2 = q("q2");
+  const inN = totals.claim_infl_n ?? 0;
+  return {
+    q1,
+    q2,
+    stampedPct: q1.n + q2.n > 0 ? r1((100 * (q1.stamped + q2.stamped)) / (q1.n + q2.n)) : null,
+    inflight:
+      inN === 0
+        ? null
+        : {
+            n: inN,
+            meanQueries: r2((totals.claim_infl_q_sum ?? 0) / inN),
+            meanTransactions: r2((totals.claim_infl_tx_sum ?? 0) / inN),
+            max: maxes.claim_infl_max ?? 0,
+            busyAtIssuePct: r1((100 * (totals.claim_infl_busy ?? 0)) / inN),
+          },
+    calDriftMaxUs: maxes.claim_cal_drift_us ?? null,
+  };
+}
+
 /** حقولُ حلقةِ الأحداثِ لكلِّ شوط: تُجمَعُ بمتوسّطٍ موزونٍ بزمنِ الشوطِ أو بالأقصى، لا بالجمع. */
 export const LOOP_FIELDS = [
   "el_delay_mean_us",
@@ -317,12 +413,17 @@ export const LOOP_FIELDS = [
 
 export function passTotalsOf(passes: readonly PassWindow[]) {
   const totals: Record<string, number> = {};
+  const maxes: Record<string, number> = {};
   let withClaimMs = 0;
   for (const p of passes) {
     if (p.fields?.claim_ms !== undefined) withClaimMs += 1;
-    for (const f of PASS_FIELDS) {
+    for (const f of [...PASS_FIELDS, ...WAIT_FIELDS]) {
       const v = p.fields?.[f];
       if (v !== undefined) totals[f] = (totals[f] ?? 0) + v;
+    }
+    for (const f of WAIT_MAX_FIELDS) {
+      const v = p.fields?.[f];
+      if (v !== undefined) maxes[f] = Math.max(maxes[f] ?? v, v);
     }
   }
   const el = totals.elapsed_ms;
@@ -398,6 +499,7 @@ export function passTotalsOf(passes: readonly PassWindow[]) {
         };
   return {
     claimSplit,
+    claimWait: claimWaitOf(totals, maxes),
     loop,
     totals,
     passesWithClaimMs: withClaimMs,
@@ -680,7 +782,7 @@ export function parseLog(text: string): {
       const m = typeof r.detail === "string" ? /stop=(\w+)/.exec(r.detail) : null;
       const fields: Record<string, number> = {};
       if (typeof r.detail === "string") {
-        for (const f of [...PASS_FIELDS, ...LOOP_FIELDS]) {
+        for (const f of [...PASS_FIELDS, ...LOOP_FIELDS, ...WAIT_FIELDS, ...WAIT_MAX_FIELDS]) {
           const x = new RegExp(`(?:^| )${f}=(-?\\d+)(?= |$)`).exec(r.detail);
           if (x?.[1] !== undefined) fields[f] = Number(x[1]);
         }
@@ -775,6 +877,20 @@ if (import.meta.main) {
   writeFileSync(
     join(out, "notice-decompose.json"),
     `${JSON.stringify({ ...summary, riderTripLogEvents: riderEvents }, null, 2)}\n`,
+  );
+  // CLAIM-WAIT: نوافذُ الأشواطِ (أرقامٌ وحدَها) لمطابقةِ عيّناتِ pg_stat_activity والجدولةِ زمنيًّا.
+  writeFileSync(
+    join(out, "drain-passes.jsonl"),
+    passes
+      .map((p) =>
+        JSON.stringify({
+          s: p.startMs,
+          e: p.endMs,
+          claim_ms: p.fields?.claim_ms ?? null,
+          claim_calls: p.fields?.claim_calls ?? null,
+        }),
+      )
+      .join("\n") + (passes.length > 0 ? "\n" : ""),
   );
   const pend = timelines.filter((t) => t.pendingAtT);
   const done = timelines.filter((t) => !t.pendingAtT);

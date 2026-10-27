@@ -24,6 +24,9 @@
     { "name": "offers.csv", "mode": "gzip", "required": false },
     { "name": "mixed-sent.jsonl", "mode": "gzip", "required": false },
     { "name": "notice-decompose.json", "mode": "copy", "required": false },
-    { "name": "notice-trace.jsonl", "mode": "gzip", "required": false }
+    { "name": "notice-trace.jsonl", "mode": "gzip", "required": false },
+    { "name": "drain-passes.jsonl", "mode": "gzip", "required": false },
+    { "name": "pg-activity.csv", "mode": "gzip", "required": false },
+    { "name": "claim-wait.json", "mode": "copy", "required": false }
   ]
 }
