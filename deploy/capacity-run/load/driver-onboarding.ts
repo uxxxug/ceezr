@@ -26,7 +26,8 @@
 import { appendFileSync, mkdirSync } from "node:fs";
 import postgres from "postgres";
 import { withFetchSlot } from "./fetch-gate.ts";
-import { BASE, http, signedInitData, sleep } from "./lib.ts";
+import { createJobStatusPoller } from "./job-status-poller.ts";
+import { BASE, http, signedInitData } from "./lib.ts";
 
 const DB_URL = process.env.DATABASE_URL ?? "";
 // إن غاب DATABASE_URL (كاستيرادٍ في اختبارٍ ما) يُبنى الرابطُ بصيغةٍ صالحةٍ —
@@ -90,22 +91,26 @@ export interface OnboardDriverOptions {
  * انتظارُ **المهمةِ المحددةِ** — لا فراغَ الطابورِ العامَّ: المهمةُ محفوظةٌ
  * بمفتاحِ (bot, n) وحالتُها `done`/`dead` تُختمُ فلا تختفي. `dead` فشلٌ صريحٌ،
  * وانتهاءُ المهلةِ `timeout` يُسجَّلُ لا يُمرَّرُ نجاحًا.
+ *
+ * LOAD-01 (خفضُ أثرِ المراقِب): كلُّ المنتظِرينَ في جملةٍ واحدةٍ كلَّ 400ms (`job-status-poller.ts`) بدلَ جملةٍ لكلِّ
+ * سائقٍ كلَّ 400ms — الدلالةُ والإيقاعُ والمهلةُ كما هي.
  */
-async function waitForSpecificJob(
+const jobPoller = createJobStatusPoller({
+  intervalMs: 400,
+  query: async (ids) => {
+    const rows = await sql<{ update_id: string; status: string }[]>`
+      select update_id::text as update_id, status from telegram_update_jobs
+       where bot = 'driver' and update_id = any(${ids as number[]}::bigint[])
+    `;
+    return rows.map((r) => ({ updateId: Number(r.update_id), status: r.status }));
+  },
+});
+
+function waitForSpecificJob(
   updateId: number,
   deadlineMs: number,
 ): Promise<"ok" | "dead" | "timeout"> {
-  const deadline = Date.now() + deadlineMs;
-  while (Date.now() < deadline) {
-    const rows = await sql<{ status: string }[]>`
-      select status from telegram_update_jobs where bot = 'driver' and update_id = ${updateId}::bigint
-    `;
-    const status = rows[0]?.status;
-    if (status === "done") return "ok";
-    if (status === "dead") return "dead";
-    await sleep(400);
-  }
-  return "timeout";
+  return jobPoller.wait(updateId, deadlineMs);
 }
 
 /** إرسالُ بطاقةِ الاتصالِ عبرَ webhook — المسارُ الحقيقيُّ لإثباتِ الرقمِ. */
