@@ -1,0 +1,48 @@
+{
+ "wave": "load01gap2-probe-COST-OFF2-i73-M-1500",
+ "valid": false,
+ "reasons": [
+  "نداءاتُ عميلٍ بلا سطرٍ خادميّ (بلا httpgap=5657 بلا httpreq=0)",
+  "لا سطورَ httpgap لمسارِ rides — الأداةُ غيرُ مفعّلة",
+  "حقولُ RUN2 ناقصةٌ في طلباتٍ 2xx مربوطة: {'invokeMs': 5657, 'inflightAtInvoke': 5657, 'headersOverdueMs': 5657, 'requestLeadMs': 5657, 'inflightAtEntry': 5657, 'connSeq': 5657, 'loopOverdueAtEntryMs': 5657}",
+  "سطورُ gen_env = 0 (المطلوبُ واحدٌ بالضبط)",
+  "نوافذُ حقنٍ بأقلَّ من 4 سطورَ gen_loop = 36/36",
+  "نوافذُ حقنٍ بأقلَّ من 4 سطورَ loop1s = 36/36"
+ ],
+ "counts": {
+  "rides_http_call": 5657,
+  "latency_percentiles_n": 5657,
+  "verified": 5657,
+  "httpgap_rides": 0,
+  "httpreq_rides": 5657,
+  "httpgap_other_routes": 0,
+  "linked": 5657,
+  "ok_but_gap_hole": 5657
+ },
+ "note": "الربطُ الفرديُّ يُطبَّقُ على مسارِ rides (مجالُ δ)؛ سطورُ المساراتِ الأخرى معدودةٌ وصفيًّا (ملحق 1 §3).",
+ "inherited_valid": false,
+ "run2": {
+  "rides_2xx_linked": 5657,
+  "missing_new_fields": {
+   "invokeMs": 5657,
+   "inflightAtInvoke": 5657,
+   "headersOverdueMs": 5657,
+   "requestLeadMs": 5657,
+   "inflightAtEntry": 5657,
+   "connSeq": 5657,
+   "loopOverdueAtEntryMs": 5657
+  },
+  "gen_env_rows": 0,
+  "gen_env": {
+   "pid": null,
+   "bunVersion": null,
+   "maxHttpRequestsEnv": null
+  },
+  "gen_loop_rows": 0,
+  "loop1s_rows": 0,
+  "gen_loop_min_per_window": 0,
+  "loop1s_min_per_window": 0,
+  "elu_available_gen": false,
+  "elu_available_gw": false
+ }
+}

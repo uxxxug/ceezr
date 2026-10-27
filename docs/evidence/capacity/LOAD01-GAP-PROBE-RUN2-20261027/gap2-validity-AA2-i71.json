@@ -1,0 +1,41 @@
+{
+ "wave": "load01gap2-probe-AA2-i71-M-1500",
+ "valid": true,
+ "reasons": [],
+ "counts": {
+  "rides_http_call": 5782,
+  "latency_percentiles_n": 5782,
+  "verified": 5782,
+  "httpgap_rides": 5782,
+  "httpreq_rides": 5782,
+  "httpgap_other_routes": 175641,
+  "linked": 5782,
+  "ok_but_gap_hole": 0
+ },
+ "note": "الربطُ الفرديُّ يُطبَّقُ على مسارِ rides (مجالُ δ)؛ سطورُ المساراتِ الأخرى معدودةٌ وصفيًّا (ملحق 1 §3).",
+ "inherited_valid": true,
+ "run2": {
+  "rides_2xx_linked": 5782,
+  "missing_new_fields": {
+   "invokeMs": 0,
+   "inflightAtInvoke": 0,
+   "headersOverdueMs": 0,
+   "requestLeadMs": 0,
+   "inflightAtEntry": 0,
+   "connSeq": 0,
+   "loopOverdueAtEntryMs": 0
+  },
+  "gen_env_rows": 1,
+  "gen_env": {
+   "pid": 8911,
+   "bunVersion": "1.4.3",
+   "maxHttpRequestsEnv": null
+  },
+  "gen_loop_rows": 197,
+  "loop1s_rows": 246,
+  "gen_loop_min_per_window": 4,
+  "loop1s_min_per_window": 5,
+  "elu_available_gen": false,
+  "elu_available_gw": false
+ }
+}
