@@ -1,0 +1,134 @@
+{
+ "contact_acq": {
+  "gateAcq": 24734,
+  "jobs": 12367,
+  "per_job": 2.0
+ },
+ "failedGates": [
+  "G1"
+ ],
+ "g1": {
+  "ok": 5355,
+  "pct": 43.3,
+  "total": 12367
+ },
+ "gates": {
+  "CONC-peak": "peak 1500 / target 1500",
+  "EGRESS-CLASSIFIED": "unknown +0",
+  "G1": "43.30% (5355/12367)✗",
+  "G2": "0",
+  "G3": "0 + 0",
+  "G4": "CLEAN",
+  "G5": "0",
+  "G6": "0.00% (0)",
+  "G7": "0.00%",
+  "G8": "0",
+  "GW-STABILITY": "stable",
+  "I1-identities": "riders 12367/12367 · drivers 12367/12367",
+  "P1": "726ms",
+  "P2": "858ms",
+  "P3": "741ms",
+  "P4": "6570ms",
+  "P5": "11316ms",
+  "P6a": "1124ms",
+  "P6b": "1332ms",
+  "P6c": "1329ms",
+  "P7": "108s",
+  "P8": "0.00%",
+  "P9": "0.00%"
+ },
+ "onboarding": {
+  "contact_jobs": {
+   "max_ms": 30426,
+   "n": 12367,
+   "over_20s": 6891,
+   "over_20s_share": 0.5572,
+   "p50_ms": 21329,
+   "p90_ms": 25653,
+   "p99_ms": 30057,
+   "status": {
+    "done": 12367
+   }
+  },
+  "failed_step_patterns": {
+   "ok|200|timeout|201|True": 587,
+   "ok|200|timeout|409|False": 6425
+  },
+  "failed_with_phoneProofJob_timeout_share": 1.0,
+  "little": {
+   "contact_arrival_span_s": 178.767,
+   "exec_share_gateWait": 0.956,
+   "jobs_per_s_measured": 89.32,
+   "lane_ceiling_jobs_per_s": 98.17,
+   "lane_utilization": 0.9099,
+   "lanes": 32,
+   "per_job_ms_claim_plus_exec": 325.98
+  },
+  "onboarding_failed": 7012,
+  "timeline_all": {
+   "claim": 100.84,
+   "exec": 225.14,
+   "gateWait": 215.23,
+   "n": 15967,
+   "notDone": 0,
+   "queue": 19349.86,
+   "queue_p50": 20064.54
+  }
+ },
+ "pool": {
+  "driver_location": {
+   "drainer": false,
+   "holdS": 120.76,
+   "maxWindowP95Ms": 350.05,
+   "n": 42863,
+   "path": "http:POST /v1/driver/location",
+   "waitMsPerCall": 164.38,
+   "waitS": 7045.91
+  },
+  "saturatedWindows": 38,
+  "seats": 5,
+  "top_wait_paths": [
+   {
+    "holdS": 120.76,
+    "n": 42863,
+    "path": "http:POST /v1/driver/location",
+    "waitS": 7045.91
+   },
+   {
+    "holdS": 97.49,
+    "n": 23077,
+    "path": "http:POST /v1/session/telegram",
+    "waitS": 4339.49
+   },
+   {
+    "holdS": 91.96,
+    "n": 15967,
+    "path": "http:POST /webhook/telegram/driver",
+    "waitS": 3262.99
+   },
+   {
+    "holdS": 40.34,
+    "n": 14864,
+    "path": "http:GET /v1/rides/:id/trip-events",
+    "waitS": 3187.55
+   },
+   {
+    "holdS": 70.23,
+    "n": 18324,
+    "path": "http:POST /v1/onboarding/driver",
+    "waitS": 3186.35
+   },
+   {
+    "holdS": 75.07,
+    "n": 14821,
+    "path": "http:POST /v1/rides/:id/trip-events/ack",
+    "waitS": 3181.78
+   }
+  ],
+  "totalHoldS": 971.2,
+  "totalWaitS": 43688,
+  "windows": 52
+ },
+ "verdict": "FAIL",
+ "wave": "load01harness-harab-A3-i84-M-1500"
+}

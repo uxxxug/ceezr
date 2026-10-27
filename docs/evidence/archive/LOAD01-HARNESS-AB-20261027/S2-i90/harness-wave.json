@@ -1,0 +1,169 @@
+{
+ "arm": "B",
+ "base": {
+  "contact_acq": {
+   "gateAcq": 10018,
+   "jobs": 5009,
+   "per_job": 2.0
+  },
+  "failedGates": [],
+  "g1": {
+   "ok": 5009,
+   "pct": 100,
+   "total": 5009
+  },
+  "gates": {
+   "CONC-peak": "peak 100 / target 100",
+   "EGRESS-CLASSIFIED": "unknown +0",
+   "G1": "100.00% (5009/5009)",
+   "G2": "0",
+   "G3": "0 + 0",
+   "G4": "CLEAN",
+   "G5": "0",
+   "G6": "0.00% (0)",
+   "G7": "0.00%",
+   "G8": "0",
+   "GW-STABILITY": "stable",
+   "I1-identities": "riders 5009/5009 · drivers 5009/5009",
+   "P1": "144ms",
+   "P2": "128ms",
+   "P3": "90ms",
+   "P4": "2612ms",
+   "P5": "3756ms",
+   "P6a": "178ms",
+   "P6b": "150ms",
+   "P6c": "122ms",
+   "P7": "86s",
+   "P8": "0.00%",
+   "P9": "0.00%"
+  },
+  "onboarding": {
+   "contact_jobs": {
+    "max_ms": 503,
+    "n": 5009,
+    "over_20s": 0,
+    "over_20s_share": 0.0,
+    "p50_ms": 83,
+    "p90_ms": 223,
+    "p99_ms": 380,
+    "status": {
+     "done": 5009
+    }
+   },
+   "failed_step_patterns": {},
+   "failed_with_phoneProofJob_timeout_share": null,
+   "little": {
+    "contact_arrival_span_s": 179.769,
+    "exec_share_gateWait": 0.8848,
+    "jobs_per_s_measured": 47.89,
+    "lane_ceiling_jobs_per_s": 309.78,
+    "lane_utilization": 0.1546,
+    "lanes": 32,
+    "per_job_ms_claim_plus_exec": 103.3
+   },
+   "onboarding_failed": 0,
+   "timeline_all": {
+    "claim": 33.23,
+    "exec": 70.07,
+    "gateWait": 62,
+    "n": 8609,
+    "notDone": 0,
+    "queue": 47.6,
+    "queue_p50": 28.92
+   }
+  },
+  "pool": {
+   "driver_location": {
+    "drainer": false,
+    "holdS": 63.52,
+    "maxWindowP95Ms": 102.99,
+    "n": 40182,
+    "path": "http:POST /v1/driver/location",
+    "waitMsPerCall": 23.65,
+    "waitS": 950.21
+   },
+   "saturatedWindows": 0,
+   "seats": 5,
+   "top_wait_paths": [
+    {
+     "holdS": 30.87,
+     "n": 14388,
+     "path": "http:GET /v1/rides/:id/trip-events",
+     "waitS": 1019.75
+    },
+    {
+     "holdS": 61.51,
+     "n": 14385,
+     "path": "http:POST /v1/rides/:id/trip-events/ack",
+     "waitS": 1007.52
+    },
+    {
+     "holdS": 63.52,
+     "n": 40182,
+     "path": "http:POST /v1/driver/location",
+     "waitS": 950.21
+    },
+    {
+     "holdS": 27.3,
+     "n": 10018,
+     "path": "http:POST /v1/driver/availability",
+     "waitS": 696.25
+    },
+    {
+     "holdS": 59.68,
+     "n": 15027,
+     "path": "http:POST /v1/session/telegram",
+     "waitS": 672.82
+    },
+    {
+     "holdS": 45.55,
+     "n": 10018,
+     "path": "http:POST /v1/rides",
+     "waitS": 628.97
+    }
+   ],
+   "totalHoldS": 571.24,
+   "totalWaitS": 8643.24,
+   "windows": 48
+  },
+  "verdict": "PASS",
+  "wave": "load01harness-harab-S2-i90-M-100"
+ },
+ "contact_done": 5009,
+ "events": {
+  "offer_lifecycle": 5009,
+  "offer_outbox": 5009,
+  "phoneProofJob": {},
+  "window_ms": [
+   1793105120078,
+   1793105302609
+  ]
+ },
+ "pgss": {
+  "calls": 432024,
+  "new_outbox": {
+   "calls": 3,
+   "total_ms": 46.4
+  },
+  "new_poll": {
+   "calls": 349,
+   "total_ms": 29.3
+  },
+  "old_outbox": {
+   "calls": 0,
+   "total_ms": 0.0
+  },
+  "old_poll": {
+   "calls": 0,
+   "total_ms": 0.0
+  },
+  "total_exec_s": 246.2
+ },
+ "sched": {
+  "pg_run_pct_1core_p50": 158.7,
+  "pg_runq_wait_pct_1core_p50": 98.4,
+  "procs_running_p50": 5,
+  "psi_some_pct_p50": 29.86,
+  "samples": 181
+ }
+}

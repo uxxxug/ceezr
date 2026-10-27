@@ -1,0 +1,660 @@
+{
+ "acceptance": "LOAD-01 = FAIL و LOAD-01M = NOT_MET — هذه المقارنةُ ليست قبولًا",
+ "correct_rule": {
+  "notes": [
+   "زوج 1: بوّاباتٌ فاشلةٌ جديدةٌ في B ['G4', 'P7']",
+   "زوج 2: بوّاباتٌ فاشلةٌ جديدةٌ في B ['G4', 'P7']",
+   "زوج 3: بوّاباتٌ فاشلةٌ جديدةٌ في B ['G4', 'P7']"
+  ],
+  "ok": false
+ },
+ "g1": {
+  "decision": "B_BETTER",
+  "meanDPp": 10.16,
+  "why": "mean Δ 10.16pp over 4 pairs [10.94, 10.46, 9.71, 9.52]"
+ },
+ "harness_rule": {
+  "a_poll_calls": [
+   544333,
+   549001,
+   546685,
+   550660
+  ],
+  "b_poll_calls": [
+   483,
+   492,
+   480,
+   476
+  ],
+  "ok": true,
+  "poll_ratio_b_over_a": 0.00088,
+  "reasons": []
+ },
+ "merge": "BLOCKED — CORRECT_RULE مخالَفة",
+ "pairs": [
+  {
+   "completed": [
+    5477,
+    6756
+   ],
+   "contact_over_20s_share": [
+    0.5525,
+    0.4585
+   ],
+   "contact_p50_ms": [
+    21437,
+    18809
+   ],
+   "d_pp": 10.94,
+   "g1_a": 44.01,
+   "g1_b": 54.95,
+   "i": 1,
+   "pg_calls": [
+    1048330,
+    624730
+   ],
+   "pg_exec_s": [
+    384.6,
+    352.5
+   ],
+   "pg_run_pct_1core_p50": [
+    187.0,
+    180.05
+   ],
+   "pg_runq_wait_pct_1core_p50": [
+    245.0,
+    192.0
+   ],
+   "phoneProofJob": [
+    {
+     "timeout": 6968
+    },
+    {
+     "timeout": 5538
+    }
+   ],
+   "pool_hold_s": [
+    977.5,
+    993.52
+   ],
+   "pool_wait_s": [
+    44010.23,
+    48119.42
+   ],
+   "psi_some_pct_p50": [
+    53.22,
+    47.15
+   ]
+  },
+  {
+   "completed": [
+    5575,
+    6819
+   ],
+   "contact_over_20s_share": [
+    0.5445,
+    0.4525
+   ],
+   "contact_p50_ms": [
+    21220,
+    18900
+   ],
+   "d_pp": 10.46,
+   "g1_a": 44.89,
+   "g1_b": 55.35,
+   "i": 2,
+   "pg_calls": [
+    1089065,
+    615910
+   ],
+   "pg_exec_s": [
+    359.8,
+    364.7
+   ],
+   "pg_run_pct_1core_p50": [
+    186.4,
+    184.6
+   ],
+   "pg_runq_wait_pct_1core_p50": [
+    247.3,
+    201.2
+   ],
+   "phoneProofJob": [
+    {
+     "timeout": 6845
+    },
+    {
+     "timeout": 5500
+    }
+   ],
+   "pool_hold_s": [
+    983.63,
+    1013.4
+   ],
+   "pool_wait_s": [
+    44379.77,
+    48241.66
+   ],
+   "psi_some_pct_p50": [
+    53.26,
+    47.68
+   ]
+  },
+  {
+   "completed": [
+    5355,
+    6568
+   ],
+   "contact_over_20s_share": [
+    0.5572,
+    0.4778
+   ],
+   "contact_p50_ms": [
+    21329,
+    19474
+   ],
+   "d_pp": 9.71,
+   "g1_a": 43.3,
+   "g1_b": 53.01,
+   "i": 3,
+   "pg_calls": [
+    1078810,
+    589986
+   ],
+   "pg_exec_s": [
+    354.3,
+    355.9
+   ],
+   "pg_run_pct_1core_p50": [
+    186.2,
+    180.35
+   ],
+   "pg_runq_wait_pct_1core_p50": [
+    247.2,
+    194.3
+   ],
+   "phoneProofJob": [
+    {
+     "timeout": 7012
+    },
+    {
+     "timeout": 5823
+    }
+   ],
+   "pool_hold_s": [
+    971.2,
+    990.79
+   ],
+   "pool_wait_s": [
+    43688,
+    46679.38
+   ],
+   "psi_some_pct_p50": [
+    53.62,
+    46.97
+   ]
+  },
+  {
+   "completed": [
+    5481,
+    6656
+   ],
+   "contact_over_20s_share": [
+    0.5514,
+    0.4717
+   ],
+   "contact_p50_ms": [
+    21508,
+    19468
+   ],
+   "d_pp": 9.52,
+   "g1_a": 44.02,
+   "g1_b": 53.54,
+   "i": 4,
+   "pg_calls": [
+    1112112,
+    593921
+   ],
+   "pg_exec_s": [
+    342.4,
+    345.7
+   ],
+   "pg_run_pct_1core_p50": [
+    180.95,
+    181.2
+   ],
+   "pg_runq_wait_pct_1core_p50": [
+    240.95,
+    194.9
+   ],
+   "phoneProofJob": [
+    {
+     "timeout": 6971
+    },
+    {
+     "timeout": 5776
+    }
+   ],
+   "pool_hold_s": [
+    974.31,
+    986.82
+   ],
+   "pool_wait_s": [
+    43494.34,
+    45364.07
+   ],
+   "psi_some_pct_p50": [
+    52.45,
+    47.22
+   ]
+  }
+ ],
+ "waves": {
+  "A1": {
+   "arm": "A",
+   "contact_done": 12445,
+   "events": {
+    "offer_lifecycle": 5477,
+    "offer_outbox": 0,
+    "phoneProofJob": {
+     "timeout": 6968
+    },
+    "window_ms": [
+     1793105480755,
+     1793105677444
+    ]
+   },
+   "failedGates": [
+    "G1"
+   ],
+   "g1": {
+    "ok": 5477,
+    "pct": 44.01,
+    "total": 12445
+   },
+   "pgss": {
+    "calls": 1048330,
+    "new_outbox": {
+     "calls": 0,
+     "total_ms": 0.0
+    },
+    "new_poll": {
+     "calls": 0,
+     "total_ms": 0.0
+    },
+    "old_outbox": {
+     "calls": 5477,
+     "total_ms": 35146.5
+    },
+    "old_poll": {
+     "calls": 544333,
+     "total_ms": 4916.6
+    },
+    "total_exec_s": 384.6
+   },
+   "sched": {
+    "pg_run_pct_1core_p50": 187.0,
+    "pg_runq_wait_pct_1core_p50": 245.0,
+    "procs_running_p50": 8.0,
+    "psi_some_pct_p50": 53.22,
+    "samples": 194
+   }
+  },
+  "A2": {
+   "arm": "A",
+   "contact_done": 12420,
+   "events": {
+    "offer_lifecycle": 5575,
+    "offer_outbox": 0,
+    "phoneProofJob": {
+     "timeout": 6845
+    },
+    "window_ms": [
+     1793106656104,
+     1793106855761
+    ]
+   },
+   "failedGates": [
+    "G1"
+   ],
+   "g1": {
+    "ok": 5575,
+    "pct": 44.89,
+    "total": 12420
+   },
+   "pgss": {
+    "calls": 1089065,
+    "new_outbox": {
+     "calls": 0,
+     "total_ms": 0.0
+    },
+    "new_poll": {
+     "calls": 0,
+     "total_ms": 0.0
+    },
+    "old_outbox": {
+     "calls": 5575,
+     "total_ms": 35090.3
+    },
+    "old_poll": {
+     "calls": 549001,
+     "total_ms": 4957.3
+    },
+    "total_exec_s": 359.8
+   },
+   "sched": {
+    "pg_run_pct_1core_p50": 186.4,
+    "pg_runq_wait_pct_1core_p50": 247.3,
+    "procs_running_p50": 8,
+    "psi_some_pct_p50": 53.26,
+    "samples": 197
+   }
+  },
+  "A3": {
+   "arm": "A",
+   "contact_done": 12367,
+   "events": {
+    "offer_lifecycle": 5355,
+    "offer_outbox": 0,
+    "phoneProofJob": {
+     "timeout": 7012
+    },
+    "window_ms": [
+     1793107050542,
+     1793107246816
+    ]
+   },
+   "failedGates": [
+    "G1"
+   ],
+   "g1": {
+    "ok": 5355,
+    "pct": 43.3,
+    "total": 12367
+   },
+   "pgss": {
+    "calls": 1078810,
+    "new_outbox": {
+     "calls": 0,
+     "total_ms": 0.0
+    },
+    "new_poll": {
+     "calls": 0,
+     "total_ms": 0.0
+    },
+    "old_outbox": {
+     "calls": 5355,
+     "total_ms": 32600.0
+    },
+    "old_poll": {
+     "calls": 546685,
+     "total_ms": 4889.7
+    },
+    "total_exec_s": 354.3
+   },
+   "sched": {
+    "pg_run_pct_1core_p50": 186.2,
+    "pg_runq_wait_pct_1core_p50": 247.2,
+    "procs_running_p50": 8,
+    "psi_some_pct_p50": 53.62,
+    "samples": 193
+   }
+  },
+  "A4": {
+   "arm": "A",
+   "contact_done": 12452,
+   "events": {
+    "offer_lifecycle": 5481,
+    "offer_outbox": 0,
+    "phoneProofJob": {
+     "timeout": 6971
+    },
+    "window_ms": [
+     1793108219203,
+     1793108415379
+    ]
+   },
+   "failedGates": [
+    "G1"
+   ],
+   "g1": {
+    "ok": 5481,
+    "pct": 44.02,
+    "total": 12452
+   },
+   "pgss": {
+    "calls": 1112112,
+    "new_outbox": {
+     "calls": 0,
+     "total_ms": 0.0
+    },
+    "new_poll": {
+     "calls": 0,
+     "total_ms": 0.0
+    },
+    "old_outbox": {
+     "calls": 5481,
+     "total_ms": 35710.5
+    },
+    "old_poll": {
+     "calls": 550660,
+     "total_ms": 4934.5
+    },
+    "total_exec_s": 342.4
+   },
+   "sched": {
+    "pg_run_pct_1core_p50": 180.95,
+    "pg_runq_wait_pct_1core_p50": 240.95,
+    "procs_running_p50": 8.0,
+    "psi_some_pct_p50": 52.45,
+    "samples": 194
+   }
+  },
+  "B1": {
+   "arm": "B",
+   "contact_done": 12294,
+   "events": {
+    "offer_lifecycle": 6756,
+    "offer_outbox": 6756,
+    "phoneProofJob": {
+     "timeout": 5538
+    },
+    "window_ms": [
+     1793105870641,
+     1793106071375
+    ]
+   },
+   "failedGates": [
+    "G1",
+    "G4",
+    "P7"
+   ],
+   "g1": {
+    "ok": 6756,
+    "pct": 54.95,
+    "total": 12294
+   },
+   "pgss": {
+    "calls": 624730,
+    "new_outbox": {
+     "calls": 4,
+     "total_ms": 71.9
+    },
+    "new_poll": {
+     "calls": 483,
+     "total_ms": 895.4
+    },
+    "old_outbox": {
+     "calls": 0,
+     "total_ms": 0.0
+    },
+    "old_poll": {
+     "calls": 0,
+     "total_ms": 0.0
+    },
+    "total_exec_s": 352.5
+   },
+   "sched": {
+    "pg_run_pct_1core_p50": 180.05,
+    "pg_runq_wait_pct_1core_p50": 192.0,
+    "procs_running_p50": 7.0,
+    "psi_some_pct_p50": 47.15,
+    "samples": 198
+   }
+  },
+  "B2": {
+   "arm": "B",
+   "contact_done": 12319,
+   "events": {
+    "offer_lifecycle": 6819,
+    "offer_outbox": 6819,
+    "phoneProofJob": {
+     "timeout": 5500
+    },
+    "window_ms": [
+     1793106255143,
+     1793106459647
+    ]
+   },
+   "failedGates": [
+    "G1",
+    "G4",
+    "P7"
+   ],
+   "g1": {
+    "ok": 6819,
+    "pct": 55.35,
+    "total": 12319
+   },
+   "pgss": {
+    "calls": 615910,
+    "new_outbox": {
+     "calls": 4,
+     "total_ms": 86.8
+    },
+    "new_poll": {
+     "calls": 492,
+     "total_ms": 910.5
+    },
+    "old_outbox": {
+     "calls": 0,
+     "total_ms": 0.0
+    },
+    "old_poll": {
+     "calls": 0,
+     "total_ms": 0.0
+    },
+    "total_exec_s": 364.7
+   },
+   "sched": {
+    "pg_run_pct_1core_p50": 184.6,
+    "pg_runq_wait_pct_1core_p50": 201.2,
+    "procs_running_p50": 8.0,
+    "psi_some_pct_p50": 47.68,
+    "samples": 202
+   }
+  },
+  "B3": {
+   "arm": "B",
+   "contact_done": 12391,
+   "events": {
+    "offer_lifecycle": 6568,
+    "offer_outbox": 6568,
+    "phoneProofJob": {
+     "timeout": 5823
+    },
+    "window_ms": [
+     1793107430478,
+     1793107631456
+    ]
+   },
+   "failedGates": [
+    "G1",
+    "G4",
+    "P7"
+   ],
+   "g1": {
+    "ok": 6568,
+    "pct": 53.01,
+    "total": 12391
+   },
+   "pgss": {
+    "calls": 589986,
+    "new_outbox": {
+     "calls": 4,
+     "total_ms": 53.3
+    },
+    "new_poll": {
+     "calls": 480,
+     "total_ms": 933.5
+    },
+    "old_outbox": {
+     "calls": 0,
+     "total_ms": 0.0
+    },
+    "old_poll": {
+     "calls": 0,
+     "total_ms": 0.0
+    },
+    "total_exec_s": 355.9
+   },
+   "sched": {
+    "pg_run_pct_1core_p50": 180.35,
+    "pg_runq_wait_pct_1core_p50": 194.3,
+    "procs_running_p50": 7.5,
+    "psi_some_pct_p50": 46.97,
+    "samples": 198
+   }
+  },
+  "B4": {
+   "arm": "B",
+   "contact_done": 12432,
+   "events": {
+    "offer_lifecycle": 6656,
+    "offer_outbox": 6656,
+    "phoneProofJob": {
+     "timeout": 5776
+    },
+    "window_ms": [
+     1793107826924,
+     1793108025728
+    ]
+   },
+   "failedGates": [
+    "G1"
+   ],
+   "g1": {
+    "ok": 6656,
+    "pct": 53.54,
+    "total": 12432
+   },
+   "pgss": {
+    "calls": 593921,
+    "new_outbox": {
+     "calls": 4,
+     "total_ms": 78.8
+    },
+    "new_poll": {
+     "calls": 476,
+     "total_ms": 942.5
+    },
+    "old_outbox": {
+     "calls": 0,
+     "total_ms": 0.0
+    },
+    "old_poll": {
+     "calls": 0,
+     "total_ms": 0.0
+    },
+    "total_exec_s": 345.7
+   },
+   "sched": {
+    "pg_run_pct_1core_p50": 181.2,
+    "pg_runq_wait_pct_1core_p50": 194.9,
+    "procs_running_p50": 7.0,
+    "psi_some_pct_p50": 47.22,
+    "samples": 196
+   }
+  }
+ }
+}
