@@ -427,6 +427,21 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
   },
 
   {
+    file: "tests/integration/driver-viewer-merged-read.test.ts",
+    suites: ["findViewerAndDriver على القاعدة الحقيقية (LOAD-01 · driver/location)"],
+    skipped: 10,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "يُثبِتُ عقدَ القراءةِ المدمجةِ لمسارِ driver/location (حزمة load01-location-merged-read): جملةٌ واحدةٌ تبدأُ من users فيُعادُ حسابُ المشاهدِ مطابقًا حرفيًّا لـcreateViewerAccountReader وملفُّ السائقِ مطابقًا حرفيًّا لـfindByTelegramId (سائقٌ بموقعٍ سابقٍ مشتقٍّ من PostGIS، ومحجوبٌ، ومسجَّلٌ بلا سائقٍ، وغائبٌ، ومعرّفٌ ليس رقمًا)، وتعذّرُ القاعدةِ ⇒ خطأانِ لا null — لقطةُ PostgreSQL وPostGIS لا يُثبِتُها بديلٌ في الذاكرة. ولا يُدَّعى به أثرُ سعة: ذاك يُقاسُ بموجةِ A/B على المقعد (LOAD-01).",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بها الهجرات مطبَّقة. يفعله CI في وظيفةِ «تكامل على PostgreSQL حقيقي» عبرَ test:integration، ويفعله المطوّرُ محلّياً. والملفُّ يبذرُ صفوفَه ثمَّ يُزيلُها.",
+    owner: "منفّذ المستودع",
+    criticalPath: "التتبّعُ وموقعُ السائق",
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+
+  {
     file: "tests/integration/telegram-update-claim-plan.test.ts",
     suites: ["خطةُ التقاطِ تيليجرام FIFO المُفهرسةِ — بلا Sort كاملٍ ولا أولويّةٍ نوعيّة"],
     skipped: 4,
