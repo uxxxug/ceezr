@@ -1,0 +1,549 @@
+{
+ "all_contact_jobs_done": true,
+ "all_failures_are_phoneProofJob_timeout": true,
+ "lanes_source": "TELEGRAM_DRAIN_LANES في deploy/capacity-run/config/run.env (سجلُّ المقعد)",
+ "tool": "onboard4-retro.py",
+ "wait_ms_reference": 20000,
+ "waves": [
+  {
+   "contact_jobs": {
+    "max_ms": 26596,
+    "n": 12461,
+    "over_20s": 6976,
+    "over_20s_share": 0.5598,
+    "p50_ms": 22000,
+    "p90_ms": 25211,
+    "p99_ms": 26471,
+    "status": {
+     "done": 12461
+    }
+   },
+   "failed_step_patterns": {
+    "ok|200|timeout|201|True": 389,
+    "ok|200|timeout|409|False": 6675
+   },
+   "failed_with_phoneProofJob_timeout_share": 1.0,
+   "g1": {
+    "ok": 5397,
+    "pct": 43.31,
+    "total": 12461
+   },
+   "gatewayRequest_pool": {
+    "saturatedWindows": 38,
+    "seats": 5,
+    "top_wait_paths": [
+     {
+      "holdS": 121.9,
+      "n": 43230,
+      "path": "http:POST /v1/driver/location",
+      "waitS": 6121.53
+     },
+     {
+      "holdS": 97.18,
+      "n": 23255,
+      "path": "http:POST /v1/session/telegram",
+      "waitS": 4062.09
+     },
+     {
+      "holdS": 82.89,
+      "n": 16060,
+      "path": "http:POST /webhook/telegram/driver",
+      "waitS": 3192.13
+     },
+     {
+      "holdS": 85.38,
+      "n": 39076,
+      "path": "drainer:job:driver:contact",
+      "waitS": 3138
+     },
+     {
+      "holdS": 40.3,
+      "n": 15088,
+      "path": "http:GET /v1/rides/:id/trip-events",
+      "waitS": 2987.58
+     },
+     {
+      "holdS": 82.9,
+      "n": 15010,
+      "path": "http:POST /v1/rides/:id/trip-events/ack",
+      "waitS": 2961.86
+     }
+    ],
+    "totalHoldS": 985.31,
+    "totalWaitS": 40631.73,
+    "windows": 53
+   },
+   "little": {
+    "contact_arrival_span_s": 178.776,
+    "exec_share_gateWait": 0.9573,
+    "jobs_per_s_measured": 89.83,
+    "lane_ceiling_jobs_per_s": 96.24,
+    "lane_utilization": 0.9334,
+    "lanes": 32,
+    "per_job_ms_claim_plus_exec": 332.49
+   },
+   "onboarding_failed": 7064,
+   "timeline_all": {
+    "claim": 82.46,
+    "exec": 250.03,
+    "gateWait": 239.35,
+    "n": 16060,
+    "notDone": 0,
+    "queue": 19660.62,
+    "queue_p50": 19844.57
+   },
+   "wave": "load01gap4-probe-AA1-i70-M-1500",
+   "wave_report_notverified": "FAIL"
+  },
+  {
+   "contact_jobs": {
+    "max_ms": 26822,
+    "n": 12499,
+    "over_20s": 6954,
+    "over_20s_share": 0.5564,
+    "p50_ms": 20527,
+    "p90_ms": 25584,
+    "p99_ms": 26764,
+    "status": {
+     "done": 12499
+    }
+   },
+   "failed_step_patterns": {
+    "ok|200|timeout|201|True": 741,
+    "ok|200|timeout|409|False": 6399
+   },
+   "failed_with_phoneProofJob_timeout_share": 1.0,
+   "g1": {
+    "ok": 5359,
+    "pct": 42.88,
+    "total": 12499
+   },
+   "gatewayRequest_pool": {
+    "saturatedWindows": 38,
+    "seats": 5,
+    "top_wait_paths": [
+     {
+      "holdS": 117.34,
+      "n": 42911,
+      "path": "http:POST /v1/driver/location",
+      "waitS": 6043.02
+     },
+     {
+      "holdS": 94.81,
+      "n": 23217,
+      "path": "http:POST /v1/session/telegram",
+      "waitS": 3984.86
+     },
+     {
+      "holdS": 85.72,
+      "n": 39086,
+      "path": "drainer:job:driver:contact",
+      "waitS": 3148.99
+     },
+     {
+      "holdS": 94.5,
+      "n": 16099,
+      "path": "http:POST /webhook/telegram/driver",
+      "waitS": 3119.94
+     },
+     {
+      "holdS": 39.35,
+      "n": 15168,
+      "path": "http:GET /v1/rides/:id/trip-events",
+      "waitS": 2986.54
+     },
+     {
+      "holdS": 79.93,
+      "n": 15108,
+      "path": "http:POST /v1/rides/:id/trip-events/ack",
+      "waitS": 2963.64
+     }
+    ],
+    "totalHoldS": 972.01,
+    "totalWaitS": 39937.46,
+    "windows": 53
+   },
+   "little": {
+    "contact_arrival_span_s": 179.12,
+    "exec_share_gateWait": 0.9571,
+    "jobs_per_s_measured": 89.88,
+    "lane_ceiling_jobs_per_s": 97.95,
+    "lane_utilization": 0.9176,
+    "lanes": 32,
+    "per_job_ms_claim_plus_exec": 326.7
+   },
+   "onboarding_failed": 7140,
+   "timeline_all": {
+    "claim": 81.66,
+    "exec": 245.04,
+    "gateWait": 234.54,
+    "n": 16099,
+    "notDone": 0,
+    "queue": 19229.93,
+    "queue_p50": 19874.42
+   },
+   "wave": "load01gap4-probe-AA2-i71-M-1500",
+   "wave_report_notverified": "FAIL"
+  },
+  {
+   "contact_jobs": {
+    "max_ms": 26288,
+    "n": 12667,
+    "over_20s": 6707,
+    "over_20s_share": 0.5295,
+    "p50_ms": 20333,
+    "p90_ms": 25152,
+    "p99_ms": 26071,
+    "status": {
+     "done": 12667
+    }
+   },
+   "failed_step_patterns": {
+    "ok|200|timeout|201|True": 1111,
+    "ok|200|timeout|409|False": 5945
+   },
+   "failed_with_phoneProofJob_timeout_share": 1.0,
+   "g1": {
+    "ok": 5611,
+    "pct": 44.3,
+    "total": 12667
+   },
+   "gatewayRequest_pool": {
+    "saturatedWindows": 39,
+    "seats": 5,
+    "top_wait_paths": [
+     {
+      "holdS": 125.97,
+      "n": 44916,
+      "path": "http:POST /v1/driver/location",
+      "waitS": 6535.12
+     },
+     {
+      "holdS": 100.22,
+      "n": 23889,
+      "path": "http:POST /v1/session/telegram",
+      "waitS": 3992.53
+     },
+     {
+      "holdS": 91.42,
+      "n": 39409,
+      "path": "drainer:job:driver:contact",
+      "waitS": 3341.09
+     },
+     {
+      "holdS": 41.56,
+      "n": 15828,
+      "path": "http:GET /v1/rides/:id/trip-events",
+      "waitS": 2973.45
+     },
+     {
+      "holdS": 80.34,
+      "n": 16267,
+      "path": "http:POST /webhook/telegram/driver",
+      "waitS": 2971.64
+     },
+     {
+      "holdS": 80.51,
+      "n": 15762,
+      "path": "http:POST /v1/rides/:id/trip-events/ack",
+      "waitS": 2933.06
+     }
+    ],
+    "totalHoldS": 1014.99,
+    "totalWaitS": 41040.74,
+    "windows": 55
+   },
+   "little": {
+    "contact_arrival_span_s": 179.121,
+    "exec_share_gateWait": 0.9563,
+    "jobs_per_s_measured": 90.82,
+    "lane_ceiling_jobs_per_s": 94.06,
+    "lane_utilization": 0.9655,
+    "lanes": 32,
+    "per_job_ms_claim_plus_exec": 340.2
+   },
+   "onboarding_failed": 7056,
+   "timeline_all": {
+    "claim": 85.12,
+    "exec": 255.08,
+    "gateWait": 243.94,
+    "n": 16267,
+    "notDone": 0,
+    "queue": 19709.03,
+    "queue_p50": 19861.59
+   },
+   "wave": "load01gap4-probe-N1-i72-M-1500",
+   "wave_report_notverified": "FAIL"
+  },
+  {
+   "contact_jobs": {
+    "max_ms": 26957,
+    "n": 12425,
+    "over_20s": 6961,
+    "over_20s_share": 0.5602,
+    "p50_ms": 21387,
+    "p90_ms": 25555,
+    "p99_ms": 26802,
+    "status": {
+     "done": 12425
+    }
+   },
+   "failed_step_patterns": {
+    "ok|200|timeout|201|True": 472,
+    "ok|200|timeout|409|False": 6656
+   },
+   "failed_with_phoneProofJob_timeout_share": 1.0,
+   "g1": {
+    "ok": 5297,
+    "pct": 42.63,
+    "total": 12425
+   },
+   "gatewayRequest_pool": {
+    "saturatedWindows": 37,
+    "seats": 5,
+    "top_wait_paths": [
+     {
+      "holdS": 119.23,
+      "n": 42412,
+      "path": "http:POST /v1/driver/location",
+      "waitS": 5742.44
+     },
+     {
+      "holdS": 95.43,
+      "n": 23019,
+      "path": "http:POST /v1/session/telegram",
+      "waitS": 3865.61
+     },
+     {
+      "holdS": 80.05,
+      "n": 16025,
+      "path": "http:POST /webhook/telegram/driver",
+      "waitS": 3053.14
+     },
+     {
+      "holdS": 86.48,
+      "n": 38458,
+      "path": "drainer:job:driver:contact",
+      "waitS": 3037.89
+     },
+     {
+      "holdS": 69.61,
+      "n": 18209,
+      "path": "http:POST /v1/onboarding/driver",
+      "waitS": 2814.01
+     },
+     {
+      "holdS": 39.09,
+      "n": 14636,
+      "path": "http:GET /v1/rides/:id/trip-events",
+      "waitS": 2748.71
+     }
+    ],
+    "totalHoldS": 969.16,
+    "totalWaitS": 38477.68,
+    "windows": 53
+   },
+   "little": {
+    "contact_arrival_span_s": 178.577,
+    "exec_share_gateWait": 0.9555,
+    "jobs_per_s_measured": 89.74,
+    "lane_ceiling_jobs_per_s": 97.93,
+    "lane_utilization": 0.9164,
+    "lanes": 32,
+    "per_job_ms_claim_plus_exec": 326.77
+   },
+   "onboarding_failed": 7128,
+   "timeline_all": {
+    "claim": 81.91,
+    "exec": 244.86,
+    "gateWait": 233.97,
+    "n": 16025,
+    "notDone": 0,
+    "queue": 19503.96,
+    "queue_p50": 19942.45
+   },
+   "wave": "load01gap4-probe-N2-i73-M-1500",
+   "wave_report_notverified": "FAIL"
+  },
+  {
+   "contact_jobs": {
+    "max_ms": 27628,
+    "n": 12407,
+    "over_20s": 6950,
+    "over_20s_share": 0.5602,
+    "p50_ms": 22181,
+    "p90_ms": 25368,
+    "p99_ms": 27510,
+    "status": {
+     "done": 12407
+    }
+   },
+   "failed_step_patterns": {
+    "ok|200|timeout|201|True": 373,
+    "ok|200|timeout|409|False": 6652
+   },
+   "failed_with_phoneProofJob_timeout_share": 1.0,
+   "g1": {
+    "ok": 5382,
+    "pct": 43.38,
+    "total": 12407
+   },
+   "gatewayRequest_pool": {
+    "saturatedWindows": 38,
+    "seats": 5,
+    "top_wait_paths": [
+     {
+      "holdS": 120.82,
+      "n": 43082,
+      "path": "http:POST /v1/driver/location",
+      "waitS": 5912.56
+     },
+     {
+      "holdS": 96.21,
+      "n": 23171,
+      "path": "http:POST /v1/session/telegram",
+      "waitS": 3913.16
+     },
+     {
+      "holdS": 86.39,
+      "n": 38717,
+      "path": "drainer:job:driver:contact",
+      "waitS": 3113.53
+     },
+     {
+      "holdS": 80.76,
+      "n": 16006,
+      "path": "http:POST /webhook/telegram/driver",
+      "waitS": 3072.06
+     },
+     {
+      "holdS": 69.02,
+      "n": 18184,
+      "path": "http:POST /v1/onboarding/driver",
+      "waitS": 2894.04
+     },
+     {
+      "holdS": 39.32,
+      "n": 14840,
+      "path": "http:GET /v1/rides/:id/trip-events",
+      "waitS": 2858.26
+     }
+    ],
+    "totalHoldS": 978.58,
+    "totalWaitS": 39750.17,
+    "windows": 53
+   },
+   "little": {
+    "contact_arrival_span_s": 179.886,
+    "exec_share_gateWait": 0.9568,
+    "jobs_per_s_measured": 88.98,
+    "lane_ceiling_jobs_per_s": 96.55,
+    "lane_utilization": 0.9215,
+    "lanes": 32,
+    "per_job_ms_claim_plus_exec": 331.42
+   },
+   "onboarding_failed": 7025,
+   "timeline_all": {
+    "claim": 83.02,
+    "exec": 248.4,
+    "gateWait": 237.67,
+    "n": 16006,
+    "notDone": 0,
+    "queue": 19779.01,
+    "queue_p50": 20078.12
+   },
+   "wave": "load01gap4-probe-S1-i71-M-1500",
+   "wave_report_notverified": "FAIL"
+  },
+  {
+   "contact_jobs": {
+    "max_ms": 26868,
+    "n": 12385,
+    "over_20s": 7042,
+    "over_20s_share": 0.5686,
+    "p50_ms": 22027,
+    "p90_ms": 25811,
+    "p99_ms": 26782,
+    "status": {
+     "done": 12385
+    }
+   },
+   "failed_step_patterns": {
+    "ok|200|timeout|201|True": 319,
+    "ok|200|timeout|409|False": 6784
+   },
+   "failed_with_phoneProofJob_timeout_share": 1.0,
+   "g1": {
+    "ok": 5282,
+    "pct": 42.65,
+    "total": 12385
+   },
+   "gatewayRequest_pool": {
+    "saturatedWindows": 38,
+    "seats": 5,
+    "top_wait_paths": [
+     {
+      "holdS": 120.62,
+      "n": 42314,
+      "path": "http:POST /v1/driver/location",
+      "waitS": 5945.93
+     },
+     {
+      "holdS": 94.84,
+      "n": 22949,
+      "path": "http:POST /v1/session/telegram",
+      "waitS": 3927.17
+     },
+     {
+      "holdS": 80.82,
+      "n": 15985,
+      "path": "http:POST /webhook/telegram/driver",
+      "waitS": 3100.58
+     },
+     {
+      "holdS": 87.62,
+      "n": 38700,
+      "path": "drainer:job:driver:contact",
+      "waitS": 3089.55
+     },
+     {
+      "holdS": 70.48,
+      "n": 18006,
+      "path": "http:POST /v1/onboarding/driver",
+      "waitS": 2893.43
+     },
+     {
+      "holdS": 38.94,
+      "n": 14736,
+      "path": "http:GET /v1/rides/:id/trip-events",
+      "waitS": 2825.39
+     }
+    ],
+    "totalHoldS": 972.66,
+    "totalWaitS": 39443.51,
+    "windows": 52
+   },
+   "little": {
+    "contact_arrival_span_s": 179.643,
+    "exec_share_gateWait": 0.9559,
+    "jobs_per_s_measured": 88.98,
+    "lane_ceiling_jobs_per_s": 97.3,
+    "lane_utilization": 0.9145,
+    "lanes": 32,
+    "per_job_ms_claim_plus_exec": 328.87
+   },
+   "onboarding_failed": 7103,
+   "timeline_all": {
+    "claim": 83.03,
+    "exec": 245.84,
+    "gateWait": 234.99,
+    "n": 15985,
+    "notDone": 0,
+    "queue": 19919.42,
+    "queue_p50": 20246.53
+   },
+   "wave": "load01gap4-probe-S2-i74-M-1500",
+   "wave_report_notverified": "FAIL"
+  }
+ ]
+}
