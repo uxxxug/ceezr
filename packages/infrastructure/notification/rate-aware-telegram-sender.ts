@@ -15,6 +15,7 @@
 
 import { createHash } from "node:crypto";
 import { bucketClassOfSendPriority } from "../../shared/config/traffic-priority.ts";
+import { currentAttemptMeter } from "./delivery-attempt-meter.ts";
 import type { OutboundRateBucket } from "./outbound-rate-bucket.ts";
 import {
   interactiveOf,
@@ -134,6 +135,8 @@ export interface OutboundResilienceOptions {
   readonly sleep?: (ms: number) => Promise<void>;
   readonly random?: () => number;
   readonly nowIso?: () => string;
+  /** ساعةٌ رتيبةٌ (ms) لعدّادِ المحاولةِ (`LOAD-01`)؛ للاختبارات. الافتراضيُّ `performance.now`. */
+  readonly monotonicMs?: () => number;
   readonly onEvent?: (event: OutboundEvent) => void;
 }
 
@@ -236,6 +239,19 @@ export function withOutboundResilience(
   const sleep = options.sleep ?? defaultSleep;
   const random = options.random ?? Math.random;
   const nowIso = options.nowIso ?? (() => new Date().toISOString());
+  const mono = options.monotonicMs ?? (() => performance.now());
+  /** `LOAD-01`: نداءُ الدلوِ مقيسًا حين تُقاسُ المحاولة، وكما هو حين لا تُقاس. */
+  const acquireMetered: OutboundRateBucket["acquire"] = async (...args) => {
+    const m = currentAttemptMeter();
+    if (m === undefined) return options.bucket.acquire(...args);
+    const t0 = mono();
+    try {
+      return await options.bucket.acquire(...args);
+    } finally {
+      m.acquireCalls += 1;
+      m.acquireMs += mono() - t0;
+    }
+  };
 
   /**
    * تراجعٌ أسّيٌّ **كامِلُ الـjitter** (`random_between(0, base * 2^n)`) لا نصفُه.
@@ -289,13 +305,15 @@ export function withOutboundResilience(
     budgetMs: number,
   ): Promise<{ reason: string | null; retryAfterMs: number }> => {
     let waited = 0;
+    const meter = currentAttemptMeter();
     // القسمُ ١٥ / `F6-07`: غيرُ الحرجِ يُمنَعُ قبلَ آخِرِ فتحاتِ الدلوِ العالميِّ
     // فيبقى للحرجِ متنفَّسٌ. ودلوُ المحادثةِ لا حِصّةَ فيه (فتحةٌ واحدةٌ لا تُقسَمُ).
     const bucketClass = bucketClassOfSendPriority(priority);
     for (;;) {
-      const chatSlot = await options.bucket.acquire("chat", chatId, bucketClass);
+      const chatSlot = await acquireMetered("chat", chatId, bucketClass);
       if (!chatSlot.granted) {
         if (waited + chatSlot.waitMs > budgetMs) {
+          if (meter !== undefined) meter.congestionScope = "chat";
           return { reason: "ازدحامُ دلوِ المحادثةِ", retryAfterMs: chatSlot.waitMs };
         }
         options.onEvent?.({
@@ -308,17 +326,18 @@ export function withOutboundResilience(
         });
         await sleep(chatSlot.waitMs);
         waited += chatSlot.waitMs;
+        if (meter !== undefined) {
+          meter.chatWaits += 1;
+          meter.chatWaitMs += chatSlot.waitMs;
+        }
         continue;
       }
-      const globalSlot = await options.bucket.acquire(
-        "global",
-        options.bucketKey ?? "bot",
-        bucketClass,
-      );
+      const globalSlot = await acquireMetered("global", options.bucketKey ?? "bot", bucketClass);
       if (globalSlot.granted) return { reason: null, retryAfterMs: 0 };
       // فتحةُ المحادثةِ استُهلِكَت ولم تُرسَلِ الرسالةُ: الهدرُ محدودٌ بمالكِهِ —
       // يتجدّدُ في ثانيةٍ ولا يمسُّ محادثةً أخرى ولا سقفَ البوتِ المشتركَ.
       if (waited + globalSlot.waitMs > budgetMs) {
+        if (meter !== undefined) meter.congestionScope = "global";
         return { reason: "ازدحامُ الدلوِ العالميِّ", retryAfterMs: globalSlot.waitMs };
       }
       options.onEvent?.({
@@ -331,6 +350,10 @@ export function withOutboundResilience(
       });
       await sleep(globalSlot.waitMs);
       waited += globalSlot.waitMs;
+      if (meter !== undefined) {
+        meter.globalWaits += 1;
+        meter.globalWaitMs += globalSlot.waitMs;
+      }
     }
   };
 
@@ -354,8 +377,13 @@ export function withOutboundResilience(
 
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
       const slot = await awaitSlot(chatId, operation, attempt, priority, budgetMs);
+      const meter = currentAttemptMeter();
       if (slot.reason !== null) {
         if (abortOnCongestion) {
+          if (meter !== undefined) {
+            meter.congestionAborts += 1;
+            meter.congestionRetryAfterMs = slot.retryAfterMs;
+          }
           // ازدحامُ الدلاءِ ضغطٌ عابرٌ لا فشلَ إرسالٍ: يُرمى فوراً فيتفرّغُ
           // المسارُ لصفٍّ آخرَ، ويعودُ الصفُّ إلى الطابورِ بموعدِ الفتحةِ
           // (بلا محاولةٍ محتسَبةٍ) — عقدُ المستهلِكِ الذي يملكُ `requeue`.
@@ -373,9 +401,18 @@ export function withOutboundResilience(
         break;
       }
 
+      const apiT0 = meter === undefined ? 0 : mono();
+      const apiEnd = () => {
+        if (meter === undefined) return;
+        meter.apiCalls += 1;
+        meter.apiMs += mono() - apiT0;
+      };
       try {
-        return await withTimeout(call, operation);
+        const sent = await withTimeout(call, operation);
+        apiEnd();
+        return sent;
       } catch (error) {
+        apiEnd();
         const { failure, retryAfterMs } = classify(error);
         lastReason = describe(error);
         lastFailure = failure;
@@ -394,10 +431,13 @@ export function withOutboundResilience(
             waitMs: wait,
             detail: lastReason,
           });
+          if (meter !== undefined) meter.throttled += 1;
           if (wait > maxThrottleWaitMs || attempt >= maxAttempts) break;
           // jitter صغيرٌ فوقَ ما طلبَه لا داخلَه: لا يُنقِصُ الانتظارَ أبداً،
           // ويمنعُ النسخَ من أن تعودَ كلُّها في المللي ثانيةِ نفسِها.
-          await sleep(wait + Math.floor(random() * 250));
+          const jittered = wait + Math.floor(random() * 250);
+          if (meter !== undefined) meter.throttleWaitMs += jittered;
+          await sleep(jittered);
           continue;
         }
 
@@ -411,6 +451,10 @@ export function withOutboundResilience(
           waitMs: wait,
           detail: lastReason,
         });
+        if (meter !== undefined) {
+          meter.retries += 1;
+          meter.retryWaitMs += wait;
+        }
         await sleep(wait);
       }
     }

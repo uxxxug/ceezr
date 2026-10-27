@@ -8,4 +8,6 @@ $B/bin/nsx bash -c "$P -c \"\\copy (select f.order_id, f.round, round(extract(ep
 # تدقيقُ SOAK-02 (2026-10-23): صفوفُ صندوقِ الصادرِ معَ سببِ الموتِ كانت لا تُصدَّر قط
 # فتعذّرَ تحليلُ التسليماتِ الفاشلةِ — تصديرٌ للقراءةِ بعدَ انتهاءِ الموجةِ فلا يشوّهُها.
 $B/bin/nsx bash -c "$P -c \"\\copy (select id, order_id, offer_id, driver_id, kind, status, attempts, dead_reason, last_error, died_at, delivered_message_id, delivered_at, created_at, updated_at from notification_outbox) to stdout with csv header\"" > $OUT/notification-outbox.csv
-wc -l $OUT/orders.csv $OUT/offers.csv $OUT/notification-outbox.csv | tail -1
+# LOAD-01 (تفكيكُ P7): صفوفُ الصندوقِ بأرقامٍ ومعرّفٍ عشوائيٍّ وحدَها (لا chat_id ولا نصّ) — مدخلُ notice-decompose.ts.
+$B/bin/nsx bash -c "$P -c \"\\copy (select id, kind, coalesce(payload->>'event','') as event, round(extract(epoch from created_at)*1000) as created_ms from notification_outbox) to stdout with csv header\"" > $OUT/notice-rows.csv
+wc -l $OUT/orders.csv $OUT/offers.csv $OUT/notification-outbox.csv $OUT/notice-rows.csv | tail -1

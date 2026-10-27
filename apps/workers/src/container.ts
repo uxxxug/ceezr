@@ -44,6 +44,7 @@ import type { DocumentExpiryWarningSender } from "../../../packages/application/
 import { archiveDueLocationPartitions } from "../../../packages/application/geo/archive-location-partitions.ts";
 import { ensureLocationPartitions } from "../../../packages/application/geo/ensure-location-partitions.ts";
 import { flushDriverLocationBacklog } from "../../../packages/application/geo/flush-driver-location-backlog.ts";
+import type { NotificationAttemptRecord } from "../../../packages/application/notification/deliver-notification.ts";
 import { PortFailureError } from "../../../packages/application/ports/index.ts";
 import {
   createSafetyResolutionClosedHandler,
@@ -99,6 +100,11 @@ import {
   createLocationArchiveStore,
 } from "../../../packages/infrastructure/geo/location-archive-adapters.ts";
 import { createRedisDriverLocationHotState } from "../../../packages/infrastructure/geo/redis-driver-location-hot-state.ts";
+import {
+  currentAttemptMeter,
+  emptyDeliveryAttemptMeter,
+  runWithDeliveryAttemptMeter,
+} from "../../../packages/infrastructure/notification/delivery-attempt-meter.ts";
 import {
   MINIAPP_ENTRY_LABEL,
   withMiniAppEntry,
@@ -188,7 +194,10 @@ import { cleanupStaleSessions } from "./jobs/cleanup-stale-sessions.ts";
 import { deliverBroadcasts } from "./jobs/deliver-broadcasts.ts";
 import {
   deliverNotifications,
+  notificationAttemptLogFields,
+  notificationAttemptTraceFromEnv,
   notificationDrainSettingsFromEnv,
+  traceCoversKind,
 } from "./jobs/deliver-notifications.ts";
 import { deliverSafetyIncidents } from "./jobs/deliver-safety-incidents.ts";
 import { deliverSubscriptionNotices } from "./jobs/deliver-subscription-notices.ts";
@@ -588,6 +597,11 @@ export function buildWorkerContainer(
     });
   // سجلٌّ من المُصدِرِ الوحيدِ لا دالّةٌ رابعةٌ بشكلٍ رابعٍ (`F8-03` · ADR 0078).
   const log: JobLogger = overrides.log ?? createStructuredLogger({ service: "worker" });
+  // `LOAD-01` (تفكيكُ P7): أثرُ كلِّ محاولةِ تسليمٍ — مُطفأٌ ما لم يُشعَلْ صراحةً.
+  const notificationAttemptTrace = notificationAttemptTraceFromEnv(process.env);
+  if (notificationAttemptTrace.invalid.length > 0) {
+    log.error("notification.attempt_trace_invalid", { names: notificationAttemptTrace.invalid });
+  }
 
   /**
    * تجمّع اتصالات مستقلّ للأقفال، وهذا ليس ترفاً.
@@ -1643,13 +1657,30 @@ export function buildWorkerContainer(
                       // بمعرِّفٍ من ردٍّ وجدَ أثرَ الإرسالِ في العاملِ أيضاً لا في
                       // البوّابةِ وحدَها. وصفٌّ بلا معرِّفٍ يمضي بسياقِ الشوطِ نفسِه
                       // (`job-…`) ولا يُلفَّقُ له معرِّفُ طلبٍ.
-                      withDeliveryCorrelation: (delivery, run) =>
-                        delivery.requestId === null
-                          ? run()
-                          : runWithCorrelationId(
-                              { requestId: delivery.requestId, entry: "worker" },
-                              run,
-                            ),
+                      withDeliveryCorrelation: (delivery, run) => {
+                        const correlated = () =>
+                          delivery.requestId === null
+                            ? run()
+                            : runWithCorrelationId(
+                                { requestId: delivery.requestId, entry: "worker" },
+                                run,
+                              );
+                        // `LOAD-01` (تفكيكُ P7): عدّادُ المحاولةِ حولَها حين يُقاسُ نوعُها فقط.
+                        return traceCoversKind(notificationAttemptTrace, delivery.kind)
+                          ? runWithDeliveryAttemptMeter(emptyDeliveryAttemptMeter(), correlated)
+                          : correlated();
+                      },
+                      ...(notificationAttemptTrace.enabled
+                        ? {
+                            onAttempt: (record: NotificationAttemptRecord) => {
+                              if (!traceCoversKind(notificationAttemptTrace, record.kind)) return;
+                              log.info(
+                                "notification.attempt",
+                                notificationAttemptLogFields(record, currentAttemptMeter()),
+                              );
+                            },
+                          }
+                        : {}),
                     },
                     // CAP-RUN-20261015 / N1: استنزافٌ متزامنٌ محدود؛ NOTIFICATION_DRAIN_BUDGET_MS=0 = السلوكُ القديم.
                     notificationDrainSettingsFromEnv(process.env),

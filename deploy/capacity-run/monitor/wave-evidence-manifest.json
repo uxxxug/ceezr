@@ -22,6 +22,8 @@
     { "name": "dispatch-trace.jsonl", "mode": "gzip", "required": false },
     { "name": "orders.csv", "mode": "gzip", "required": false },
     { "name": "offers.csv", "mode": "gzip", "required": false },
-    { "name": "mixed-sent.jsonl", "mode": "gzip", "required": false }
+    { "name": "mixed-sent.jsonl", "mode": "gzip", "required": false },
+    { "name": "notice-decompose.json", "mode": "copy", "required": false },
+    { "name": "notice-trace.jsonl", "mode": "gzip", "required": false }
   ]
 }

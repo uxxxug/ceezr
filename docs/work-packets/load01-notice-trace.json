@@ -1,0 +1,38 @@
+{
+  "id": "load01-notice-trace",
+  "title": "تشخيصُ اختناقِ الإشعارات (G4/P7): أثرٌ لكلِّ محاولةِ تسليمٍ وأداةُ تفكيكِ عمرِ المعلَّقِ وبروتوكولٌ تشخيصيّ — لا قبول",
+  "status": "open",
+  "tags": ["load-01", "capacity", "measurement-tooling", "diagnostic"],
+  "created": "2026-10-27",
+  "updated": "2026-10-27",
+  "branch": "exp/load01-notice-trace",
+  "implementation": [
+    ".github/workflows/load01-notice-trace.yml",
+    "apps/workers/src/container.ts",
+    "apps/workers/src/jobs/deliver-notifications.ts",
+    "deploy/capacity-run/b24-runner/seat-bin/db-export.sh",
+    "deploy/capacity-run/b24-runner/seat-bin/fresh-db.sh",
+    "deploy/capacity-run/b24-runner/seat-bin/wave-full.sh",
+    "deploy/capacity-run/b24-runner/seat-load01-notice-trace.sh",
+    "deploy/capacity-run/monitor/notice-decompose.ts",
+    "deploy/capacity-run/monitor/notice-trace-verdict.ts",
+    "deploy/capacity-run/monitor/wave-evidence-manifest.json",
+    "packages/application/notification/deliver-notification.ts",
+    "packages/infrastructure/notification/delivery-attempt-meter.ts",
+    "packages/infrastructure/notification/rate-aware-telegram-sender.ts",
+    "tests/unit/notice-decompose.test.ts",
+    "tests/unit/notice-trace-verdict.test.ts",
+    "tests/unit/notification-attempt-trace.test.ts"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [
+    "docs/roadmap/execution/STATUS.md",
+    "docs/evidence/capacity/LOAD01-NOTICE-TRACE-20261027/PROTOCOL-load01-notice-trace.md"
+  ],
+  "results": {
+    "status": "pending — التشغيلُ التشخيصيُّ لم يكتملْ بعد",
+    "official_state_unchanged": ["LOAD-01 = FAIL", "LOAD-01M = NOT_MET"]
+  },
+  "next": "تشغيلُ البروتوكولِ على فرعِ exp/load01-notice-trace-run ثمّ RESULT."
+}

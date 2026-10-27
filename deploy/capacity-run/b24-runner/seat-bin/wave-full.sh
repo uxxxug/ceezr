@@ -21,6 +21,14 @@ sudo -n ip netns exec ceezrsbx2 pkill -f '[r]l-sampler.py' 2>/dev/null || true
 $B/bin/pgss-dump.sh $B/runs/$ROUND/evidence/pgss-top.txt 30
 tail -n +$((START_LINE+1)) $GWLOG > $B/runs/$ROUND/evidence/gateway.wave.log
 $B/bin/db-export.sh $B/runs/$ROUND/evidence || true
+# LOAD-01 (تفكيكُ P7): يُفكَّكُ على المقعدِ لأنَّ سجلَّ البوّابةِ لا يُرفَع؛ يُرفَعُ الناتجُ الرقميُّ وحدَه.
+# أداةُ هذا الفرعِ إن وُجدت (worktree الذراع)، والغيابُ لا يُسقِطُ الموجة.
+EV=$B/runs/$ROUND/evidence
+if [ -f /home/user/workspace/wt-acc/deploy/capacity-run/monitor/notice-decompose.ts ] && [ -f $EV/notice-rows.csv ]; then
+  (cd /home/user/workspace/wt-acc && bun deploy/capacity-run/monitor/notice-decompose.ts \
+    --log $EV/gateway.wave.log --rows $EV/notice-rows.csv --audit $EV/db-audit-post.json \
+    --kind "${NOTICE_TRACE_KIND:-rider_trip_notice}" --out $EV) || echo "NOTICE_DECOMPOSE_FAILED $ROUND"
+fi
 [ -n "${TRACE_FILE:-}" ] && cp "$TRACE_FILE" $B/runs/$ROUND/evidence/dispatch-trace.jsonl
 mv $B/runs/$ROUND.side/diag-env.txt $B/runs/$ROUND/evidence/ 2>/dev/null
 mv $B/runs/$ROUND.side/session-limit.json $B/runs/$ROUND.side/rl-window.jsonl $B/runs/$ROUND/evidence/ 2>/dev/null

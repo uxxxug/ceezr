@@ -195,6 +195,77 @@ export interface NotificationDeliveryDeps {
     delivery: OutboxDelivery,
     run: () => Promise<T>,
   ) => Promise<T>;
+  /**
+   * `LOAD-01` (تفكيكُ P7): أثرُ كلِّ محاولةِ تسليمٍ لصفٍّ مُلتقَط — متى بدأت، وكم دامت،
+   * وبمَ انتهت، وكم تأخّرَ الصفُّ عمدًا بعدَها. **اختياريٌّ ومُطفأٌ افتراضيًّا**: غيابُه
+   * لا يُضيفُ قياسًا ولا ساعةً، فالمسارُ الإنتاجيُّ كما هو حرفًا. ولا يحملُ السجلُّ
+   * إلّا معرِّفَ الصفِّ ونوعَه وأرقامًا؛ لا هاتفَ ولا محادثةَ ولا نصَّ خطأٍ حرًّا.
+   *
+   * ويُستدعى **داخلَ** `withDeliveryCorrelation`، فما تجمعُه الطبقةُ التحتيّةُ في سياقِ
+   * المحاولةِ (انتظارُ الدلو، زمنُ النداء) مقروءٌ عندَه.
+   */
+  readonly onAttempt?: (record: NotificationAttemptRecord) => void;
+  /** ساعةُ الجدار (ms) لطابعِ `startedAtMs`؛ للاختبارات. الافتراضيُّ `Date.now`. */
+  readonly wallClockMs?: () => number;
+}
+
+/**
+ * مآلُ محاولةٍ واحدة كما يراه العامل — مجموعةٌ مغلقة:
+ * - `telegram`: أُرسلت ونجحَ الإنهاء؛ `board`: سُلِّمت عبرَ التطبيق (إقرارٌ)؛
+ * - `signal_wait`: أُشيرَ للتطبيقِ وأُعيدَ الصفُّ لانتظارِ الإقرار (`retryAfterMs`)؛
+ * - `congestion`: رفضَ محدِّدُ المعدّلِ الانتظارَ فأُعيدَ الصفُّ بعدَ 1000ms؛
+ * - `retry` / `dead`: فشلٌ أنهاه المنفذُ بإعادةٍ لاحقةٍ أو بموت؛
+ * - `abandon` / `undeliverable` / `no_message`: لا إرسالَ ولا فشل؛
+ * - `error`: فشلُ منفذٍ (قاعدة/معالج) قبلَ الإنهاء.
+ */
+export type NotificationAttemptOutcome =
+  | "telegram"
+  | "board"
+  | "signal_wait"
+  | "congestion"
+  | "retry"
+  | "dead"
+  | "abandon"
+  | "undeliverable"
+  | "no_message"
+  | "error";
+
+export interface NotificationAttemptRecord {
+  readonly deliveryId: string;
+  readonly kind: string;
+  /** `payload.event` إن كان رمزًا قصيرًا بحروفٍ كبيرة (`MATCHED`…)؛ وإلّا `null`. */
+  readonly event: string | null;
+  /** رقمُ المحاولةِ كما أعادَه الالتقاط (`attempts` بعدَ زيادتِه). */
+  readonly attempt: number;
+  readonly signalWaits: number;
+  readonly startedAtMs: number;
+  readonly durationMs: number;
+  /** انتظارُ مسارِ الصفِّ داخلَ الشوطِ المتزامنِ قبلَ البدء؛ `null` في المسارِ التتابعيّ. */
+  readonly laneWaitMs: number | null;
+  readonly outcome: NotificationAttemptOutcome;
+  /** التأخيرُ المتعمَّدُ قبلَ الالتقاطِ التالي (`signal_wait` و`congestion`)؛ وإلّا `null`. */
+  readonly retryAfterMs: number | null;
+  /** رمزُ الفشلِ إن كان معرِّفًا (`OutboundCongestionError`، `TELEGRAM_…`)؛ وإلّا `other`. */
+  readonly failure: string | null;
+}
+
+const EVENT_TOKEN = /^[A-Z][A-Z0-9_]{0,31}$/;
+const FAILURE_TOKEN = /^[A-Za-z][A-Za-z0-9_.:-]{0,63}$/;
+
+function safeEventOf(delivery: OutboxDelivery): string | null {
+  const e = delivery.payload.event;
+  return typeof e === "string" && EVENT_TOKEN.test(e) ? e : null;
+}
+
+function safeFailureOf(failure: string | null): string | null {
+  if (failure === null) return null;
+  return FAILURE_TOKEN.test(failure) ? failure : "other";
+}
+
+interface AttemptTrace {
+  outcome: NotificationAttemptOutcome;
+  retryAfterMs: number | null;
+  failure: string | null;
 }
 
 export interface DeliveryAttemptOutcome {
@@ -275,6 +346,43 @@ export async function deliverNotification(
 async function deliverClaimed(
   deps: NotificationDeliveryDeps,
   delivery: OutboxDelivery,
+  laneWaitMs: number | null = null,
+): Promise<Result<DeliveryAttemptOutcome, PortFailureError>> {
+  const onAttempt = deps.onAttempt;
+  if (onAttempt === undefined) return deliverClaimedCore(deps, delivery, null);
+  const wall = deps.wallClockMs ?? Date.now;
+  const startedAtMs = wall();
+  const trace: AttemptTrace = { outcome: "error", retryAfterMs: null, failure: null };
+  let result: Result<DeliveryAttemptOutcome, PortFailureError> | undefined;
+  try {
+    result = await deliverClaimedCore(deps, delivery, trace);
+    return result;
+  } finally {
+    if (result === undefined || !result.ok) trace.outcome = "error";
+    try {
+      onAttempt({
+        deliveryId: delivery.deliveryId,
+        kind: delivery.kind,
+        event: safeEventOf(delivery),
+        attempt: delivery.attempts,
+        signalWaits: delivery.signalWaitCount ?? 0,
+        startedAtMs,
+        durationMs: Math.max(0, wall() - startedAtMs),
+        laneWaitMs,
+        outcome: trace.outcome,
+        retryAfterMs: trace.retryAfterMs,
+        failure: safeFailureOf(trace.failure),
+      });
+    } catch {
+      // حاجزُ مراقبةٍ لا يجوزُ أن يمنعَ عملاً (كـ`withDeliveryCorrelation`).
+    }
+  }
+}
+
+async function deliverClaimedCore(
+  deps: NotificationDeliveryDeps,
+  delivery: OutboxDelivery,
+  trace: AttemptTrace | null,
 ): Promise<Result<DeliveryAttemptOutcome, PortFailureError>> {
   const handler = deps.handlers[delivery.kind];
   if (handler === undefined) {
@@ -284,6 +392,7 @@ async function deliverClaimed(
   }
   const handled = await handler(delivery);
   if (!handled.ok) return handled;
+  if (trace !== null) trace.failure = handled.value.failure;
   // `SEC-19-ب-٤` — العنوانُ غائبٌ: عجزُ تسليمٍ لا فشلُ محاولاتٍ. يُفصَلُ عن
   // `abandon` (الذي يَضَعُ `dead`) فيُعلَنُ `undeliverable` بـ`dead_reason` مُسمّىً.
   if (handled.value.undeliverable === true) {
@@ -294,6 +403,7 @@ async function deliverClaimed(
       reason,
     });
     if (!marked.ok) return marked;
+    if (trace !== null) trace.outcome = "undeliverable";
     return ok({
       found: true,
       kind: delivery.kind,
@@ -316,6 +426,7 @@ async function deliverClaimed(
       claimToken: delivery.claimToken,
     });
     if (!viaBoard.ok) return viaBoard;
+    if (trace !== null) trace.outcome = "board";
     return ok({
       found: true,
       kind: delivery.kind,
@@ -339,6 +450,10 @@ async function deliverClaimed(
       retryAfterMs: handled.value.signalWait.retryAfterMs,
     });
     if (!waited.ok) return waited;
+    if (trace !== null) {
+      trace.outcome = "signal_wait";
+      trace.retryAfterMs = handled.value.signalWait.retryAfterMs;
+    }
     return ok({
       found: true,
       kind: delivery.kind,
@@ -359,6 +474,10 @@ async function deliverClaimed(
       reason: handled.value.failure,
     });
     if (!abandoned.ok) return abandoned;
+    if (trace !== null) {
+      trace.outcome = "abandon";
+      trace.failure = handled.value.failure;
+    }
     return ok({
       found: true,
       kind: delivery.kind,
@@ -383,6 +502,11 @@ async function deliverClaimed(
       retryAfterMs: 1_000,
     });
     if (!requeued.ok) return requeued;
+    if (trace !== null) {
+      trace.outcome = "congestion";
+      trace.retryAfterMs = 1_000;
+      trace.failure = handled.value.failure;
+    }
     return ok({
       found: true,
       kind: delivery.kind,
@@ -405,6 +529,17 @@ async function deliverClaimed(
   // فشل `finish` وحده يُرجَع خطأً: الصفّ عالقٌ في `sending` بلا موعد. أمّا فشلُ
   // النشرِ فقد أُعيد الصفّ به إلى `pending` سليمًا بموعدٍ جديد.
   if (!finished.ok) return finished;
+  if (trace !== null) {
+    trace.failure = handled.value.failure;
+    trace.outcome =
+      finished.value.outcome === "dead"
+        ? "dead"
+        : handled.value.messageId !== null && finished.value.ok
+          ? "telegram"
+          : handled.value.failure !== null
+            ? "retry"
+            : "no_message";
+  }
   // «سُلّمت» تعني أنّ رسالةً وصلت فعلاً ولها معرّف. لا يجوز أن يُعلن التسليم
   // إلا بمعرّف رسالة حقيقيّ — والقاعدةُ لا تُعلنُ delivered بغيرِه.
   return ok({
@@ -606,8 +741,8 @@ export async function deliverNotificationsConcurrently(
     const wrap = deps.withDeliveryCorrelation;
     try {
       return await (wrap === undefined
-        ? deliverClaimed(deps, delivery)
-        : wrap(delivery, () => deliverClaimed(deps, delivery)));
+        ? deliverClaimed(deps, delivery, t0 - enqueuedAt)
+        : wrap(delivery, () => deliverClaimed(deps, delivery, t0 - enqueuedAt)));
     } finally {
       sendMs += now() - t0;
     }

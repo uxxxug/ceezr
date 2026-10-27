@@ -17,6 +17,11 @@ sed -i '/^DISPATCH_DIAG_/d;/^NOTIFICATION_DRAIN_LANES=/d;/^NOTIFICATION_DRAIN_BU
 sed -i '/^CITIES=/d;/^CITY=/d' $B/secrets.env
 [ -n "${LOAD01M_CITIES:-}" ] && printf 'CITIES=%s\n' "$LOAD01M_CITIES" >> $B/secrets.env
 [ -n "${LOAD01M_CITY:-}" ] && printf 'CITY=%s\n' "$LOAD01M_CITY" >> $B/secrets.env
+# LOAD-01 (تفكيكُ P7): أثرُ محاولاتِ التسليمِ يُشعَلُ للموجةِ بـNOTICE_TRACE_KIND وحدَه، ويُنظَّفُ قبلَها دائمًا.
+sed -i '/^NOTIFICATION_ATTEMPT_TRACE=/d;/^NOTIFICATION_ATTEMPT_TRACE_KINDS=/d' $B/secrets.env
+if [ -n "${NOTICE_TRACE_KIND:-}" ]; then
+  printf 'NOTIFICATION_ATTEMPT_TRACE=1\nNOTIFICATION_ATTEMPT_TRACE_KINDS=%s\n' "$NOTICE_TRACE_KIND" >> $B/secrets.env
+fi
 for kv in ${DIAG_EXTRA:-}; do echo "$kv" >> $B/secrets.env; done
 [ -n "${DIAG_POOL:-}" ] && echo "DISPATCH_DIAG_DEDICATED_POOL=$DIAG_POOL" >> $B/secrets.env
 [ -n "${DIAG_REQ:-}" ] && echo "DISPATCH_DIAG_REQUEST_POOL=$DIAG_REQ" >> $B/secrets.env
