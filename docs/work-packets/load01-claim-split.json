@@ -22,7 +22,8 @@
     "tests/unit/notice-decompose.test.ts",
     "tests/unit/notice-trace-verdict.test.ts",
     "tests/unit/notification-claim-split.test.ts",
-    "tests/unit/notification-outbox-concurrent-drain.test.ts"
+    "tests/unit/notification-outbox-concurrent-drain.test.ts",
+    "tests/unit/skip-audit.test.ts"
   ],
   "state": ["docs/SYSTEM_STATE.md"],
   "roadmap": ["ROADMAP.md"],
