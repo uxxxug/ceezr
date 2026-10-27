@@ -1118,10 +1118,11 @@ async function recordOfferLifecycle(corr: ScenarioCorr): Promise<void> {
            created_at::text, expires_at::text, responded_at::text
       from order_offers where order_id = ${orderId} order by round, created_at
   `;
-  const outbox = await sql<{ status: string; attempts: number; delivered_at: string | null }[]>`
-    select status::text, attempts, delivered_at::text
-      from notification_outbox where order_id = ${orderId} and offer_id is not null
-  `;
+  // LOAD-01 (خفضُ أثرِ المراقِب): قراءةُ `notification_outbox` لكلِّ سيناريو كانت مسحًا كاملًا للجدولِ (لا فهرسَ على
+  // `order_id` في المنتَج — ولا يُضافُ لأداةِ قياس) فبلغت 35s من تنفيذِ PostgreSQL في موجةِ m5-1500 (6.5ms × 5404) داخلَ
+  // نافذةِ القياس. تُجمَعُ الطلباتُ هنا وتُقرأُ دفعةً واحدةً بعدَ نافذةِ الختام (`recordOfferOutboxFinal`)؛ الحالةُ المسجّلةُ
+  // إذن حالتُها عندَ نهايةِ الموجةِ لا عندَ نهايةِ السيناريو — ولا محلّلَ يقرأُ هذا الحقلَ (تشخيصٌ وصفيّ).
+  outboxPending.push({ index: corr.index, orderId });
   ev("scenario.offer_lifecycle", {
     index: corr.index,
     orderId,
@@ -1134,12 +1135,41 @@ async function recordOfferLifecycle(corr: ScenarioCorr): Promise<void> {
       expiresAt: o.expires_at,
       respondedAt: o.responded_at,
     })),
-    outbox: outbox.map((n) => ({
-      status: n.status,
-      attempts: n.attempts,
-      deliveredAt: n.delivered_at,
-    })),
+    outbox: "deferred_to_wave_end",
   });
+}
+
+const outboxPending: { index: number; orderId: string }[] = [];
+
+/** حالةُ إشعاراتِ العروضِ لكلِّ طلباتِ الموجةِ بجملةٍ واحدةٍ لكلِّ 2000 طلب — بعدَ نافذةِ الختامِ لا داخلَها. */
+async function recordOfferOutboxFinal(): Promise<void> {
+  for (let i = 0; i < outboxPending.length; i += 2000) {
+    const part = outboxPending.slice(i, i + 2000);
+    const rows = await sql<
+      { order_id: string; status: string; attempts: number; delivered_at: string | null }[]
+    >`
+      select order_id::text, status::text, attempts, delivered_at::text
+        from notification_outbox
+       where order_id = any(${part.map((p) => p.orderId)}::uuid[]) and offer_id is not null
+    `;
+    const by = new Map<
+      string,
+      { status: string; attempts: number; deliveredAt: string | null }[]
+    >();
+    for (const r of rows) {
+      const list = by.get(r.order_id) ?? [];
+      list.push({ status: r.status, attempts: r.attempts, deliveredAt: r.delivered_at });
+      by.set(r.order_id, list);
+    }
+    for (const p of part) {
+      ev("scenario.offer_outbox", {
+        index: p.index,
+        orderId: p.orderId,
+        snapshot: "wave_end",
+        outbox: by.get(p.orderId) ?? [],
+      });
+    }
+  }
 }
 
 /* ───────── الحلقةُ الرئيسةُ ───────── */
@@ -1299,6 +1329,11 @@ async function main() {
   rec.snapshot(true);
   rec.finalSnapshot();
 
+  try {
+    await recordOfferOutboxFinal();
+  } catch {
+    // أفضلُ جهدٍ — فشلُ التوثيقِ لا يغيّرُ المآل (كما كانَ لكلِّ سيناريو).
+  }
   // الحكمُ النهائيُّ منَ القاعدةِ — لا منَ الوعودِ.
   const duplicates = await engagedDuplicates();
   const summary = {
