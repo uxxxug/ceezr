@@ -1,0 +1,176 @@
+{
+ "mode": "load",
+ "tolerance": 0.05,
+ "rates": {
+  "S1": {
+   "seconds": 179,
+   "invokes_per_s": 801.022,
+   "sends_per_s": 801.022,
+   "completions_per_s": 799.911,
+   "waited_sends_share": 0.4693,
+   "waiters_max": 1244,
+   "active_max": 256,
+   "wait_sum_ms_per_s": 93549.195,
+   "aborted": 0,
+   "cap": 256
+  },
+  "N1": {
+   "seconds": 179,
+   "invokes_per_s": 803.838,
+   "sends_per_s": 803.838,
+   "completions_per_s": 802.061,
+   "waited_sends_share": 0.0,
+   "waiters_max": 0,
+   "active_max": 1500,
+   "wait_sum_ms_per_s": 0.0,
+   "aborted": 0,
+   "cap": null
+  },
+  "N2": {
+   "seconds": 179,
+   "invokes_per_s": 798.179,
+   "sends_per_s": 798.179,
+   "completions_per_s": 797.05,
+   "waited_sends_share": 0.0,
+   "waiters_max": 0,
+   "active_max": 1500,
+   "wait_sum_ms_per_s": 0.0,
+   "aborted": 0,
+   "cap": null
+  },
+  "S2": {
+   "seconds": 179,
+   "invokes_per_s": 792.726,
+   "sends_per_s": 792.726,
+   "completions_per_s": 791.453,
+   "waited_sends_share": 0.4719,
+   "waiters_max": 1244,
+   "active_max": 256,
+   "wait_sum_ms_per_s": 94782.508,
+   "aborted": 0,
+   "cap": 256
+  }
+ },
+ "checks": [
+  {
+   "pair": "S1-N1",
+   "metric": "invokes_per_s",
+   "S": 801.022,
+   "N": 803.838,
+   "rel": -0.0035,
+   "ok": true
+  },
+  {
+   "pair": "S1-N1",
+   "metric": "sends_per_s",
+   "S": 801.022,
+   "N": 803.838,
+   "rel": -0.0035,
+   "ok": true
+  },
+  {
+   "pair": "S2-N2",
+   "metric": "invokes_per_s",
+   "S": 792.726,
+   "N": 798.179,
+   "rel": -0.0068,
+   "ok": true
+  },
+  {
+   "pair": "S2-N2",
+   "metric": "sends_per_s",
+   "S": 792.726,
+   "N": 798.179,
+   "rel": -0.0068,
+   "ok": true
+  }
+ ],
+ "validity3": {
+  "S1": {
+   "valid": true,
+   "reasons": [],
+   "run3": {
+    "expected_cap": 256,
+    "gen_env_fetchCap": 256,
+    "gen_env_fetchCapEnv": "256",
+    "rides_2xx_linked": 5382,
+    "missing_new_fields": {
+     "queueWaitMs": 0,
+     "waitersAtInvoke": 0,
+     "activeAtSend": 0,
+     "demandAtInvoke": 0
+    },
+    "http_call_rows": 107027,
+    "gen_sem_rows": 197,
+    "gen_sem_min_per_window": 4,
+    "active_max": 256,
+    "aborted_in_gate": 0
+   }
+  },
+  "N1": {
+   "valid": true,
+   "reasons": [],
+   "run3": {
+    "expected_cap": null,
+    "gen_env_fetchCap": null,
+    "gen_env_fetchCapEnv": null,
+    "rides_2xx_linked": 5611,
+    "missing_new_fields": {
+     "queueWaitMs": 0,
+     "waitersAtInvoke": 0,
+     "activeAtSend": 0,
+     "demandAtInvoke": 0
+    },
+    "http_call_rows": 111797,
+    "gen_sem_rows": 204,
+    "gen_sem_min_per_window": 4,
+    "active_max": 1500,
+    "aborted_in_gate": 0
+   }
+  },
+  "N2": {
+   "valid": true,
+   "reasons": [],
+   "run3": {
+    "expected_cap": null,
+    "gen_env_fetchCap": null,
+    "gen_env_fetchCapEnv": null,
+    "rides_2xx_linked": 5297,
+    "missing_new_fields": {
+     "queueWaitMs": 0,
+     "waitersAtInvoke": 0,
+     "activeAtSend": 0,
+     "demandAtInvoke": 0
+    },
+    "http_call_rows": 105200,
+    "gen_sem_rows": 195,
+    "gen_sem_min_per_window": 4,
+    "active_max": 1500,
+    "aborted_in_gate": 0
+   }
+  },
+  "S2": {
+   "valid": true,
+   "reasons": [],
+   "run3": {
+    "expected_cap": 256,
+    "gen_env_fetchCap": 256,
+    "gen_env_fetchCapEnv": "256",
+    "rides_2xx_linked": 5282,
+    "missing_new_fields": {
+     "queueWaitMs": 0,
+     "waitersAtInvoke": 0,
+     "activeAtSend": 0,
+     "demandAtInvoke": 0
+    },
+    "http_call_rows": 104427,
+    "gen_sem_rows": 197,
+    "gen_sem_min_per_window": 4,
+    "active_max": 256,
+    "aborted_in_gate": 0
+   }
+  }
+ },
+ "pass": true,
+ "verdict": "حملٌ_متكافئٌ_ضمنَ_±5%"
+}

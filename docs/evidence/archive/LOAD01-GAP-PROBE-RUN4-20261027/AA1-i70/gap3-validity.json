@@ -1,0 +1,59 @@
+{
+ "wave": "load01gap4-probe-AA1-i70-M-1500",
+ "valid": true,
+ "reasons": [],
+ "counts": {
+  "rides_http_call": 5397,
+  "latency_percentiles_n": 5397,
+  "verified": 5397,
+  "httpgap_rides": 5397,
+  "httpreq_rides": 5397,
+  "httpgap_other_routes": 164108,
+  "linked": 5397,
+  "ok_but_gap_hole": 0
+ },
+ "note": "الربطُ الفرديُّ يُطبَّقُ على مسارِ rides (مجالُ δ)؛ سطورُ المساراتِ الأخرى معدودةٌ وصفيًّا (ملحق 1 §3).",
+ "inherited_valid": true,
+ "run2": {
+  "rides_2xx_linked": 5397,
+  "missing_new_fields": {
+   "invokeMs": 0,
+   "inflightAtInvoke": 0,
+   "headersOverdueMs": 0,
+   "requestLeadMs": 0,
+   "inflightAtEntry": 0,
+   "connSeq": 0,
+   "loopOverdueAtEntryMs": 0
+  },
+  "gen_env_rows": 1,
+  "gen_env": {
+   "pid": 7049,
+   "bunVersion": "1.4.3",
+   "maxHttpRequestsEnv": null
+  },
+  "gen_loop_rows": 198,
+  "loop1s_rows": 262,
+  "gen_loop_min_per_window": 4,
+  "loop1s_min_per_window": 5,
+  "elu_available_gen": false,
+  "elu_available_gw": false
+ },
+ "valid2": true,
+ "run3": {
+  "expected_cap": 256,
+  "gen_env_fetchCap": 256,
+  "gen_env_fetchCapEnv": "256",
+  "rides_2xx_linked": 5397,
+  "missing_new_fields": {
+   "queueWaitMs": 0,
+   "waitersAtInvoke": 0,
+   "activeAtSend": 0,
+   "demandAtInvoke": 0
+  },
+  "http_call_rows": 105907,
+  "gen_sem_rows": 198,
+  "gen_sem_min_per_window": 4,
+  "active_max": 256,
+  "aborted_in_gate": 0
+ }
+}
