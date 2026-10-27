@@ -18,6 +18,7 @@
 import { createHmac } from "node:crypto";
 import { appendFileSync, mkdirSync } from "node:fs";
 import postgres from "postgres";
+import { startLoopProbe } from "../../../packages/infrastructure/observability/loop-probe.ts";
 
 export const RUN_DIR = process.env.RUN_DIR ?? "/tmp/cap-run";
 export const EV = `${RUN_DIR}/evidence`;
@@ -112,6 +113,58 @@ export interface HttpResult {
    */
   readonly ttfbMs: number | null;
   readonly bodyMs: number | null;
+  /**
+   * LOAD-01-GAP-PROBE-RUN2 (2026-10-27) — ما قبلَ `fetch` وحالُ المولّدِ حولَه، بساعتِهِ وحدَها:
+   * `invokeMs` = بدءُ النداءِ ← لحظةَ استدعاءِ `fetch` مباشرةً (تحضيرُ الترويساتِ والجسم)؛
+   * `inflightAtInvoke` = نداءاتُ `fetch` الجاريةُ في هذهِ العمليّةِ لحظتَها (شاملًا هذا) — حدُّ Bun
+   * الموثَّقُ 256 يُصفُّ ما فوقَهُ **داخلَ** `fetch` فلا يراهُ الخادم؛ `headersOverdueMs` = مؤشّرُ
+   * مِجسِّ الحلقةِ لحظةَ حلِّ `fetch` (null بلا مِجسّ) — مؤشّرٌ لا مُكوِّن.
+   */
+  readonly invokeMs: number | null;
+  readonly inflightAtInvoke: number | null;
+  readonly headersOverdueMs: number | null;
+}
+
+/** نداءاتُ `fetch` الجاريةُ في هذهِ العمليّة (عبرَ `http`) — عدٌّ لا يغيّرُ سلوكًا. */
+let fetchInFlight = 0;
+/** مِجسُّ حلقةِ المولّدِ إن شُغِّل (`setClientLoopOverdue`) — بلا مِجسٍّ تبقى المؤشّراتُ null. */
+let clientLoopOverdue: (() => number) | null = null;
+export function setClientLoopOverdue(fn: (() => number) | null): void {
+  clientLoopOverdue = fn;
+}
+
+/**
+ * مِجسُّ حلقةِ المولّدِ (LOAD-01-GAP-PROBE-RUN2) — خلفَ `DISPATCH_TRACE_FILE` وحدَه كعمودِ
+ * `http_call`: سطرُ `gen_env` مرّةً (حدُّ `BUN_CONFIG_MAX_HTTP_REQUESTS` كما في البيئةِ — null
+ * إن لم يُضبط فالافتراضيُّ الموثَّقُ 256 — وإصدارُ Bun والمعرّف)، ثمَّ `gen_loop` كلَّ ثانيةٍ في
+ * `load-events.jsonl`، ويُمرَّرُ مؤشّرُ التأخّرِ إلى `http`. بلا علمٍ يُعيدُ null ولا يبدأُ شيء.
+ */
+export function startClientLoopProbe(
+  path: string,
+  gen: string,
+  opts: { intervalMs?: number; sampleMs?: number } = {},
+): (() => void) | null {
+  if (process.env.DISPATCH_TRACE_FILE === undefined || process.env.DISPATCH_TRACE_FILE === "")
+    return null;
+  const file = `${process.env.RUN_DIR ?? "/tmp/cap-run"}/evidence/load-events.jsonl`;
+  const write = (row: Record<string, unknown>): void =>
+    appendFileSync(file, `${JSON.stringify({ t: new Date().toISOString(), path, gen, ...row })}\n`);
+  write({
+    event: "gen_env",
+    pid: process.pid,
+    bunVersion: typeof Bun === "undefined" ? null : Bun.version,
+    maxHttpRequestsEnv: process.env.BUN_CONFIG_MAX_HTTP_REQUESTS ?? null,
+  });
+  const probe = startLoopProbe({
+    intervalMs: opts.intervalMs ?? 10,
+    sampleMs: opts.sampleMs ?? 1_000,
+    emit: (sample) => write({ event: "gen_loop", ...sample }),
+  });
+  setClientLoopOverdue(() => probe.overdueMs());
+  return () => {
+    probe.stop();
+    setClientLoopOverdue(null);
+  };
 }
 
 export async function http(
@@ -125,8 +178,12 @@ export async function http(
   } = {},
 ): Promise<HttpResult> {
   const started = performance.now();
+  let invokeMs: number | null = null;
+  let inflightAtInvoke: number | null = null;
+  let counted = false;
   try {
-    const response = await fetch(`${gatewayBase()}${path}`, {
+    const url = `${gatewayBase()}${path}`;
+    const reqInit: RequestInit = {
       method: init.method ?? "GET",
       headers: {
         ...(init.token === undefined ? {} : { authorization: `Bearer ${init.token}` }),
@@ -135,8 +192,14 @@ export async function http(
       },
       ...(init.body === undefined ? {} : { body: JSON.stringify(init.body) }),
       signal: AbortSignal.timeout(init.timeoutMs ?? 20_000),
-    });
+    };
+    fetchInFlight += 1;
+    counted = true;
+    inflightAtInvoke = fetchInFlight;
+    invokeMs = performance.now() - started;
+    const response = await fetch(url, reqInit);
     const ttfb = performance.now() - started;
+    const headersOverdueMs = clientLoopOverdue === null ? null : clientLoopOverdue();
     let body: Record<string, unknown> | null = null;
     let bodyMs: number | null = null;
     try {
@@ -155,6 +218,9 @@ export async function http(
       requestId: response.headers.get("x-request-id"),
       ttfbMs: Math.round(ttfb * 100) / 100,
       bodyMs: bodyMs === null ? null : Math.round(bodyMs * 100) / 100,
+      invokeMs: Math.round(invokeMs * 100) / 100,
+      inflightAtInvoke,
+      headersOverdueMs: headersOverdueMs === null ? null : Math.round(headersOverdueMs * 100) / 100,
     };
   } catch (error) {
     return {
@@ -169,7 +235,13 @@ export async function http(
       // ولا ترويساتِ ولا جسمٌ فلا حدَّينِ يُفصلانِ عندَ العميلِ — null لا صفرٌ.
       ttfbMs: null,
       bodyMs: null,
+      invokeMs: invokeMs === null ? null : Math.round(invokeMs * 100) / 100,
+      inflightAtInvoke,
+      headersOverdueMs: null,
     };
+  } finally {
+    // حدُّ Bun يعدُّ الطلبَ حتى انتهائِهِ (الجسمُ مقروءٌ) — فالعدُّ يُنقصُ هنا لا عندَ الترويسات.
+    if (counted) fetchInFlight -= 1;
   }
 }
 
@@ -280,6 +352,9 @@ export class PathRecorder {
         requestId: result.requestId,
         ttfbMs: result.ttfbMs,
         bodyMs: result.bodyMs,
+        invokeMs: result.invokeMs,
+        inflightAtInvoke: result.inflightAtInvoke,
+        headersOverdueMs: result.headersOverdueMs,
       })}\n`,
     );
   }

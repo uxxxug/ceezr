@@ -1,0 +1,1274 @@
+{
+ "mode": "describe",
+ "descriptive_only": true,
+ "note": "وصفيٌّ فقط: لا قاعدةَ قرارٍ مسجّلةً لهذهِ المؤشّرات، ولا يُبنى عليها حكمٌ B−A ولا تدخّلٌ في المنتج. U_head/U_total فرقُ مددٍ من عمليّتين لا طوابع؛ ما بداخلِهما غيرُ مقيسٍ مباشرةً.",
+ "waves": [
+  {
+   "wave": "load01gap2-probe-COST-ON1-i71-M-1500",
+   "rides_2xx_injection": 5250,
+   "conditional_means": {
+    "ttfbMs": {
+     "cond_mean": 225.205,
+     "n": 5249,
+     "windows": 34
+    },
+    "elapsedMs": {
+     "cond_mean": 225.238,
+     "n": 5249,
+     "windows": 34
+    },
+    "bodyMs": {
+     "cond_mean": 0.032,
+     "n": 5249,
+     "windows": 34
+    },
+    "invokeMs": {
+     "cond_mean": 0.011,
+     "n": 5249,
+     "windows": 34
+    },
+    "wire_ttfb": {
+     "cond_mean": 225.194,
+     "n": 5249,
+     "windows": 34
+    },
+    "wire_total": {
+     "cond_mean": 225.227,
+     "n": 5249,
+     "windows": 34
+    },
+    "requestLeadMs": {
+     "cond_mean": 0.0,
+     "n": 5249,
+     "windows": 34
+    },
+    "fetchMs": {
+     "cond_mean": 165.566,
+     "n": 5249,
+     "windows": 34
+    },
+    "writeHeadMs": {
+     "cond_mean": 165.576,
+     "n": 5249,
+     "windows": 34
+    },
+    "finishMs": {
+     "cond_mean": 165.678,
+     "n": 5249,
+     "windows": 34
+    },
+    "srv_to_head": {
+     "cond_mean": 165.576,
+     "n": 5249,
+     "windows": 34
+    },
+    "srv_to_finish": {
+     "cond_mean": 165.678,
+     "n": 5249,
+     "windows": 34
+    },
+    "U_head": {
+     "cond_mean": 59.618,
+     "n": 5249,
+     "windows": 34
+    },
+    "U_total": {
+     "cond_mean": 59.549,
+     "n": 5249,
+     "windows": 34
+    },
+    "inflightAtInvoke": {
+     "cond_mean": 220.596,
+     "n": 5249,
+     "windows": 34
+    },
+    "inflightAtEntry": {
+     "cond_mean": 174.007,
+     "n": 5249,
+     "windows": 34
+    },
+    "headersOverdueMs": {
+     "cond_mean": 0.576,
+     "n": 5249,
+     "windows": 34
+    },
+    "loopOverdueAtEntryMs": {
+     "cond_mean": 0.286,
+     "n": 5249,
+     "windows": 34
+    }
+   },
+   "injection_stats": {
+    "ttfbMs": {
+     "n": 5250,
+     "mean": 189.607,
+     "p50": 138.165,
+     "p95": 485.022,
+     "p99": 703.699,
+     "max": 1082.63
+    },
+    "elapsedMs": {
+     "n": 5250,
+     "mean": 189.642,
+     "p50": 138.17,
+     "p95": 485.076,
+     "p99": 703.729,
+     "max": 1082.64
+    },
+    "bodyMs": {
+     "n": 5250,
+     "mean": 0.034,
+     "p50": 0.01,
+     "p95": 0.07,
+     "p99": 0.785,
+     "max": 12.1
+    },
+    "invokeMs": {
+     "n": 5250,
+     "mean": 0.011,
+     "p50": 0.01,
+     "p95": 0.01,
+     "p99": 0.02,
+     "max": 6.42
+    },
+    "wire_ttfb": {
+     "n": 5250,
+     "mean": 189.596,
+     "p50": 138.16,
+     "p95": 485.012,
+     "p99": 703.689,
+     "max": 1082.62
+    },
+    "wire_total": {
+     "n": 5250,
+     "mean": 189.63,
+     "p50": 138.165,
+     "p95": 485.066,
+     "p99": 703.719,
+     "max": 1082.63
+    },
+    "requestLeadMs": {
+     "n": 5250,
+     "mean": 0.0,
+     "p50": 0.0,
+     "p95": 0.0,
+     "p99": 0.0,
+     "max": 0.04
+    },
+    "fetchMs": {
+     "n": 5250,
+     "mean": 150.564,
+     "p50": 134.795,
+     "p95": 285.832,
+     "p99": 324.52,
+     "max": 362.41
+    },
+    "writeHeadMs": {
+     "n": 5250,
+     "mean": 150.574,
+     "p50": 134.805,
+     "p95": 285.842,
+     "p99": 324.53,
+     "max": 362.41
+    },
+    "finishMs": {
+     "n": 5250,
+     "mean": 150.674,
+     "p50": 134.905,
+     "p95": 285.931,
+     "p99": 324.585,
+     "max": 362.56
+    },
+    "srv_to_head": {
+     "n": 5250,
+     "mean": 150.574,
+     "p50": 134.805,
+     "p95": 285.842,
+     "p99": 324.53,
+     "max": 362.41
+    },
+    "srv_to_finish": {
+     "n": 5250,
+     "mean": 150.674,
+     "p50": 134.905,
+     "p95": 285.931,
+     "p99": 324.585,
+     "max": 362.56
+    },
+    "U_head": {
+     "n": 5250,
+     "mean": 39.021,
+     "p50": 3.275,
+     "p95": 234.487,
+     "p99": 445.756,
+     "max": 799.43
+    },
+    "U_total": {
+     "n": 5250,
+     "mean": 38.957,
+     "p50": 3.23,
+     "p95": 234.422,
+     "p99": 445.71,
+     "max": 799.4
+    },
+    "inflightAtInvoke": {
+     "n": 5250,
+     "mean": 185.181,
+     "p50": 139.0,
+     "p95": 436.0,
+     "p99": 725.0,
+     "max": 937
+    },
+    "inflightAtEntry": {
+     "n": 5250,
+     "mean": 157.808,
+     "p50": 140.0,
+     "p95": 261.0,
+     "p99": 262.0,
+     "max": 263
+    },
+    "headersOverdueMs": {
+     "n": 5250,
+     "mean": 0.547,
+     "p50": 0.0,
+     "p95": 3.782,
+     "p99": 13.236,
+     "max": 25.5
+    },
+    "loopOverdueAtEntryMs": {
+     "n": 5250,
+     "mean": 0.148,
+     "p50": 0.0,
+     "p95": 0.92,
+     "p99": 3.135,
+     "max": 19.89
+    }
+   },
+   "share_inflightAtInvoke_gt_256": 0.2269,
+   "strata": {
+    "inflightAtInvoke": {
+     "<=256": {
+      "ttfbMs": {
+       "n": 4059,
+       "mean": 125.048,
+       "p50": 119.25,
+       "p95": 221.213,
+       "p99": 275.64,
+       "max": 346.33
+      },
+      "U_head": {
+       "n": 4059,
+       "mean": 3.794,
+       "p50": 2.48,
+       "p95": 11.121,
+       "p99": 24.57,
+       "max": 47.79
+      },
+      "srv_to_head": {
+       "n": 4059,
+       "mean": 121.246,
+       "p50": 115.77,
+       "p95": 213.722,
+       "p99": 268.56,
+       "max": 333.34
+      }
+     },
+     ">256": {
+      "ttfbMs": {
+       "n": 1191,
+       "mean": 409.626,
+       "p50": 387.05,
+       "p95": 686.895,
+       "p99": 1074.862,
+       "max": 1082.63
+      },
+      "U_head": {
+       "n": 1191,
+       "mean": 159.079,
+       "p50": 115.09,
+       "p95": 441.44,
+       "p99": 794.728,
+       "max": 799.43
+      },
+      "srv_to_head": {
+       "n": 1191,
+       "mean": 250.528,
+       "p50": 249.22,
+       "p95": 321.845,
+       "p99": 337.875,
+       "max": 362.41
+      }
+     }
+    },
+    "connSeq": {
+     "first(1)": {
+      "ttfbMs": {
+       "n": 40,
+       "mean": 133.979,
+       "p50": 124.245,
+       "p95": 205.776,
+       "p99": 218.17,
+       "max": 218.49
+      },
+      "U_head": {
+       "n": 40,
+       "mean": 3.723,
+       "p50": 2.63,
+       "p95": 9.324,
+       "p99": 19.156,
+       "max": 23.82
+      },
+      "requestLeadMs": {
+       "n": 40,
+       "mean": 0.0,
+       "p50": 0.0,
+       "p95": 0.0,
+       "p99": 0.0,
+       "max": 0
+      }
+     },
+     "reused(>1)": {
+      "ttfbMs": {
+       "n": 5210,
+       "mean": 190.034,
+       "p50": 138.595,
+       "p95": 485.51,
+       "p99": 704.075,
+       "max": 1082.63
+      },
+      "U_head": {
+       "n": 5210,
+       "mean": 39.292,
+       "p50": 3.29,
+       "p95": 235.509,
+       "p99": 446.38,
+       "max": 799.43
+      },
+      "requestLeadMs": {
+       "n": 5210,
+       "mean": 0.0,
+       "p50": 0.0,
+       "p95": 0.0,
+       "p99": 0.0,
+       "max": 0.04
+      }
+     }
+    },
+    "headersOverdueMs": {
+     "0-1ms": {
+      "ttfbMs": {
+       "n": 4810,
+       "mean": 190.12,
+       "p50": 137.09,
+       "p95": 489.7,
+       "p99": 705.671,
+       "max": 1082.63
+      },
+      "U_head": {
+       "n": 4810,
+       "mean": 40.085,
+       "p50": 3.05,
+       "p95": 240.193,
+       "p99": 448.303,
+       "max": 799.43
+      }
+     },
+     "1-5ms": {
+      "ttfbMs": {
+       "n": 215,
+       "mean": 169.592,
+       "p50": 148.71,
+       "p95": 364.023,
+       "p99": 524.014,
+       "max": 557.98
+      },
+      "U_head": {
+       "n": 215,
+       "mean": 21.457,
+       "p50": 7.9,
+       "p95": 122.782,
+       "p99": 242.767,
+       "max": 275.24
+      }
+     },
+     "5-20ms": {
+      "ttfbMs": {
+       "n": 214,
+       "mean": 193.152,
+       "p50": 159.7,
+       "p95": 418.18,
+       "p99": 545.063,
+       "max": 578.17
+      },
+      "U_head": {
+       "n": 214,
+       "mean": 31.643,
+       "p50": 10.25,
+       "p95": 179.885,
+       "p99": 225.929,
+       "max": 316.2
+      }
+     },
+     ">20ms": {
+      "ttfbMs": {
+       "n": 11,
+       "mean": 287.353,
+       "p50": 358.03,
+       "p95": 489.155,
+       "p99": 491.743,
+       "max": 492.39
+      },
+      "U_head": {
+       "n": 11,
+       "mean": 60.842,
+       "p50": 36.6,
+       "p95": 180.885,
+       "p99": 184.889,
+       "max": 185.89
+      }
+     },
+     "null": {
+      "ttfbMs": {
+       "n": 0
+      },
+      "U_head": {
+       "n": 0
+      }
+     }
+    },
+    "loopOverdueAtEntryMs": {
+     "0-1ms": {
+      "ttfbMs": {
+       "n": 5004,
+       "mean": 188.534,
+       "p50": 136.93,
+       "p95": 484.525,
+       "p99": 701.258,
+       "max": 1082.63
+      },
+      "U_head": {
+       "n": 5004,
+       "mean": 38.821,
+       "p50": 3.17,
+       "p95": 234.433,
+       "p99": 444.373,
+       "max": 799.43
+      },
+      "requestLeadMs": {
+       "n": 5004,
+       "mean": 0.0,
+       "p50": 0.0,
+       "p95": 0.0,
+       "p99": 0.0,
+       "max": 0.04
+      }
+     },
+     "1-5ms": {
+      "ttfbMs": {
+       "n": 223,
+       "mean": 207.381,
+       "p50": 160.99,
+       "p95": 494.728,
+       "p99": 707.983,
+       "max": 1074.02
+      },
+      "U_head": {
+       "n": 223,
+       "mean": 39.794,
+       "p50": 5.0,
+       "p95": 224.963,
+       "p99": 449.992,
+       "max": 794.3
+      },
+      "requestLeadMs": {
+       "n": 223,
+       "mean": 0.0,
+       "p50": 0.0,
+       "p95": 0.0,
+       "p99": 0.0,
+       "max": 0
+      }
+     },
+     "5-20ms": {
+      "ttfbMs": {
+       "n": 23,
+       "mean": 250.621,
+       "p50": 176.91,
+       "p95": 594.041,
+       "p99": 609.277,
+       "max": 610.12
+      },
+      "U_head": {
+       "n": 23,
+       "mean": 75.016,
+       "p50": 21.74,
+       "p95": 366.475,
+       "p99": 388.061,
+       "max": 389.52
+      },
+      "requestLeadMs": {
+       "n": 23,
+       "mean": 0.0,
+       "p50": 0.0,
+       "p95": 0.0,
+       "p99": 0.0,
+       "max": 0
+      }
+     },
+     ">20ms": {
+      "ttfbMs": {
+       "n": 0
+      },
+      "U_head": {
+       "n": 0
+      },
+      "requestLeadMs": {
+       "n": 0
+      }
+     },
+     "null": {
+      "ttfbMs": {
+       "n": 0
+      },
+      "U_head": {
+       "n": 0
+      },
+      "requestLeadMs": {
+       "n": 0
+      }
+     }
+    }
+   },
+   "window_driver_means": {
+    "gen_lagP99Ms": 13.136,
+    "gen_mainThreadRunqWaitPct": 31.025,
+    "gen_mainThreadCpuPct": 36.083,
+    "gw_lagP99Ms": 10.366,
+    "gw_mainThreadRunqWaitPct": 29.606,
+    "gw_mainThreadCpuPct": 63.531,
+    "psi_some_pct": 53.46,
+    "procs_running": 8.001,
+    "sched_generator_runq_wait": 60.503,
+    "sched_gateway_runq_wait": 70.985,
+    "sched_postgres_run": 190.215,
+    "inflightAtInvoke_mean": 220.596,
+    "inflightAtEntry_mean": 174.007
+   },
+   "window_spearman": {
+    "gen_lagP99Ms": {
+     "U_head": -0.194,
+     "ttfbMs": -0.079
+    },
+    "gen_mainThreadRunqWaitPct": {
+     "U_head": 0.544,
+     "ttfbMs": 0.511
+    },
+    "gen_mainThreadCpuPct": {
+     "U_head": -0.326,
+     "ttfbMs": -0.181
+    },
+    "gw_lagP99Ms": {
+     "U_head": -0.059,
+     "ttfbMs": -0.018
+    },
+    "gw_mainThreadRunqWaitPct": {
+     "U_head": 0.043,
+     "ttfbMs": 0.176
+    },
+    "gw_mainThreadCpuPct": {
+     "U_head": 0.111,
+     "ttfbMs": 0.003
+    },
+    "psi_some_pct": {
+     "U_head": 0.273,
+     "ttfbMs": 0.355
+    },
+    "procs_running": {
+     "U_head": 0.141,
+     "ttfbMs": 0.017
+    },
+    "sched_generator_runq_wait": {
+     "U_head": 0.568,
+     "ttfbMs": 0.64
+    },
+    "sched_gateway_runq_wait": {
+     "U_head": 0.287,
+     "ttfbMs": 0.401
+    },
+    "sched_postgres_run": {
+     "U_head": 0.161,
+     "ttfbMs": 0.227
+    },
+    "inflightAtInvoke_mean": {
+     "U_head": 0.821,
+     "ttfbMs": 0.956
+    },
+    "inflightAtEntry_mean": {
+     "U_head": 0.697,
+     "ttfbMs": 0.933
+    }
+   },
+   "windows": 36,
+   "gen_env": {
+    "t": "2026-10-27T00:18:19.100Z",
+    "path": "miniapp_http",
+    "gen": "genA",
+    "event": "gen_env",
+    "pid": 10510,
+    "bunVersion": "1.4.3",
+    "maxHttpRequestsEnv": null
+   }
+  },
+  {
+   "wave": "load01gap2-probe-COST-ON2-i74-M-1500",
+   "rides_2xx_injection": 5211,
+   "conditional_means": {
+    "ttfbMs": {
+     "cond_mean": 217.282,
+     "n": 5211,
+     "windows": 34
+    },
+    "elapsedMs": {
+     "cond_mean": 217.311,
+     "n": 5211,
+     "windows": 34
+    },
+    "bodyMs": {
+     "cond_mean": 0.029,
+     "n": 5211,
+     "windows": 34
+    },
+    "invokeMs": {
+     "cond_mean": 0.009,
+     "n": 5211,
+     "windows": 34
+    },
+    "wire_ttfb": {
+     "cond_mean": 217.273,
+     "n": 5211,
+     "windows": 34
+    },
+    "wire_total": {
+     "cond_mean": 217.302,
+     "n": 5211,
+     "windows": 34
+    },
+    "requestLeadMs": {
+     "cond_mean": 0.001,
+     "n": 5211,
+     "windows": 34
+    },
+    "fetchMs": {
+     "cond_mean": 168.791,
+     "n": 5211,
+     "windows": 34
+    },
+    "writeHeadMs": {
+     "cond_mean": 168.802,
+     "n": 5211,
+     "windows": 34
+    },
+    "finishMs": {
+     "cond_mean": 168.898,
+     "n": 5211,
+     "windows": 34
+    },
+    "srv_to_head": {
+     "cond_mean": 168.803,
+     "n": 5211,
+     "windows": 34
+    },
+    "srv_to_finish": {
+     "cond_mean": 168.899,
+     "n": 5211,
+     "windows": 34
+    },
+    "U_head": {
+     "cond_mean": 48.47,
+     "n": 5211,
+     "windows": 34
+    },
+    "U_total": {
+     "cond_mean": 48.403,
+     "n": 5211,
+     "windows": 34
+    },
+    "inflightAtInvoke": {
+     "cond_mean": 210.931,
+     "n": 5211,
+     "windows": 34
+    },
+    "inflightAtEntry": {
+     "cond_mean": 175.859,
+     "n": 5211,
+     "windows": 34
+    },
+    "headersOverdueMs": {
+     "cond_mean": 0.421,
+     "n": 5211,
+     "windows": 34
+    },
+    "loopOverdueAtEntryMs": {
+     "cond_mean": 0.152,
+     "n": 5211,
+     "windows": 34
+    }
+   },
+   "injection_stats": {
+    "ttfbMs": {
+     "n": 5211,
+     "mean": 183.577,
+     "p50": 144.17,
+     "p95": 482.32,
+     "p99": 663.494,
+     "max": 897.33
+    },
+    "elapsedMs": {
+     "n": 5211,
+     "mean": 183.608,
+     "p50": 144.18,
+     "p95": 482.33,
+     "p99": 663.504,
+     "max": 897.34
+    },
+    "bodyMs": {
+     "n": 5211,
+     "mean": 0.031,
+     "p50": 0.01,
+     "p95": 0.06,
+     "p99": 0.479,
+     "max": 16.54
+    },
+    "invokeMs": {
+     "n": 5211,
+     "mean": 0.009,
+     "p50": 0.01,
+     "p95": 0.01,
+     "p99": 0.02,
+     "max": 0.48
+    },
+    "wire_ttfb": {
+     "n": 5211,
+     "mean": 183.568,
+     "p50": 144.16,
+     "p95": 482.31,
+     "p99": 663.484,
+     "max": 897.33
+    },
+    "wire_total": {
+     "n": 5211,
+     "mean": 183.599,
+     "p50": 144.17,
+     "p95": 482.32,
+     "p99": 663.494,
+     "max": 897.34
+    },
+    "requestLeadMs": {
+     "n": 5211,
+     "mean": 0.001,
+     "p50": 0.0,
+     "p95": 0.0,
+     "p99": 0.0,
+     "max": 5.6
+    },
+    "fetchMs": {
+     "n": 5211,
+     "mean": 151.989,
+     "p50": 140.77,
+     "p95": 269.975,
+     "p99": 297.114,
+     "max": 390.88
+    },
+    "writeHeadMs": {
+     "n": 5211,
+     "mean": 152.0,
+     "p50": 140.78,
+     "p95": 269.985,
+     "p99": 297.124,
+     "max": 390.89
+    },
+    "finishMs": {
+     "n": 5211,
+     "mean": 152.096,
+     "p50": 140.87,
+     "p95": 270.15,
+     "p99": 297.238,
+     "max": 390.94
+    },
+    "srv_to_head": {
+     "n": 5211,
+     "mean": 152.001,
+     "p50": 140.78,
+     "p95": 269.985,
+     "p99": 297.124,
+     "max": 390.89
+    },
+    "srv_to_finish": {
+     "n": 5211,
+     "mean": 152.097,
+     "p50": 140.87,
+     "p95": 270.15,
+     "p99": 297.238,
+     "max": 390.94
+    },
+    "U_head": {
+     "n": 5211,
+     "mean": 31.568,
+     "p50": 3.0,
+     "p95": 228.05,
+     "p99": 451.64,
+     "max": 697.14
+    },
+    "U_total": {
+     "n": 5211,
+     "mean": 31.503,
+     "p50": 2.93,
+     "p95": 227.97,
+     "p99": 451.593,
+     "max": 698.46
+    },
+    "inflightAtInvoke": {
+     "n": 5211,
+     "mean": 178.865,
+     "p50": 140.0,
+     "p95": 430.0,
+     "p99": 702.8,
+     "max": 901
+    },
+    "inflightAtEntry": {
+     "n": 5211,
+     "mean": 158.33,
+     "p50": 141.0,
+     "p95": 260.0,
+     "p99": 261.0,
+     "max": 263
+    },
+    "headersOverdueMs": {
+     "n": 5211,
+     "mean": 0.412,
+     "p50": 0.0,
+     "p95": 1.99,
+     "p99": 11.759,
+     "max": 29.36
+    },
+    "loopOverdueAtEntryMs": {
+     "n": 5211,
+     "mean": 0.154,
+     "p50": 0.0,
+     "p95": 0.825,
+     "p99": 3.128,
+     "max": 21.08
+    }
+   },
+   "share_inflightAtInvoke_gt_256": 0.1848,
+   "strata": {
+    "inflightAtInvoke": {
+     "<=256": {
+      "ttfbMs": {
+       "n": 4248,
+       "mean": 135.836,
+       "p50": 126.72,
+       "p95": 249.487,
+       "p99": 292.731,
+       "max": 395.64
+      },
+      "U_head": {
+       "n": 4248,
+       "mean": 3.469,
+       "p50": 2.44,
+       "p95": 9.696,
+       "p99": 18.025,
+       "max": 45.29
+      },
+      "srv_to_head": {
+       "n": 4248,
+       "mean": 132.358,
+       "p50": 123.515,
+       "p95": 244.212,
+       "p99": 286.177,
+       "max": 390.89
+      }
+     },
+     ">256": {
+      "ttfbMs": {
+       "n": 963,
+       "mean": 394.175,
+       "p50": 342.86,
+       "p95": 667.255,
+       "p99": 873.868,
+       "max": 897.33
+      },
+      "U_head": {
+       "n": 963,
+       "mean": 155.517,
+       "p50": 122.67,
+       "p95": 455.842,
+       "p99": 592.266,
+       "max": 697.14
+      },
+      "srv_to_head": {
+       "n": 963,
+       "mean": 238.649,
+       "p50": 238.05,
+       "p95": 292.334,
+       "p99": 306.308,
+       "max": 337.16
+      }
+     }
+    },
+    "connSeq": {
+     "first(1)": {
+      "ttfbMs": {
+       "n": 34,
+       "mean": 146.164,
+       "p50": 148.46,
+       "p95": 203.085,
+       "p99": 233.85,
+       "max": 242.44
+      },
+      "U_head": {
+       "n": 34,
+       "mean": 3.772,
+       "p50": 2.495,
+       "p95": 10.418,
+       "p99": 19.572,
+       "max": 22.71
+      },
+      "requestLeadMs": {
+       "n": 34,
+       "mean": 0.0,
+       "p50": 0.0,
+       "p95": 0.0,
+       "p99": 0.0,
+       "max": 0
+      }
+     },
+     "reused(>1)": {
+      "ttfbMs": {
+       "n": 5177,
+       "mean": 183.823,
+       "p50": 144.07,
+       "p95": 483.864,
+       "p99": 663.753,
+       "max": 897.33
+      },
+      "U_head": {
+       "n": 5177,
+       "mean": 31.75,
+       "p50": 3.0,
+       "p95": 228.728,
+       "p99": 452.184,
+       "max": 697.14
+      },
+      "requestLeadMs": {
+       "n": 5177,
+       "mean": 0.001,
+       "p50": 0.0,
+       "p95": 0.0,
+       "p99": 0.0,
+       "max": 5.6
+      }
+     }
+    },
+    "headersOverdueMs": {
+     "0-1ms": {
+      "ttfbMs": {
+       "n": 4894,
+       "mean": 183.608,
+       "p50": 141.765,
+       "p95": 489.215,
+       "p99": 667.214,
+       "max": 897.33
+      },
+      "U_head": {
+       "n": 4894,
+       "mean": 32.341,
+       "p50": 2.83,
+       "p95": 236.154,
+       "p99": 454.448,
+       "max": 697.14
+      }
+     },
+     "1-5ms": {
+      "ttfbMs": {
+       "n": 162,
+       "mean": 182.108,
+       "p50": 161.82,
+       "p95": 345.835,
+       "p99": 630.356,
+       "max": 636.7
+      },
+      "U_head": {
+       "n": 162,
+       "mean": 22.989,
+       "p50": 6.24,
+       "p95": 103.74,
+       "p99": 359.607,
+       "max": 361.6
+      }
+     },
+     "5-20ms": {
+      "ttfbMs": {
+       "n": 140,
+       "mean": 185.006,
+       "p50": 188.815,
+       "p95": 296.999,
+       "p99": 390.244,
+       "max": 578.77
+      },
+      "U_head": {
+       "n": 140,
+       "mean": 16.051,
+       "p50": 9.19,
+       "p95": 32.543,
+       "p99": 162.815,
+       "max": 343.11
+      }
+     },
+     ">20ms": {
+      "ttfbMs": {
+       "n": 15,
+       "mean": 176.09,
+       "p50": 157.2,
+       "p95": 234.397,
+       "p99": 234.783,
+       "max": 234.88
+      },
+      "U_head": {
+       "n": 15,
+       "mean": 16.759,
+       "p50": 17.36,
+       "p95": 28.621,
+       "p99": 28.66,
+       "max": 28.67
+      }
+     },
+     "null": {
+      "ttfbMs": {
+       "n": 0
+      },
+      "U_head": {
+       "n": 0
+      }
+     }
+    },
+    "loopOverdueAtEntryMs": {
+     "0-1ms": {
+      "ttfbMs": {
+       "n": 4992,
+       "mean": 183.273,
+       "p50": 144.0,
+       "p95": 478.804,
+       "p99": 664.643,
+       "max": 897.33
+      },
+      "U_head": {
+       "n": 4992,
+       "mean": 31.496,
+       "p50": 2.92,
+       "p95": 229.062,
+       "p99": 453.068,
+       "max": 697.14
+      },
+      "requestLeadMs": {
+       "n": 4992,
+       "mean": 0.001,
+       "p50": 0.0,
+       "p95": 0.0,
+       "p99": 0.0,
+       "max": 5.6
+      }
+     },
+     "1-5ms": {
+      "ttfbMs": {
+       "n": 195,
+       "mean": 190.722,
+       "p50": 154.08,
+       "p95": 499.322,
+       "p99": 577.435,
+       "max": 617.06
+      },
+      "U_head": {
+       "n": 195,
+       "mean": 31.568,
+       "p50": 4.74,
+       "p95": 224.989,
+       "p99": 336.351,
+       "max": 393.75
+      },
+      "requestLeadMs": {
+       "n": 195,
+       "mean": 0.0,
+       "p50": 0.0,
+       "p95": 0.0,
+       "p99": 0.0,
+       "max": 0.01
+      }
+     },
+     "5-20ms": {
+      "ttfbMs": {
+       "n": 23,
+       "mean": 187.702,
+       "p50": 142.3,
+       "p95": 334.78,
+       "p99": 755.142,
+       "max": 872.34
+      },
+      "U_head": {
+       "n": 23,
+       "mean": 47.143,
+       "p50": 17.8,
+       "p95": 139.705,
+       "p99": 498.58,
+       "max": 596.11
+      },
+      "requestLeadMs": {
+       "n": 23,
+       "mean": 0.0,
+       "p50": 0.0,
+       "p95": 0.0,
+       "p99": 0.0,
+       "max": 0
+      }
+     },
+     ">20ms": {
+      "ttfbMs": {
+       "n": 1,
+       "mean": 215.42,
+       "p50": 215.42,
+       "p95": 215.42,
+       "p99": 215.42,
+       "max": 215.42
+      },
+      "U_head": {
+       "n": 1,
+       "mean": 29.81,
+       "p50": 29.81,
+       "p95": 29.81,
+       "p99": 29.81,
+       "max": 29.81
+      },
+      "requestLeadMs": {
+       "n": 1,
+       "mean": 0.0,
+       "p50": 0.0,
+       "p95": 0.0,
+       "p99": 0.0,
+       "max": 0
+      }
+     },
+     "null": {
+      "ttfbMs": {
+       "n": 0
+      },
+      "U_head": {
+       "n": 0
+      },
+      "requestLeadMs": {
+       "n": 0
+      }
+     }
+    }
+   },
+   "window_driver_means": {
+    "gen_lagP99Ms": 12.549,
+    "gen_mainThreadRunqWaitPct": 30.374,
+    "gen_mainThreadCpuPct": 36.959,
+    "gw_lagP99Ms": 10.104,
+    "gw_mainThreadRunqWaitPct": 27.725,
+    "gw_mainThreadCpuPct": 65.904,
+    "psi_some_pct": 52.698,
+    "procs_running": 8.356,
+    "sched_generator_runq_wait": 60.267,
+    "sched_gateway_runq_wait": 73.152,
+    "sched_postgres_run": 181.673,
+    "inflightAtInvoke_mean": 210.931,
+    "inflightAtEntry_mean": 175.859
+   },
+   "window_spearman": {
+    "gen_lagP99Ms": {
+     "U_head": -0.134,
+     "ttfbMs": 0.035
+    },
+    "gen_mainThreadRunqWaitPct": {
+     "U_head": 0.437,
+     "ttfbMs": 0.43
+    },
+    "gen_mainThreadCpuPct": {
+     "U_head": -0.219,
+     "ttfbMs": -0.077
+    },
+    "gw_lagP99Ms": {
+     "U_head": 0.011,
+     "ttfbMs": 0.174
+    },
+    "gw_mainThreadRunqWaitPct": {
+     "U_head": 0.135,
+     "ttfbMs": 0.347
+    },
+    "gw_mainThreadCpuPct": {
+     "U_head": -0.018,
+     "ttfbMs": -0.243
+    },
+    "psi_some_pct": {
+     "U_head": 0.289,
+     "ttfbMs": 0.477
+    },
+    "procs_running": {
+     "U_head": 0.144,
+     "ttfbMs": 0.178
+    },
+    "sched_generator_runq_wait": {
+     "U_head": 0.641,
+     "ttfbMs": 0.622
+    },
+    "sched_gateway_runq_wait": {
+     "U_head": 0.395,
+     "ttfbMs": 0.487
+    },
+    "sched_postgres_run": {
+     "U_head": 0.27,
+     "ttfbMs": 0.478
+    },
+    "inflightAtInvoke_mean": {
+     "U_head": 0.816,
+     "ttfbMs": 0.975
+    },
+    "inflightAtEntry_mean": {
+     "U_head": 0.749,
+     "ttfbMs": 0.969
+    }
+   },
+   "windows": 36,
+   "gen_env": {
+    "t": "2026-10-27T00:37:56.922Z",
+    "path": "miniapp_http",
+    "gen": "genA",
+    "event": "gen_env",
+    "pid": 15443,
+    "bunVersion": "1.4.3",
+    "maxHttpRequestsEnv": null
+   }
+  }
+ ],
+ "second_minus_first_cond_mean": {
+  "ttfbMs": -7.923,
+  "elapsedMs": -7.927,
+  "bodyMs": -0.003,
+  "invokeMs": -0.002,
+  "wire_ttfb": -7.921,
+  "wire_total": -7.925,
+  "requestLeadMs": 0.001,
+  "fetchMs": 3.225,
+  "writeHeadMs": 3.226,
+  "finishMs": 3.22,
+  "srv_to_head": 3.227,
+  "srv_to_finish": 3.221,
+  "U_head": -11.148,
+  "U_total": -11.146,
+  "inflightAtInvoke": -9.665,
+  "inflightAtEntry": 1.852,
+  "headersOverdueMs": -0.155,
+  "loopOverdueAtEntryMs": -0.134
+ }
+}

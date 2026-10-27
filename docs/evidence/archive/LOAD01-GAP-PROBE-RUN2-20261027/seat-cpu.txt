@@ -1,0 +1,6 @@
+date_utc=2026-10-26T23:56:57+00:00
+nproc=4
+Model name: AMD EPYC 7763 64-Core Processor
+7.0.0-1017-azure
+bun=1.4.3
+seat_cpu_max=max 100000

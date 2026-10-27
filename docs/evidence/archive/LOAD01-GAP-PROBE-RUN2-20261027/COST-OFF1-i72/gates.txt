@@ -1,0 +1,2 @@
+verdict FAIL ['G1'] notverified {'driver_onboarding_failed': 7186}
+G1=42.38% (5286/12472)✗ | G2=0 | G3=0 + 0 | G4=CLEAN | G5=0 | G6=0.00% (0) | G7=0.00% | G8=0 | I1-identities=riders 12472/12472 · drivers 12472/12472 | GW-STABILITY=stable | EGRESS-CLASSIFIED=unknown +0 | CONC-peak=peak 1500 / target 1500 | P1=483ms | P2=650ms | P3=544ms | P4=5531ms | P5=8263ms | P6a=591ms | P6b=840ms | P6c=814ms | P7=107s | P8=0.00% | P9=0.00%
