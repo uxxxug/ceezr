@@ -24,7 +24,6 @@ VT="$H/deploy/capacity-run/monitor/notice-trace-verdict.ts"
 
 log "اختباراتٌ ذاتيّةٌ (§4) وفحوصُ المقعدِ الموروثة"
 python3 "$H/deploy/capacity-run/b24-runner/base-analyze-selftest.py" || { echo "BASE_ANALYZER_SELFTEST_FAIL — لا موجة"; exit 1; }
-(cd "$H" && bun test tests/unit/notice-decompose.test.ts tests/unit/notice-trace-verdict.test.ts tests/unit/notification-attempt-trace.test.ts >"$OUT/selftest.log" 2>&1) || { tail -20 "$OUT/selftest.log"; echo "NOTICE_TOOLS_SELFTEST_FAIL — لا موجة"; exit 1; }
 [ -z "${BUN_CONFIG_MAX_HTTP_REQUESTS:-}" ] || { echo "BUN_CONFIG_MAX_HTTP_REQUESTS_SET — لا موجة"; exit 1; }
 [ -z "${LOAD_GEN_FETCH_CAP:-}" ] || { echo "LOAD_GEN_FETCH_CAP_SET_IN_SEAT_ENV — لا موجة"; exit 1; }
 bash "$H/deploy/capacity-run/b24-runner/probe-final-audit.test.sh" || { echo "PROBE_FINAL_AUDIT_TEST_FAIL — لا موجة"; exit 1; }
@@ -34,6 +33,8 @@ git -C "$H" worktree add -f --detach "$W/wt-acc" "$ARM_SHA" >/dev/null 2>&1
 git -C "$H" worktree add -f --detach "$W/wt-ref" "$ARM_SHA" >/dev/null 2>&1
 (cd "$W/wt-acc" && bun install --frozen-lockfile >"$OUT/bun-install-wt-acc.log" 2>&1)
 (cd "$W/wt-acc/docker/upstash-rest-shim" && bun install --frozen-lockfile >>"$OUT/bun-install-wt-acc.log" 2>&1)
+# اختباراتُ أدواتِ القياسِ الذاتيّةُ في شجرةِ الذراعِ نفسِها (فيها الاعتمادات) — الإخفاقُ يوقفُ قبلَ أيِّ موجة
+(cd "$W/wt-acc" && bun test tests/unit/notice-decompose.test.ts tests/unit/notice-trace-verdict.test.ts tests/unit/notification-attempt-trace.test.ts >"$OUT/selftest.log" 2>&1) || { tail -20 "$OUT/selftest.log"; echo "NOTICE_TOOLS_SELFTEST_FAIL — لا موجة"; exit 1; }
 BUDGET_SRC=$(git -C "$H" show "$ARM_SHA:packages/shared/config/connection-budget.ts")
 CONTAINER_SRC=$(git -C "$H" show "$ARM_SHA:apps/gateway/src/container.ts")
 [[ "$BUDGET_SRC" == *$'\n  gatewayRequest: 5,'* ]] || { echo "GATEWAY_REQUEST_NOT_5 — لا موجة"; exit 1; }
@@ -235,7 +236,7 @@ log "الحكمُ (PROTOCOL §5): TRACE/OVERHEAD/ATTRIBUTION/REPRO عبرَ noti
 for S in ON1 OFF1 OFF2 ON2 ON3 OFF3; do
   [ -n "${WDIR[$S]:-}" ] && SPECS+=("$S:${WARM[$S]}:$([ "${WVAL[$S]}" = VALID ] && echo VALID || echo INVALID):${WDIR[$S]}")
 done
-VRC=0; (cd "$H" && bun "$VT" "$OUT/notice-trace-verdict.json" "${SPECS[@]}") || VRC=$?
+VRC=0; (cd "$W/wt-acc" && bun "$VT" "$OUT/notice-trace-verdict.json" "${SPECS[@]}") || VRC=$?
 echo "VERDICT_RC=$VRC"
 [ "$HW_OK" = yes ] || echo "HW_MISMATCH — الحكمُ وصفيٌّ (§4)"
 echo "{\"arm_sha\":\"$ARM_SHA\",\"harness_sha\":\"$HARNESS_SHA\",\"main_sha\":\"$MAIN_SHA\",\"mixed_rate\":$MIXED_RATE,\"conc\":$CONC,\"cities\":\"$CITIES\",\"hw_identical\":\"$HW_OK\",\"trace_kind\":\"$TRACE_KIND\"}" > "$OUT/wave-summary.json"
