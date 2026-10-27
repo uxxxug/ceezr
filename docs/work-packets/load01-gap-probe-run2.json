@@ -1,9 +1,7 @@
 {
   "id": "load01-gap-probe-run2",
   "goal": "LOAD-01 · RUN2 لقياسِ فجوةِ الكمونِ خارجَ الجسرِ ببروتوكولٍ مسجّلٍ قبلَ أيِّ موجة (التشغيل 40422906521): أدواتُ قياسٍ مربوطةٌ بالطلبِ خاملةٌ دونَ DISPATCH_TRACE_FILE (invokeMs وinflightAtInvoke وheadersOverdueMs في المولّد؛ requestLeadMs وinflightAtEntry وconnSeq وloopOverdueAtEntryMs ومسبارُ الحلقةِ في البوّابة). بوابةُ A/A اجتازت (−3.15ms خادم، −10.61ms ttfb ضمنَ δ=15ms)، وبوابةُ الكلفةِ اجتازت (−5.32/−4.96)، والعتادُ متطابقٌ عبرَ الموجات. وصفيًّا: ما خارجَ النافذةِ المقيسةِ يتركّزُ في الطلباتِ فوقَ 256 طلبًا جاريًا في المولّد (متّسقٌ مع حدِّ fetch في Bun؛ زمنُ الطابورِ غيرُ مقيسٍ فالسببُ غيرُ مثبت)، والتجربةُ التاليةُ المقترحةُ سيمافورٌ مقيسٌ في المولّد. لا كودَ منتجٍ ولا حدٍّ ولا عتبة: LOAD-01M = NOT_MET وLOAD-01 = FAIL.",
-  "canonical_source": [
-    "docs/evidence/capacity/LOAD01-GAP-PROBE-RUN2-20261027/RESULT.md"
-  ],
+  "canonical_source": ["docs/evidence/capacity/LOAD01-GAP-PROBE-RUN2-20261027/RESULT.md"],
   "implementation": [
     "packages/infrastructure/observability/loop-probe.ts",
     "apps/gateway/src/realtime/http-bridge.ts",
@@ -19,13 +17,8 @@
     "tests/unit/load01-gap-probe-run2.test.ts",
     "tests/unit/load-trace-httpreq.test.ts"
   ],
-  "state": [
-    "docs/SYSTEM_STATE.md",
-    "docs/roadmap/execution/STATUS.md"
-  ],
-  "roadmap": [
-    "ROADMAP.md"
-  ],
+  "state": ["docs/SYSTEM_STATE.md", "docs/roadmap/execution/STATUS.md"],
+  "roadmap": ["ROADMAP.md"],
   "affected_docs": [
     "docs/evidence/capacity/LOAD01-GAP-PROBE-RUN2-20261027/PROTOCOL-load01-gap-probe-run2.md",
     "docs/evidence/capacity/LOAD01-GAP-PROBE-RUN2-20261027/RESULT.md",
