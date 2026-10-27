@@ -1,0 +1,324 @@
+{
+ "run": "https://github.com/uxxxug/ceezr/actions/runs/40573567561",
+ "runHead": "ed3d2293ecc02a50a9f7ad87a9a4970cb2f332d3",
+ "requestHead": "6cb1beeebedcff352e931849e588d7d18abf0421",
+ "artifactZipSha256": "6750cb7bea48060fb55e2800593bb332b8f270c42d6bd350e50c5479db30db8e",
+ "derivation": {
+  "split": "notice-decompose.json drainPasses.pass.claimSplit: مجاميعُ claim_pre_ms/claim_server_ms/claim_post_ms من سطرِ الشوط (ON وحدَها)",
+  "loop": "drainPasses.pass.loop: monitorEventLoopDelay خلالَ الأشواط، متوسّطٌ موزونٌ بزمنِ الشوط؛ ELU غيرُ متاحةٍ في Bun ⇒ null",
+  "pgss": "pgss-full.csv.gz: mean_ms لاستعلامِ الالتقاطِ ولاستعلامِ الربطِ (request_id) — تنفيذُ PG وحدَه",
+  "secondQueryEstimate": "تقديرٌ لا قياس: (pre+post) لكلِّ استعلامٍ كمتوسّطٍ للاستعلامين × نسبةُ الالتقاطاتِ ذاتِ الصفّ + تنفيذُ الربطِ من pgss، مقسومًا على متوسّطِ الالتقاطِ الجداريّ. يفترضُ تساوي pre/post بينَ الاستعلامين، ولم يُقَس ذلك منفصلًا"
+ },
+ "waves": [
+  {
+   "wave": "OFF1-i81",
+   "arm": "OFF",
+   "g1Pct": {
+    "ok": 6189,
+    "pct": 50.17,
+    "total": 12335
+   },
+   "failedGates": [
+    "G1",
+    "G4",
+    "P7"
+   ],
+   "riderOldestSecAtAudit": 124,
+   "claimCalls": 13045,
+   "claimWallMeanMs": 8.95,
+   "pctOfPassElapsed": {
+    "claim": 80.9,
+    "lane_full_wait": 17.2,
+    "saturated_wait": 0,
+    "congestion_sleep": 0
+   },
+   "claimSplit": null,
+   "loop": null,
+   "pgss": {
+    "claimExecMeanMs": 3.5252,
+    "claimCalls": 13651,
+    "correlationExecMeanMs": 0.0183
+   }
+  },
+  {
+   "wave": "OFF2-i82",
+   "arm": "OFF",
+   "g1Pct": {
+    "ok": 6068,
+    "pct": 49.02,
+    "total": 12378
+   },
+   "failedGates": [
+    "G1"
+   ],
+   "riderOldestSecAtAudit": 95,
+   "claimCalls": 13218,
+   "claimWallMeanMs": 9.64,
+   "pctOfPassElapsed": {
+    "claim": 82.3,
+    "lane_full_wait": 16,
+    "saturated_wait": 0,
+    "congestion_sleep": 0
+   },
+   "claimSplit": null,
+   "loop": null,
+   "pgss": {
+    "claimExecMeanMs": 2.1459,
+    "claimCalls": 19222,
+    "correlationExecMeanMs": 0.0172
+   }
+  },
+  {
+   "wave": "OFF3-i85",
+   "arm": "OFF",
+   "g1Pct": {
+    "ok": 6509,
+    "pct": 52.7,
+    "total": 12350
+   },
+   "failedGates": [
+    "G1"
+   ],
+   "riderOldestSecAtAudit": 115,
+   "claimCalls": 12890,
+   "claimWallMeanMs": 9.12,
+   "pctOfPassElapsed": {
+    "claim": 80.4,
+    "lane_full_wait": 18.2,
+    "saturated_wait": 0,
+    "congestion_sleep": 0
+   },
+   "claimSplit": null,
+   "loop": null,
+   "pgss": {
+    "claimExecMeanMs": 3.3457,
+    "claimCalls": 15484,
+    "correlationExecMeanMs": 0.0165
+   }
+  },
+  {
+   "wave": "ON1-i80",
+   "arm": "ON",
+   "g1Pct": {
+    "ok": 6248,
+    "pct": 50.85,
+    "total": 12287
+   },
+   "failedGates": [
+    "G1"
+   ],
+   "riderOldestSecAtAudit": 113,
+   "claimCalls": 11581,
+   "claimWallMeanMs": 10.29,
+   "pctOfPassElapsed": {
+    "claim": 81.3,
+    "lane_full_wait": 17,
+    "saturated_wait": 0,
+    "congestion_sleep": 0
+   },
+   "claimSplit": {
+    "timed": 11581,
+    "coveragePct": 100,
+    "queries": 23161,
+    "skewed": 38,
+    "pctOfClaim": {
+     "pre": 43.7,
+     "server": 26.3,
+     "post": 29.9,
+     "adapter_other": 0.1
+    },
+    "perQueryMs": {
+     "pre": 2.25,
+     "server": 1.35,
+     "post": 1.54
+    }
+   },
+   "loop": {
+    "passes": 19,
+    "delayMeanUs": 738,
+    "delayP99Us": 3958,
+    "delayMaxUs": 14256,
+    "eluPct": null
+   },
+   "pgss": {
+    "claimExecMeanMs": 3.5955,
+    "claimCalls": 14180,
+    "correlationExecMeanMs": 0.0259
+   },
+   "secondQueryEstimate": {
+    "roundTripOutsideServerMsPerQuery": 3.79,
+    "claimsWithRowShare": 0.9999,
+    "estMsPerClaim": 3.82,
+    "estPctOfClaimWall": 37.1
+   }
+  },
+  {
+   "wave": "ON2-i83",
+   "arm": "ON",
+   "g1Pct": {
+    "ok": 6682,
+    "pct": 53.64,
+    "total": 12457
+   },
+   "failedGates": [
+    "G1",
+    "G4",
+    "P7"
+   ],
+   "riderOldestSecAtAudit": 132,
+   "claimCalls": 10993,
+   "claimWallMeanMs": 8.76,
+   "pctOfPassElapsed": {
+    "claim": 79.1,
+    "lane_full_wait": 19.5,
+    "saturated_wait": 0,
+    "congestion_sleep": 0
+   },
+   "claimSplit": {
+    "timed": 10993,
+    "coveragePct": 100,
+    "queries": 21985,
+    "skewed": 0,
+    "pctOfClaim": {
+     "pre": 49.3,
+     "server": 17.8,
+     "post": 32.7,
+     "adapter_other": 0.1
+    },
+    "perQueryMs": {
+     "pre": 2.16,
+     "server": 0.78,
+     "post": 1.43
+    }
+   },
+   "loop": {
+    "passes": 16,
+    "delayMeanUs": 799,
+    "delayP99Us": 5253,
+    "delayMaxUs": 22293,
+    "eluPct": null
+   },
+   "pgss": {
+    "claimExecMeanMs": 1.3311,
+    "claimCalls": 14997,
+    "correlationExecMeanMs": 0.0246
+   },
+   "secondQueryEstimate": {
+    "roundTripOutsideServerMsPerQuery": 3.59,
+    "claimsWithRowShare": 0.9999,
+    "estMsPerClaim": 3.61,
+    "estPctOfClaimWall": 41.3
+   }
+  },
+  {
+   "wave": "ON3-i84",
+   "arm": "ON",
+   "g1Pct": {
+    "ok": 6230,
+    "pct": 50.34,
+    "total": 12377
+   },
+   "failedGates": [
+    "G1"
+   ],
+   "riderOldestSecAtAudit": 108,
+   "claimCalls": 13054,
+   "claimWallMeanMs": 9.83,
+   "pctOfPassElapsed": {
+    "claim": 82.9,
+    "lane_full_wait": 15.3,
+    "saturated_wait": 0,
+    "congestion_sleep": 0
+   },
+   "claimSplit": {
+    "timed": 13054,
+    "coveragePct": 100,
+    "queries": 26107,
+    "skewed": 0,
+    "pctOfClaim": {
+     "pre": 43.4,
+     "server": 26.9,
+     "post": 29.7,
+     "adapter_other": 0.1
+    },
+    "perQueryMs": {
+     "pre": 2.14,
+     "server": 1.32,
+     "post": 1.46
+    }
+   },
+   "loop": {
+    "passes": 20,
+    "delayMeanUs": 860,
+    "delayP99Us": 4576,
+    "delayMaxUs": 13844,
+    "eluPct": null
+   },
+   "pgss": {
+    "claimExecMeanMs": 3.2942,
+    "claimCalls": 15744,
+    "correlationExecMeanMs": 0.0261
+   },
+   "secondQueryEstimate": {
+    "roundTripOutsideServerMsPerQuery": 3.6,
+    "claimsWithRowShare": 0.9999,
+    "estMsPerClaim": 3.63,
+    "estPctOfClaimWall": 36.9
+   }
+  },
+  {
+   "wave": "S1-i90",
+   "arm": "ON",
+   "g1Pct": {
+    "ok": 5005,
+    "pct": 100,
+    "total": 5005
+   },
+   "failedGates": [],
+   "riderOldestSecAtAudit": 92,
+   "claimCalls": 15392,
+   "claimWallMeanMs": 8.36,
+   "pctOfPassElapsed": {
+    "claim": 83.6,
+    "lane_full_wait": 15.5,
+    "saturated_wait": 0,
+    "congestion_sleep": 0
+   },
+   "claimSplit": {
+    "timed": 15392,
+    "coveragePct": 100,
+    "queries": 30784,
+    "skewed": 1681,
+    "pctOfClaim": {
+     "pre": 27.5,
+     "server": 55.5,
+     "post": 17,
+     "adapter_other": 0.1
+    },
+    "perQueryMs": {
+     "pre": 1.15,
+     "server": 2.32,
+     "post": 0.71
+    }
+   },
+   "loop": {
+    "passes": 19,
+    "delayMeanUs": 546,
+    "delayP99Us": 2791,
+    "delayMaxUs": 15740,
+    "eluPct": null
+   },
+   "pgss": {
+    "claimExecMeanMs": 4.6307,
+    "claimCalls": 18771,
+    "correlationExecMeanMs": 0.0235
+   },
+   "secondQueryEstimate": {
+    "roundTripOutsideServerMsPerQuery": 1.86,
+    "claimsWithRowShare": 1.0,
+    "estMsPerClaim": 1.88,
+    "estPctOfClaimWall": 22.5
+   }
+  }
+ ]
+}

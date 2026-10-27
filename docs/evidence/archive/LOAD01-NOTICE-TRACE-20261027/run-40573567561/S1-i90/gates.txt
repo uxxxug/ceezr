@@ -1,0 +1,2 @@
+verdict PASS [] notverified {}
+G1=100.00% (5005/5005) | G2=0 | G3=0 + 0 | G4=CLEAN | G5=0 | G6=0.00% (0) | G7=0.00% | G8=0 | I1-identities=riders 5005/5005 · drivers 5005/5005 | GW-STABILITY=stable | EGRESS-CLASSIFIED=unknown +0 | CONC-peak=peak 100 / target 100 | P1=137ms | P2=137ms | P3=96ms | P4=2668ms | P5=3603ms | P6a=156ms | P6b=166ms | P6c=130ms | P7=92s | P8=0.00% | P9=0.00%
