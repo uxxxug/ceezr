@@ -11,6 +11,7 @@ import {
   groupsOf,
   parseLog,
   parseRows,
+  passTotalsOf,
   type Row,
   SEGMENTS,
   timelineOf,
@@ -323,12 +324,44 @@ describe("القراءة", () => {
         startMs: Date.parse("2026-10-27T00:00:02.000Z"),
         endMs: Date.parse("2026-10-27T00:00:10.000Z"),
         stop: "budget",
+        fields: { claimed: 10 },
       },
     ]);
     expect(r.riderEvents).toEqual({
       "rider_trip_notice.telegram_fallback:ack_timeout": 1,
       "rider_trip_notice.telegram_fallback": 1,
     });
+  });
+
+  test("أشواطُ التصريف: تُجمَعُ حقولُ claim_ms وغيرُها وتُحسَبُ حصصُها من زمنِ الشوط", () => {
+    const line = (at: string, detail: string) =>
+      `{"at":"${at}","event":"job.ran","job":"deliver-notifications","durationMs":8000,"detail":"${detail}"}`;
+    const r = parseLog(
+      [
+        line(
+          "2026-10-27T00:00:10.000Z",
+          "claimed=100 delivered=90 elapsed_ms=8000 stop=budget send_ms=900 claim_calls=120 claim_ms=6000 lane_full_wait_ms=500 saturated_wait_ms=1000",
+        ),
+        line(
+          "2026-10-27T00:00:20.000Z",
+          "claimed=50 elapsed_ms=8000 stop=budget claim_calls=80 claim_ms=2000 lane_full_wait_ms=0 saturated_wait_ms=3000 congestion_sleep_ms=1000",
+        ),
+        line("2026-10-27T00:00:30.000Z", "claimed=5 elapsed_ms=4000 stop=empty"),
+      ].join("\n"),
+    );
+    const t = passTotalsOf(r.passes);
+    expect(t.passesWithClaimMs).toBe(2);
+    expect(t.totals.claimed).toBe(155);
+    expect(t.totals.claim_calls).toBe(200);
+    expect(t.totals.elapsed_ms).toBe(20_000);
+    expect(t.claimMeanMs).toBe(40);
+    expect(t.pctOfPassElapsed).toEqual({
+      claim: 40,
+      lane_full_wait: 2.5,
+      saturated_wait: 20,
+      congestion_sleep: 5,
+    });
+    expect(passTotalsOf([]).claimMeanMs).toBeNull();
   });
 
   test("parseRows: يتطلّبُ الترويسة، ويُسقطُ غيرَ العشوائيِّ ويعقّمُ الحدث", () => {

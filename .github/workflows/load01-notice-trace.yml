@@ -7,7 +7,7 @@ name: LOAD01-NOTICE-TRACE · تفكيك اختناق الإشعارات — مو
 on:
   push:
     # فرعُ التشغيلِ وحدَه (رأسُ الطلبِ + التراكب)؛ فرعُ الطلبِ نفسُه لا يُطلِقُ المقعد.
-    branches: [exp/load01-notice-trace-run, exp/load01-notice-trace-run2]
+    branches: [exp/load01-notice-trace-run, exp/load01-notice-trace-run2, exp/load01-notice-trace-run3]
 
 permissions:
   contents: read

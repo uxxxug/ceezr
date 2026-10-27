@@ -654,6 +654,9 @@ export type ConcurrentDrainStopReason = "budget" | "max_claims" | "empty" | "fai
  * - `laneWaitMs`: مجموعُ انتظارِ الصفوفِ خلفَ ذيلِ مسارِ مفتاحِها قبلَ الإرسال.
  * - `sendMs`: مجموعُ زمنِ الإرسالِ الفعليِّ (المرسِلُ + الختم).
  * - `stopReason`: سببُ انتهاءِ الشوط؛ `budget` مع عملٍ مستحقٍّ = فجوةُ خمولٍ حتّى الدقّةِ التالية (H1).
+ * - `LOAD-01` (تفكيكُ زمنِ الشوط، NOTICE-TRACE): `claimCalls`/`claimMs` = نداءاتُ الالتقاطِ المتسلسلةُ
+ *   وزمنُها الجداريّ، و`laneFullWaitMs` = انتظارُ تحرّرِ مسارٍ (المساراتُ كلُّها مشغولة)، و`saturatedWaitMs`
+ *   = انتظارُ ما في الطيرانِ بعدَ التقاطٍ فارغٍ/مشبَع. رصدٌ فقط — لا يغيّرُ ترتيبًا ولا توقيتًا.
  */
 export interface ConcurrentDrainOutcome extends DeliveryBatchOutcome {
   readonly peakInFlight: number;
@@ -662,6 +665,10 @@ export interface ConcurrentDrainOutcome extends DeliveryBatchOutcome {
   readonly congestionSleepMs: number;
   readonly laneWaitMs: number;
   readonly sendMs: number;
+  readonly claimCalls: number;
+  readonly claimMs: number;
+  readonly laneFullWaitMs: number;
+  readonly saturatedWaitMs: number;
   readonly stopReason: ConcurrentDrainStopReason;
 }
 
@@ -717,6 +724,10 @@ export async function deliverNotificationsConcurrently(
   let congestionSleepMs = 0;
   let laneWaitMs = 0;
   let sendMs = 0;
+  let claimCalls = 0;
+  let claimMs = 0;
+  let laneFullWaitMs = 0;
+  let saturatedWaitMs = 0;
   let stopReason: ConcurrentDrainStopReason = "empty";
 
   const record = (r: Result<DeliveryAttemptOutcome, PortFailureError>) => {
@@ -759,10 +770,15 @@ export async function deliverNotificationsConcurrently(
       break;
     }
     if (inFlight.size >= lanes) {
+      const w0 = now();
       await Promise.race(inFlight);
+      laneFullWaitMs += now() - w0;
       continue;
     }
+    const k0 = now();
     const c = await deps.outbox.claim();
+    claimCalls += 1;
+    claimMs += now() - k0;
     if (!c.ok) {
       failure.error = c.error;
       break;
@@ -777,7 +793,9 @@ export async function deliverNotificationsConcurrently(
       if (c.value.backpressure) backpressure = c.value.backpressure;
       // فارغٌ أو مشبَعٌ: ما في الطيرانِ قد يفكُّ تاليًا لنفسِ الطلبِ أو يحرّرُ سقفَ المدينةِ.
       if (inFlight.size > 0) {
+        const w0 = now();
         await Promise.race(inFlight);
+        saturatedWaitMs += now() - w0;
         continue;
       }
       // `LOAD-01` (الدفعةُ الخامسةُ): الصفوفُ المُعادُ اصطفافُها تستحقُّ عندَ فتحاتِها
@@ -828,6 +846,10 @@ export async function deliverNotificationsConcurrently(
     congestionSleepMs,
     laneWaitMs,
     sendMs,
+    claimCalls,
+    claimMs,
+    laneFullWaitMs,
+    saturatedWaitMs,
     stopReason,
   });
 }

@@ -24,7 +24,33 @@ export interface WaveIn {
     readonly validity: { readonly ok: boolean; readonly reasons: readonly string[] };
     readonly attemptsSeen: number;
     readonly oldest20: { readonly n: number; readonly groupsPct: Record<string, number | null> };
+    /** §5.5 (ملحق ب): تفكيكُ زمنِ أشواطِ التصريف — يُقرأُ لكلِّ الموجات (سطرُ الشوطِ لا يتبعُ ذراعَ الأثر). */
+    readonly drainPasses?: {
+      readonly n: number;
+      readonly idleShareBeforeAudit: number | null;
+      readonly stopReasons: Record<string, number>;
+      readonly pass?: {
+        readonly passesWithClaimMs: number;
+        readonly pctOfPassElapsed: Record<string, number | null>;
+        readonly claimMeanMs: number | null;
+      };
+    };
   } | null;
+}
+
+export type DrainClass = "CLAIM_SERIAL" | "CITY_CAP" | "LANES" | "MIXED_DRAIN" | "GAP";
+
+/**
+ * §5.5 DRAIN_RULE (ملحق ب، مسجَّلٌ قبلَ موجتِه): أين يذهبُ زمنُ الشوط؟ الحصصُ من `elapsed_ms`:
+ * الالتقاطُ المتسلسلُ ≥ 50 ⇒ CLAIM_SERIAL؛ انتظارُ ما في الطيرانِ بعدَ التقاطٍ فارغٍ/مشبَعٍ ≥ 50 ⇒ CITY_CAP؛
+ * انتظارُ تحرّرِ مسارٍ ≥ 50 ⇒ LANES؛ وإلّا MIXED_DRAIN. بلا حقولِ الشوطِ ⇒ GAP.
+ */
+export function drainClassOf(pct: Record<string, number | null> | undefined): DrainClass {
+  if (pct === undefined || pct.claim === null || pct.claim === undefined) return "GAP";
+  if (pct.claim >= 50) return "CLAIM_SERIAL";
+  if ((pct.saturated_wait ?? 0) >= 50) return "CITY_CAP";
+  if ((pct.lane_full_wait ?? 0) >= 50) return "LANES";
+  return "MIXED_DRAIN";
 }
 
 export type WaveClass =
@@ -114,8 +140,36 @@ export function verdictOf(waves: readonly WaveIn[]) {
       : top !== undefined && top[1] >= 2 && top[1] > good.length / 2
         ? top[0]
         : "INCONCLUSIVE";
+  // §5.5 DRAIN_RULE — كلُّ موجةٍ صالحةٍ فيها حقولُ الشوط (ON وOFF).
+  const drainWaves = waves
+    .filter((w) => w.valid)
+    .map((w) => {
+      const dp = w.decomposition?.drainPasses;
+      const measured = (dp?.pass?.passesWithClaimMs ?? 0) > 0;
+      return {
+        slot: w.slot,
+        measured,
+        class: measured ? drainClassOf(dp?.pass?.pctOfPassElapsed) : ("GAP" as DrainClass),
+        pctOfPassElapsed: dp?.pass?.pctOfPassElapsed ?? null,
+        claimMeanMs: dp?.pass?.claimMeanMs ?? null,
+        idleShareBeforeAudit: dp?.idleShareBeforeAudit ?? null,
+        budgetStops: dp?.stopReasons?.budget ?? null,
+        passes: dp?.n ?? null,
+      };
+    });
+  const dGood = drainWaves.filter((d) => d.measured && d.class !== "GAP");
+  const dCounts: Record<string, number> = {};
+  for (const d of dGood) dCounts[d.class] = (dCounts[d.class] ?? 0) + 1;
+  const dTop = Object.entries(dCounts).sort((a, b) => b[1] - a[1])[0];
+  const drain =
+    dGood.length < 2
+      ? "MEASUREMENT_GAP"
+      : dTop !== undefined && dTop[1] >= 2 && dTop[1] > dGood.length / 2
+        ? dTop[0]
+        : "INCONCLUSIVE";
   return {
     rule: "PROTOCOL-load01-notice-trace §5",
+    drain: { decision: drain, classCounts: dCounts, waves: drainWaves },
     validOn: on.length,
     validOff: off.length,
     trace: traced,
@@ -169,8 +223,8 @@ export function waveFromDir(slot: string, arm: "ON" | "OFF", valid: boolean, dir
     };
   } | null;
   const r = audit?.snapshot?.outbox?.pendingAgeByKind?.rider_trip_notice;
-  const d =
-    arm === "ON" ? (readJson(join(dir, "notice-decompose.json")) as WaveIn["decomposition"]) : null;
+  // OFF يُقرأُ أيضًا لـ§5.5 (حقولُ الشوط)؛ §5.1/§5.3 تقتصرُ على ON في verdictOf.
+  const d = readJson(join(dir, "notice-decompose.json")) as WaveIn["decomposition"];
   return {
     slot,
     arm,
@@ -196,6 +250,6 @@ if (import.meta.main) {
   const verdict = { waves, ...verdictOf(waves) };
   writeFileSync(out, `${JSON.stringify(verdict, null, 2)}\n`);
   console.log(
-    `NOTICE_TRACE_VERDICT attribution=${verdict.attribution.decision} overhead=${verdict.overhead.decision} repro=${verdict.repro.reproduced} validOn=${verdict.validOn} validOff=${verdict.validOff}`,
+    `NOTICE_TRACE_VERDICT attribution=${verdict.attribution.decision} drain=${verdict.drain.decision} overhead=${verdict.overhead.decision} repro=${verdict.repro.reproduced} validOn=${verdict.validOn} validOff=${verdict.validOff}`,
   );
 }

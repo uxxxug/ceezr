@@ -203,7 +203,7 @@ wave() { # SLOT(ON1|OFF1|S1…) IDX [CONC] ⇒ يضبطُ V
   [ "$(cat "$D/trace-arm-seen.txt")" = "$ARM" ] || { echo "TRACE_ARM_MISMATCH $NAME"; V=INVALID_ARM; }
   echo "VALIDITY_$NAME $V"; cat "$D/validity.json"; echo
   python3 "$BA" wave "$D" "$D/base-wave.json" 2>"$D/base-wave.err" && python3 -c "import json,sys;d=json.load(open(sys.argv[1]));print('BASE_WAVE',d['wave'],d['g1'],d['failedGates'])" "$D/base-wave.json" || echo "BASE_WAVE_ANALYZE_FAIL $NAME"
-  [ -f "$D/notice-decompose.json" ] && python3 -c "import json,sys;d=json.load(open(sys.argv[1]));print('NOTICE_DECOMPOSE',sys.argv[2],json.dumps({'valid':d['validity'],'attempts':d['attemptsSeen'],'pending':[d['pendingAtAudit'],d['auditPending']],'oldest':[d['reconstructedOldestPendingSec'],d['auditOldestPendingSec']],'oldest20':d['oldest20']['groupsPct']},ensure_ascii=False))" "$D/notice-decompose.json" "$NAME" || echo "NOTICE_DECOMPOSE_ABSENT $NAME arm=$ARM"
+  [ -f "$D/notice-decompose.json" ] && python3 -c "import json,sys;d=json.load(open(sys.argv[1]));print('NOTICE_DECOMPOSE',sys.argv[2],json.dumps({'valid':d['validity'],'attempts':d['attemptsSeen'],'pending':[d['pendingAtAudit'],d['auditPending']],'oldest':[d['reconstructedOldestPendingSec'],d['auditOldestPendingSec']],'oldest20':d['oldest20']['groupsPct'],'pass':(d.get('drainPasses') or {}).get('pass',{}).get('pctOfPassElapsed'),'claimMeanMs':(d.get('drainPasses') or {}).get('pass',{}).get('claimMeanMs')},ensure_ascii=False))" "$D/notice-decompose.json" "$NAME" || echo "NOTICE_DECOMPOSE_ABSENT $NAME arm=$ARM"
   case "$SLOT" in S*) ;; *) WDIR["$SLOT"]=$D; WVAL["$SLOT"]=$V; WARM["$SLOT"]=$ARM ;; esac
 }
 bash "$H/deploy/capacity-run/b24-runner/seat-bin/run-wave-handoff.test.sh" || exit 1

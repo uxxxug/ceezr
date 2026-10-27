@@ -114,6 +114,32 @@ describe("N1: استنزافُ صندوقِ الصادرِ المتزامن", ()
     expect(f.st.peak).toBeLessThanOrEqual(8);
     expect(f.st.peak).toBeGreaterThan(1);
   });
+  test("NOTICE-TRACE: claimCalls/claimMs تعدُّ نداءاتِ الالتقاطِ المتسلسلةَ وزمنَها بلا تغييرِ السلوك", async () => {
+    const f = fakeOutbox(offers(40));
+    let clock = 0;
+    const claim = f.port.claim;
+    const port: NotificationOutboxPort = {
+      ...f.port,
+      claim: async () => {
+        clock += 5;
+        return claim();
+      },
+    };
+    const r = await deliverNotificationsConcurrently(
+      { outbox: port, handlers: f.handlers },
+      { lanes: 8, budgetMs: 5000, maxClaims: 2000, now: () => clock },
+    );
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.value.delivered).toBe(40);
+    // 40 التقاطًا ناجحًا + نداءاتٌ فارغةٌ بعدَ فراغِ الطابور، كلٌّ بـ5ms على الساعةِ المحقونة.
+    expect(r.value.claimCalls).toBe(f.st.claims);
+    expect(r.value.claimCalls).toBeGreaterThanOrEqual(41);
+    expect(r.value.claimMs).toBe(5 * r.value.claimCalls);
+    expect(r.value.laneFullWaitMs).toBeGreaterThanOrEqual(0);
+    expect(r.value.saturatedWaitMs).toBeGreaterThanOrEqual(0);
+    expect(r.value.stopReason).toBe("empty");
+  });
   test("ترتيبُ المفتاح: صفوفُ الطلبِ نفسِه تُرسَلُ بترتيبِ التقاطِها", async () => {
     const rows: Row[] = [];
     for (let i = 0; i < 60; i++)

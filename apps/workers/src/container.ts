@@ -1701,6 +1701,11 @@ export function buildWorkerContainer(
                           `congestion_sleep_ms=${report.value.congestionSleepMs}`,
                           `lane_wait_ms=${report.value.laneWaitMs}`,
                           `send_ms=${report.value.sendMs}`,
+                          // NOTICE-TRACE: تفكيكُ زمنِ الشوطِ (الالتقاطُ المتسلسلُ مقابلَ انتظارِ المسارات).
+                          `claim_calls=${report.value.claimCalls}`,
+                          `claim_ms=${report.value.claimMs}`,
+                          `lane_full_wait_ms=${report.value.laneFullWaitMs}`,
+                          `saturated_wait_ms=${report.value.saturatedWaitMs}`,
                         ]
                       : []),
                   ].join(" ");

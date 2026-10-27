@@ -2,6 +2,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   classOf,
+  drainClassOf,
   sharesOf,
   verdictOf,
   type WaveIn,
@@ -96,5 +97,48 @@ describe("verdictOf", () => {
     expect(v.validOn).toBe(2);
     expect(v.attribution.decision).toBe("INCONCLUSIVE");
     expect(v.overhead.decision).toBe("INSUFFICIENT");
+  });
+});
+
+describe("§5.5 DRAIN_RULE (ملحق ب)", () => {
+  const pass = (claim: number | null, sat = 0, lane = 0) => ({
+    ...dec({ queue_wait: 90, telegram_limiter: 10 }),
+    drainPasses: {
+      n: 20,
+      idleShareBeforeAudit: 0.22,
+      stopReasons: { budget: 19, empty: 1 },
+      pass: {
+        passesWithClaimMs: claim === null ? 0 : 20,
+        pctOfPassElapsed: {
+          claim,
+          saturated_wait: sat,
+          lane_full_wait: lane,
+          congestion_sleep: 0,
+        },
+        claimMeanMs: claim === null ? null : 4,
+      },
+    },
+  });
+  test("الصنفُ بعتبةِ 50 على حصّةِ زمنِ الشوط", () => {
+    expect(drainClassOf({ claim: 62, saturated_wait: 10, lane_full_wait: 5 })).toBe("CLAIM_SERIAL");
+    expect(drainClassOf({ claim: 20, saturated_wait: 55, lane_full_wait: 5 })).toBe("CITY_CAP");
+    expect(drainClassOf({ claim: 20, saturated_wait: 5, lane_full_wait: 60 })).toBe("LANES");
+    expect(drainClassOf({ claim: 30, saturated_wait: 30, lane_full_wait: 30 })).toBe("MIXED_DRAIN");
+    expect(drainClassOf({ claim: null })).toBe("GAP");
+    expect(drainClassOf(undefined)).toBe("GAP");
+  });
+  test("القرار: أغلبيّةٌ ≥2 وأكثرُ من النصف عبرَ ON وOFF؛ وبلا حقولٍ ⇒ MEASUREMENT_GAP", () => {
+    const v = verdictOf([
+      w({ slot: "ON1", arm: "ON", decomposition: pass(60) }),
+      w({ slot: "OFF1", arm: "OFF", decomposition: pass(70) }),
+      w({ slot: "ON2", arm: "ON", decomposition: pass(20, 60) }),
+    ]);
+    expect(v.drain.decision).toBe("CLAIM_SERIAL");
+    expect(v.drain.classCounts).toEqual({ CLAIM_SERIAL: 2, CITY_CAP: 1 });
+    const gap = verdictOf([
+      w({ slot: "ON1", arm: "ON", decomposition: pass(null) }),
+      w({ slot: "OFF1", arm: "OFF", decomposition: null }),
+    ]);
+    expect(gap.drain.decision).toBe("MEASUREMENT_GAP");
   });
 });

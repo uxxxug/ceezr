@@ -282,6 +282,55 @@ export interface PassWindow {
   readonly startMs: number;
   readonly endMs: number;
   readonly stop: string | null;
+  /** حقولُ الشوطِ الرقميّةُ من `detail` (`claimed`، `claim_ms`…) — غائبةٌ في سجلٍّ أقدم. */
+  readonly fields?: Readonly<Record<string, number>>;
+}
+
+/** حقولُ الشوطِ المجمَّعة: ما يفصلُ «الالتقاطَ المتسلسل» عن «انتظارِ المسارات» عن «الإرسال». */
+export const PASS_FIELDS = [
+  "claimed",
+  "elapsed_ms",
+  "claim_calls",
+  "claim_ms",
+  "send_ms",
+  "lane_wait_ms",
+  "lane_full_wait_ms",
+  "saturated_wait_ms",
+  "congestion_sleep_ms",
+  "congestion_requeues",
+] as const;
+
+export function passTotalsOf(passes: readonly PassWindow[]) {
+  const totals: Record<string, number> = {};
+  let withClaimMs = 0;
+  for (const p of passes) {
+    if (p.fields?.claim_ms !== undefined) withClaimMs += 1;
+    for (const f of PASS_FIELDS) {
+      const v = p.fields?.[f];
+      if (v !== undefined) totals[f] = (totals[f] ?? 0) + v;
+    }
+  }
+  const el = totals.elapsed_ms;
+  const share = (f: string) =>
+    el !== undefined && el > 0 && totals[f] !== undefined
+      ? Math.round((1000 * (totals[f] ?? 0)) / el) / 10
+      : null;
+  const calls = totals.claim_calls;
+  return {
+    totals,
+    passesWithClaimMs: withClaimMs,
+    /** حصصٌ من زمنِ الأشواطِ الجداريّ (%): الالتقاطُ متسلسلٌ فحصّتُه حدٌّ أدنى لزمنِ الحلقة. */
+    pctOfPassElapsed: {
+      claim: share("claim_ms"),
+      lane_full_wait: share("lane_full_wait_ms"),
+      saturated_wait: share("saturated_wait_ms"),
+      congestion_sleep: share("congestion_sleep_ms"),
+    },
+    claimMeanMs:
+      calls !== undefined && calls > 0 && totals.claim_ms !== undefined
+        ? Math.round((100 * totals.claim_ms) / calls) / 100
+        : null,
+  };
 }
 
 /** حصّةُ انتظارِ الطابورِ غيرِ الملتقَطِ التي وقعت بينَ الأشواطِ (لا شوطَ جارٍ). */
@@ -349,6 +398,7 @@ export interface Decomposition {
     readonly n: number;
     readonly idleShareBeforeAudit: number | null;
     readonly stopReasons: Record<string, number>;
+    readonly pass: ReturnType<typeof passTotalsOf>;
   };
 }
 
@@ -471,6 +521,7 @@ export function decompose(input: {
         n: passes.length,
         idleShareBeforeAudit: idleShareOf(timelines, passes, input.auditAtMs),
         stopReasons,
+        pass: passTotalsOf(passes),
       },
     },
     timelines,
@@ -545,8 +596,15 @@ export function parseLog(text: string): {
       const end = Date.parse(r.at);
       const dur = num(r.durationMs);
       const m = typeof r.detail === "string" ? /stop=(\w+)/.exec(r.detail) : null;
+      const fields: Record<string, number> = {};
+      if (typeof r.detail === "string") {
+        for (const f of PASS_FIELDS) {
+          const x = new RegExp(`(?:^| )${f}=(\\d+)(?= |$)`).exec(r.detail);
+          if (x?.[1] !== undefined) fields[f] = Number(x[1]);
+        }
+      }
       if (Number.isFinite(end))
-        passes.push({ startMs: end - dur, endMs: end, stop: m?.[1] ?? null });
+        passes.push({ startMs: end - dur, endMs: end, stop: m?.[1] ?? null, fields });
     }
   }
   return { attempts, passes, riderEvents };
