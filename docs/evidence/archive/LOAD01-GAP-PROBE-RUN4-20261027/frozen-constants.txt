@@ -1,0 +1,8 @@
+2026-10-27T07:12:51.9047647Z FROZEN_CONSTANTS_OK gatewayRequest=5 IMMEDIATE_REDISPATCH_LIMIT=50 (A‴)
+load01gap4-probe-AA1-i70-M-1500 gateway_request_acc=5 code_acc=63bc7b0fbe42a1b02a02af5c7a6bed7f3f785a50 nproc=4
+load01gap4-probe-AA2-i71-M-1500 gateway_request_acc=5 code_acc=63bc7b0fbe42a1b02a02af5c7a6bed7f3f785a50 nproc=4
+load01gap4-probe-N1-i72-M-1500 gateway_request_acc=5 code_acc=63bc7b0fbe42a1b02a02af5c7a6bed7f3f785a50 nproc=4
+load01gap4-probe-N2-i73-M-1500 gateway_request_acc=5 code_acc=63bc7b0fbe42a1b02a02af5c7a6bed7f3f785a50 nproc=4
+load01gap4-probe-S1-i71-M-1500 gateway_request_acc=5 code_acc=63bc7b0fbe42a1b02a02af5c7a6bed7f3f785a50 nproc=4
+load01gap4-probe-S2-i74-M-1500 gateway_request_acc=5 code_acc=63bc7b0fbe42a1b02a02af5c7a6bed7f3f785a50 nproc=4
+2026-10-27T07:12:52.0651057Z wt-acc/deploy/capacity-run/config/run.env:TELEGRAM_DRAIN_LANES=32

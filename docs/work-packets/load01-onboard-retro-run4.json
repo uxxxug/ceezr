@@ -1,0 +1,25 @@
+{
+  "id": "load01-onboard-retro-run4",
+  "title": "سببُ driver_onboarding_failed في RUN4 استرجاعيًّا + تصحيحُ نسبِ مصادرِ RESULT الخاصِّ بـRUN4",
+  "status": "closed",
+  "closed_at": "2026-10-27",
+  "tags": ["load-01", "capacity", "diagnostics", "no-product-change"],
+  "created": "2026-10-27",
+  "updated": "2026-10-27",
+  "branch": "docs/load01-onboard-retro-run4",
+  "implementation": ["deploy/capacity-run/b24-runner/onboard4-retro.py"],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [
+    "ROADMAP.md",
+    "docs/SYSTEM_STATE.md",
+    "docs/evidence/archive/LOAD01-GAP-PROBE-RUN4-20261027/SHA256SUMS",
+    "docs/evidence/archive/LOAD01-GAP-PROBE-RUN4-20261027/frozen-constants.txt",
+    "docs/evidence/capacity/LOAD01-GAP-PROBE-RUN4-20261027/RESULT.md",
+    "docs/evidence/capacity/LOAD01-GAP-PROBE-RUN4-20261027/SHA256SUMS",
+    "docs/evidence/capacity/LOAD01-ONBOARD-RETRO-RUN4-20261027/RESULT.md",
+    "docs/evidence/capacity/LOAD01-ONBOARD-RETRO-RUN4-20261027/SHA256SUMS",
+    "docs/evidence/capacity/LOAD01-ONBOARD-RETRO-RUN4-20261027/onboard-retro.json"
+  ],
+  "no_other_affected_docs_reason": "تحليلٌ استرجاعيٌّ للأداةِ الخامِ وتصحيحُ توثيقٍ فقط؛ لا تغييرَ في المنتجِ أو المولّدِ أو العتباتِ أو الحدودِ المحميّة، فلا وثائقَ أخرى تتأثر."
+}
