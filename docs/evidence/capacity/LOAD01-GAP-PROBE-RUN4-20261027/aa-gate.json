@@ -1,0 +1,343 @@
+{
+ "mode": "aa4",
+ "delta_ms": 15.0,
+ "registered_cap": 256,
+ "aa4_metrics": [
+  "fetchMs",
+  "writeHeadMs",
+  "firstWriteMs",
+  "endMs",
+  "finishMs",
+  "ttfbResid",
+  "bodyMs"
+ ],
+ "aa4_detail": {
+  "fetchMs": {
+   "AA1": 168.45949924838158,
+   "AA2": 169.10348044643604,
+   "d": 0.6439811980544619,
+   "n1": 4896,
+   "n2": 4972,
+   "rule": "إعادةُ_إنتاجٍ_ضمنَ_±δ"
+  },
+  "writeHeadMs": {
+   "AA1": 168.47113849860375,
+   "AA2": 169.1142594188399,
+   "d": 0.6431209202361572,
+   "n1": 4896,
+   "n2": 4972,
+   "rule": "إعادةُ_إنتاجٍ_ضمنَ_±δ"
+  },
+  "firstWriteMs": {
+   "AA1": 168.549057819348,
+   "AA2": 169.17961604731886,
+   "d": 0.6305582279708517,
+   "n1": 4896,
+   "n2": 4972,
+   "rule": "إعادةُ_إنتاجٍ_ضمنَ_±δ"
+  },
+  "endMs": {
+   "AA1": 168.57001020749186,
+   "AA2": 169.20002369865358,
+   "d": 0.6300134911617192,
+   "n1": 4896,
+   "n2": 4972,
+   "rule": "إعادةُ_إنتاجٍ_ضمنَ_±δ"
+  },
+  "finishMs": {
+   "AA1": 168.5765527139078,
+   "AA2": 169.20582256577475,
+   "d": 0.6292698518669511,
+   "n1": 4896,
+   "n2": 4972,
+   "rule": "إعادةُ_إنتاجٍ_ضمنَ_±δ"
+  },
+  "ttfbResid": {
+   "AA1": 172.19060609828196,
+   "AA2": 172.66465295792227,
+   "d": 0.47404685964031046,
+   "n1": 4896,
+   "n2": 4972,
+   "rule": "إعادةُ_إنتاجٍ_ضمنَ_±δ"
+  },
+  "bodyMs": {
+   "AA1": 0.050738847565959935,
+   "AA2": 0.028234453392629477,
+   "d": -0.022504394173330458,
+   "n1": 4896,
+   "n2": 4972,
+   "rule": "إعادةُ_إنتاجٍ_ضمنَ_±δ"
+  }
+ },
+ "replaced": {
+  "ttfbMs": "ttfbResid = ttfbMs − queueWaitMs (فرقُ مدّتينِ بساعةِ المولّدِ من سطرِ http_call نفسِه)"
+ },
+ "ttfb_ms_raw_descriptive": {
+  "ttfbMs": {
+   "AA1": 215.23506207524747,
+   "AA2": 230.93691434043103,
+   "n1": 4896,
+   "n2": 4972,
+   "rule": "وصفيٌّ_فقط"
+  },
+  "queueWaitMs": {
+   "AA1": 43.04445597696552,
+   "AA2": 58.272261382508766,
+   "n1": 4896,
+   "n2": 4972,
+   "rule": "وصفيٌّ_فقط"
+  }
+ },
+ "inherited_detail": {
+  "fetchMs": {
+   "AA1": 168.45949924838158,
+   "AA2": 169.10348044643604,
+   "d": 0.6439811980544619,
+   "n1": 4896,
+   "n2": 4972,
+   "rule": "إعادةُ_إنتاجٍ_ضمنَ_±δ"
+  },
+  "writeHeadMs": {
+   "AA1": 168.47113849860375,
+   "AA2": 169.1142594188399,
+   "d": 0.6431209202361572,
+   "n1": 4896,
+   "n2": 4972,
+   "rule": "إعادةُ_إنتاجٍ_ضمنَ_±δ"
+  },
+  "firstWriteMs": {
+   "AA1": 168.549057819348,
+   "AA2": 169.17961604731886,
+   "d": 0.6305582279708517,
+   "n1": 4896,
+   "n2": 4972,
+   "rule": "إعادةُ_إنتاجٍ_ضمنَ_±δ"
+  },
+  "endMs": {
+   "AA1": 168.57001020749186,
+   "AA2": 169.20002369865358,
+   "d": 0.6300134911617192,
+   "n1": 4896,
+   "n2": 4972,
+   "rule": "إعادةُ_إنتاجٍ_ضمنَ_±δ"
+  },
+  "finishMs": {
+   "AA1": 168.5765527139078,
+   "AA2": 169.20582256577475,
+   "d": 0.6292698518669511,
+   "n1": 4896,
+   "n2": 4972,
+   "rule": "إعادةُ_إنتاجٍ_ضمنَ_±δ"
+  },
+  "ttfbMs": {
+   "AA1": 215.23506207524747,
+   "AA2": 230.93691434043103,
+   "d": 15.701852265183561,
+   "n1": 4896,
+   "n2": 4972,
+   "rule": "قابليةُ_إعادةِ_الإنتاجِ_غيرُ_مثبتة"
+  },
+  "bodyMs": {
+   "AA1": 0.050738847565959935,
+   "AA2": 0.028234453392629477,
+   "d": -0.022504394173330458,
+   "n1": 4896,
+   "n2": 4972,
+   "rule": "إعادةُ_إنتاجٍ_ضمنَ_±δ"
+  }
+ },
+ "inherited_verdict": "قابليةُ_إعادةِ_الإنتاجِ_غيرُ_مثبتة",
+ "validity3": [
+  {
+   "wave": "load01gap4-probe-AA1-i70-M-1500",
+   "valid": true,
+   "reasons": [],
+   "counts": {
+    "rides_http_call": 5397,
+    "latency_percentiles_n": 5397,
+    "verified": 5397,
+    "httpgap_rides": 5397,
+    "httpreq_rides": 5397,
+    "httpgap_other_routes": 164108,
+    "linked": 5397,
+    "ok_but_gap_hole": 0
+   },
+   "note": "الربطُ الفرديُّ يُطبَّقُ على مسارِ rides (مجالُ δ)؛ سطورُ المساراتِ الأخرى معدودةٌ وصفيًّا (ملحق 1 §3).",
+   "inherited_valid": true,
+   "run2": {
+    "rides_2xx_linked": 5397,
+    "missing_new_fields": {
+     "invokeMs": 0,
+     "inflightAtInvoke": 0,
+     "headersOverdueMs": 0,
+     "requestLeadMs": 0,
+     "inflightAtEntry": 0,
+     "connSeq": 0,
+     "loopOverdueAtEntryMs": 0
+    },
+    "gen_env_rows": 1,
+    "gen_env": {
+     "pid": 7049,
+     "bunVersion": "1.4.3",
+     "maxHttpRequestsEnv": null
+    },
+    "gen_loop_rows": 198,
+    "loop1s_rows": 262,
+    "gen_loop_min_per_window": 4,
+    "loop1s_min_per_window": 5,
+    "elu_available_gen": false,
+    "elu_available_gw": false
+   },
+   "valid2": true,
+   "run3": {
+    "expected_cap": 256,
+    "gen_env_fetchCap": 256,
+    "gen_env_fetchCapEnv": "256",
+    "rides_2xx_linked": 5397,
+    "missing_new_fields": {
+     "queueWaitMs": 0,
+     "waitersAtInvoke": 0,
+     "activeAtSend": 0,
+     "demandAtInvoke": 0
+    },
+    "http_call_rows": 105907,
+    "gen_sem_rows": 198,
+    "gen_sem_min_per_window": 4,
+    "active_max": 256,
+    "aborted_in_gate": 0
+   }
+  },
+  {
+   "wave": "load01gap4-probe-AA2-i71-M-1500",
+   "valid": true,
+   "reasons": [],
+   "counts": {
+    "rides_http_call": 5359,
+    "latency_percentiles_n": 5359,
+    "verified": 5359,
+    "httpgap_rides": 5359,
+    "httpreq_rides": 5359,
+    "httpgap_other_routes": 168759,
+    "linked": 5359,
+    "ok_but_gap_hole": 0
+   },
+   "note": "الربطُ الفرديُّ يُطبَّقُ على مسارِ rides (مجالُ δ)؛ سطورُ المساراتِ الأخرى معدودةٌ وصفيًّا (ملحق 1 §3).",
+   "inherited_valid": true,
+   "run2": {
+    "rides_2xx_linked": 5359,
+    "missing_new_fields": {
+     "invokeMs": 0,
+     "inflightAtInvoke": 0,
+     "headersOverdueMs": 0,
+     "requestLeadMs": 0,
+     "inflightAtEntry": 0,
+     "connSeq": 0,
+     "loopOverdueAtEntryMs": 0
+    },
+    "gen_env_rows": 1,
+    "gen_env": {
+     "pid": 8710,
+     "bunVersion": "1.4.3",
+     "maxHttpRequestsEnv": null
+    },
+    "gen_loop_rows": 195,
+    "loop1s_rows": 262,
+    "gen_loop_min_per_window": 4,
+    "loop1s_min_per_window": 5,
+    "elu_available_gen": false,
+    "elu_available_gw": false
+   },
+   "valid2": true,
+   "run3": {
+    "expected_cap": 256,
+    "gen_env_fetchCap": 256,
+    "gen_env_fetchCapEnv": "256",
+    "rides_2xx_linked": 5359,
+    "missing_new_fields": {
+     "queueWaitMs": 0,
+     "waitersAtInvoke": 0,
+     "activeAtSend": 0,
+     "demandAtInvoke": 0
+    },
+    "http_call_rows": 106068,
+    "gen_sem_rows": 195,
+    "gen_sem_min_per_window": 4,
+    "active_max": 256,
+    "aborted_in_gate": 0
+   }
+  }
+ ],
+ "hw": {
+  "identical": true,
+  "reasons": [],
+  "identity_keys": [
+   "cpu_model",
+   "arch",
+   "nproc",
+   "cpuset_effective",
+   "seat_cpu_max",
+   "kernel",
+   "os_release",
+   "image_os",
+   "image_version",
+   "cpu_flags_md5",
+   "bun_version"
+  ],
+  "reference": {
+   "cpu_model": "AMD EPYC 7763 64-Core Processor",
+   "arch": "x86_64",
+   "nproc": 4,
+   "cpuset_effective": "0-3",
+   "seat_cpu_max": "max 100000",
+   "kernel": "7.0.0-1017-azure",
+   "os_release": "Ubuntu 26.04.1 LTS",
+   "image_os": "ubuntu26",
+   "image_version": "20261023.163.3",
+   "cpu_flags_md5": "848e1675f7838b6e2242f2247a677ac3",
+   "bun_version": "1.4.3"
+  },
+  "diffs": [],
+  "descriptive": [
+   {
+    "file": "hw-post.json",
+    "phase": "post",
+    "cpu_stat": "usage_usec 854347863\nuser_usec 719549317\nsystem_usec 134798546\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 0\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+    "psi_cpu": "some avg10=0.26 avg60=20.50 avg300=21.76 total=115893457\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=0",
+    "steal_ticks": 0,
+    "loadavg": "3.36 3.63 1.77 2/250 7941",
+    "date_utc": "2026-10-27T07:24:53.879020+00:00"
+   },
+   {
+    "file": "hw-pre.json",
+    "phase": "pre",
+    "cpu_stat": "usage_usec 107216041\nuser_usec 94226679\nsystem_usec 12989361\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 0\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+    "psi_cpu": "some avg10=0.00 avg60=0.35 avg300=1.43 total=11395565\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=0",
+    "steal_ticks": 0,
+    "loadavg": "0.48 0.42 0.26 3/249 6350",
+    "date_utc": "2026-10-27T07:18:39.208392+00:00"
+   },
+   {
+    "file": "hw-post.json",
+    "phase": "post",
+    "cpu_stat": "usage_usec 1611944279\nuser_usec 1349734801\nsystem_usec 262209477\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 0\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+    "psi_cpu": "some avg10=0.21 avg60=19.70 avg300=26.54 total=219044693\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=0",
+    "steal_ticks": 0,
+    "loadavg": "3.60 4.69 2.85 1/250 9588",
+    "date_utc": "2026-10-27T07:31:31.365701+00:00"
+   },
+   {
+    "file": "hw-pre.json",
+    "phase": "pre",
+    "cpu_stat": "usage_usec 877893471\nuser_usec 740458644\nsystem_usec 137434826\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 0\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+    "psi_cpu": "some avg10=0.02 avg60=13.75 avg300=20.04 total=115915716\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=0",
+    "steal_ticks": 0,
+    "loadavg": "2.56 3.42 1.75 4/258 8023",
+    "date_utc": "2026-10-27T07:25:17.051297+00:00"
+   }
+  ],
+  "note": "المفاتيحُ الوصفيّةُ (الخنق، PSI، steal) تُعرضُ ولا تُبطلُ — لا قاعدةَ قرارٍ مسجّلةً لها."
+ },
+ "pass": true,
+ "verdict": "إعادةُ_إنتاجٍ_ضمنَ_±δ",
+ "note": "بوابةٌ تشخيصيّةٌ لا اجتيازُ اختبارِ سعة. LOAD-01 = FAIL وLOAD-01M = NOT_MET دونَ تغيير."
+}
