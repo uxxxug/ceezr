@@ -25,6 +25,7 @@
  */
 import { appendFileSync, mkdirSync } from "node:fs";
 import postgres from "postgres";
+import { withFetchSlot } from "./fetch-gate.ts";
 import { BASE, http, signedInitData, sleep } from "./lib.ts";
 
 const DB_URL = process.env.DATABASE_URL ?? "";
@@ -123,17 +124,23 @@ async function sendContactViaWebhook(
     },
   });
   try {
-    const response = await fetch(`${BASE}/webhook/telegram/driver`, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-telegram-bot-api-secret-token": TELEGRAM_WEBHOOK_SECRET,
-      },
-      body: update,
-      signal: AbortSignal.timeout(10_000),
+    // RUN3: يمرُّ ببوابةِ `fetch` المقيسةِ نفسِها (حدُّ Bun يعدُّ كلَّ fetch في العمليّة لا نداءاتِ `http` وحدَها)؛
+    // المهلةُ تبدأُ قبلَ الانتظارِ كما كانت تبدأُ قبلَ طابورِ Bun. بلا سعةٍ: السلوكُ كما كان.
+    const signal = AbortSignal.timeout(10_000);
+    const status = await withFetchSlot(signal, async () => {
+      const response = await fetch(`${BASE}/webhook/telegram/driver`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-telegram-bot-api-secret-token": TELEGRAM_WEBHOOK_SECRET,
+        },
+        body: update,
+        signal,
+      });
+      await response.arrayBuffer();
+      return response.status;
     });
-    await response.arrayBuffer();
-    return { status: response.status, updateId };
+    return { status, updateId };
   } catch {
     return { status: 0, updateId };
   }

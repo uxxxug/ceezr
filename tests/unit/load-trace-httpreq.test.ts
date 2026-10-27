@@ -401,6 +401,11 @@ describe("LOAD-01 — عمودُ العميلِ (http_call)", () => {
       invokeMs: 0.31,
       inflightAtInvoke: 7,
       headersOverdueMs: 2.25,
+      queueWaitMs: 4.5,
+      waitersAtInvoke: 3,
+      activeAtSend: 256,
+      demandAtInvoke: 260,
+      fetchCap: 256,
     };
     // بلا علمٍ (حالةُ OFF): لا سطرَ عميلٍ — فحصُ ON–OFF يقيسُ كلفةَ الأداةِ في الجانبينِ معًا.
     delete process.env.DISPATCH_TRACE_FILE;
