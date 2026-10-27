@@ -38,13 +38,15 @@ CONTAINER_SRC=$(git -C "$H" show "$A_SHA:apps/gateway/src/container.ts")
 echo "FROZEN_CONSTANTS_OK gatewayRequest=5 IMMEDIATE_REDISPATCH_LIMIT=50 (M)" | tee "$OUT/frozen-constants.txt"
 C2_DIFF=$(git -C "$H" diff --name-only "$A3_SHA" "$A_SHA" -- apps packages deploy/capacity-run/load deploy/capacity-run/monitor deploy/capacity-run/config docker supabase package.json bun.lock | sort | tr '\n' ' ')
 [ "$(echo $C2_DIFF)" = "$(echo $EXPECTED_C2_DIFF)" ] || { echo "C2_DIFF_UNEXPECTED [$C2_DIFF] — لا موجة"; exit 1; }
-echo "C2_DIFF_AS_EXPECTED [$C2_DIFF] (#663 وحدَه — لا هجرةَ ولا مولّدَ ولا إعدادات)" | tee -a "$OUT/frozen-constants.txt"
+# القائمةُ في سجلِّ المهمّةِ وحدَه: مساراتُها الطويلةُ (≥40 محرفًا) يطابقُها نمطُ تدقيقِ الأسرارِ فتوقفُ الرفع (المحاولةُ 1)
+echo "C2_DIFF_AS_EXPECTED [$C2_DIFF] (#663 وحدَه — لا هجرةَ ولا مولّدَ ولا إعدادات)"
+echo "C2_DIFF_AS_EXPECTED files=$(echo $C2_DIFF | wc -w)" >> "$OUT/frozen-constants.txt"
 for F in config/run.env; do
   ! grep -q '^BUN_CONFIG_MAX_HTTP_REQUESTS=' "$W/wt-acc/deploy/capacity-run/$F" || { echo "BUN_CONFIG_MAX_HTTP_REQUESTS_IN_$F — لا موجة"; exit 1; }
   ! grep -q '^LOAD_GEN_FETCH_CAP=' "$W/wt-acc/deploy/capacity-run/$F" || { echo "LOAD_GEN_FETCH_CAP_IN_$F — لا موجة"; exit 1; }
 done
 echo "MIXED rate=$MIXED_RATE sec=$MIXED_SEC seed=$MIXED_SEED kinds=command:message=1:1"
-grep -H "^TELEGRAM_DRAIN_LANES=" "$W/wt-acc/deploy/capacity-run/config/run.env" | tee -a "$OUT/frozen-constants.txt" || true
+grep "^TELEGRAM_DRAIN_LANES=" "$W/wt-acc/deploy/capacity-run/config/run.env" | tee -a "$OUT/frozen-constants.txt" || true
 
 log "setup-env (infra|db|migrate) من wt-acc ⇒ قاعدةٌ بهجراتِ A"
 (cd "$W/wt-acc" && bash deploy/capacity-run/setup-env-20261016.sh all) >"$OUT/setup-env.log" 2>&1 || { tail -20 "$OUT/setup-env.log"; exit 1; }
@@ -167,7 +169,7 @@ wave() { # SLOT IDX ⇒ يضبطُ V
   echo "$NAME COLLECT_RC=$CRC conc=$WCONC"
   cp -r "$B/qual/$RUN" "$D/qual" 2>/dev/null || true
   cp "$OUT/tpl-active-$NAME.txt" "$D/tpl-active.txt"; echo "$SLOT cap=none" > "$D/arm.txt"; echo "$ARM_SHA" > "$D/arm-sha.txt"
-  ls "$D/load-trace.jsonl" >/dev/null 2>&1 || echo "TRACE_MISSING $NAME"
+  ls "$D/load-trace.jsonl.gz" >/dev/null 2>&1 || echo "TRACE_MISSING $NAME"  # collect-evidence يحفظُه مضغوطًا (wave-evidence-manifest)
   bun "$H/deploy/capacity-run/monitor/job-timeline.ts" "$D" > "$D/job-timeline.json" 2>"$D/job-timeline.err" || true
   python3 "$H/deploy/capacity-run/monitor/p4-decompose.py" "$E" > "$D/p4-decompose.out.json" 2>"$D/p4-decompose.err" || true
   $B/bin/gates.sh "$RUN" > "$D/gates.txt" 2>&1 || true
