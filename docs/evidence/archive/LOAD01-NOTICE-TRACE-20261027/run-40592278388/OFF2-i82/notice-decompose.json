@@ -1,0 +1,146 @@
+{
+  "kind": "rider_trip_notice",
+  "auditAtMs": 1793142060571,
+  "rows": 25380,
+  "attemptsSeen": 0,
+  "unmeteredAttempts": 0,
+  "pendingAtAudit": 3712,
+  "sendingAtAudit": 0,
+  "auditPending": 3712,
+  "auditOldestPendingSec": 120,
+  "reconstructedOldestPendingSec": 120,
+  "validity": {
+    "ok": false,
+    "reasons": [
+      "no_attempt_trace"
+    ]
+  },
+  "oldest": {
+    "id": "5a6fb9b0-c47e-48fd-aadf-0ecb86ee6820",
+    "event": "COMPLETED",
+    "attempts": 0,
+    "ageMs": 120109,
+    "breakdownMs": {
+      "queue_unclaimed": 120109,
+      "lane_wait": 0,
+      "limiter_requeue": 0,
+      "queue_after_limiter": 0,
+      "limiter_inline": 0,
+      "limiter_acquire": 0,
+      "telegram_api": 0,
+      "telegram_backoff": 0,
+      "processing": 0,
+      "app_ack_wait": 0,
+      "retry_gap": 0,
+      "in_flight": 0
+    },
+    "groupsMs": {
+      "queue_wait": 120109,
+      "telegram_limiter": 0,
+      "queue_after_limiter": 0,
+      "outbox_processing": 0,
+      "telegram_api": 0,
+      "app_ack_wait": 0,
+      "unattributed": 0
+    }
+  },
+  "oldest20": {
+    "n": 20,
+    "meanAgeMs": 116198,
+    "groupsPct": {
+      "queue_wait": 100,
+      "telegram_limiter": 0,
+      "queue_after_limiter": 0,
+      "outbox_processing": 0,
+      "telegram_api": 0,
+      "app_ack_wait": 0,
+      "unattributed": 0
+    }
+  },
+  "pendingAll": {
+    "n": 3712,
+    "groupsPct": {
+      "queue_wait": 100,
+      "telegram_limiter": 0,
+      "queue_after_limiter": 0,
+      "outbox_processing": 0,
+      "telegram_api": 0,
+      "app_ack_wait": 0,
+      "unattributed": 0
+    },
+    "breakdownMs": {
+      "queue_unclaimed": 223473924,
+      "lane_wait": 0,
+      "limiter_requeue": 0,
+      "queue_after_limiter": 0,
+      "limiter_inline": 0,
+      "limiter_acquire": 0,
+      "telegram_api": 0,
+      "telegram_backoff": 0,
+      "processing": 0,
+      "app_ack_wait": 0,
+      "retry_gap": 0,
+      "in_flight": 0
+    },
+    "congestionScopes": {
+      "chat": 0,
+      "global": 0
+    }
+  },
+  "delivered": {
+    "n": 21668,
+    "latencyMs": {
+      "p50": 639,
+      "p95": 84914,
+      "max": 114114
+    },
+    "groupsPct": {
+      "queue_wait": 100,
+      "telegram_limiter": 0,
+      "queue_after_limiter": 0,
+      "outbox_processing": 0,
+      "telegram_api": 0,
+      "app_ack_wait": 0,
+      "unattributed": 0
+    },
+    "byOutcome": {
+      "external:delivered": 3656,
+      "external:miniapp_ack": 18012
+    }
+  },
+  "drainPasses": {
+    "n": 20,
+    "idleShareBeforeAudit": 0.26,
+    "stopReasons": {
+      "empty": 1,
+      "budget": 18,
+      "max_claims": 1
+    },
+    "pass": {
+      "claimSplit": null,
+      "claimWait": null,
+      "loop": null,
+      "totals": {
+        "claimed": 15731,
+        "elapsed_ms": 152573,
+        "claim_calls": 15732,
+        "claim_ms": 119482,
+        "send_ms": 642731,
+        "lane_wait_ms": 40825,
+        "lane_full_wait_ms": 29998,
+        "saturated_wait_ms": 0,
+        "congestion_sleep_ms": 0,
+        "congestion_requeues": 12075
+      },
+      "passesWithClaimMs": 20,
+      "pctOfPassElapsed": {
+        "claim": 78.3,
+        "lane_full_wait": 19.7,
+        "saturated_wait": 0,
+        "congestion_sleep": 0
+      },
+      "claimMeanMs": 7.59
+    }
+  },
+  "riderTripLogEvents": {}
+}

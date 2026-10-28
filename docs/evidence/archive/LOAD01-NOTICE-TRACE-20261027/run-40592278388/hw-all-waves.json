@@ -1,0 +1,151 @@
+{
+ "identical": true,
+ "reasons": [],
+ "identity_keys": [
+  "cpu_model",
+  "arch",
+  "nproc",
+  "cpuset_effective",
+  "seat_cpu_max",
+  "kernel",
+  "os_release",
+  "image_os",
+  "image_version",
+  "cpu_flags_md5",
+  "bun_version"
+ ],
+ "reference": {
+  "cpu_model": "AMD EPYC 7763 64-Core Processor",
+  "arch": "x86_64",
+  "nproc": 4,
+  "cpuset_effective": "0-3",
+  "seat_cpu_max": "max 100000",
+  "kernel": "7.0.0-1017-azure",
+  "os_release": "Ubuntu 26.04.1 LTS",
+  "image_os": "ubuntu26",
+  "image_version": "20261026.180.1",
+  "cpu_flags_md5": "848e1675f7838b6e2242f2247a677ac3",
+  "bun_version": "1.4.3"
+ },
+ "diffs": [],
+ "descriptive": [
+  {
+   "file": "hw-seat-pre.json",
+   "phase": "seat-pre",
+   "cpu_stat": "usage_usec 72628903\nuser_usec 61245120\nsystem_usec 11383783\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 0\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+   "psi_cpu": "some avg10=0.00 avg60=1.25 avg300=1.80 total=11169226\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=0",
+   "steal_ticks": 0,
+   "loadavg": "0.22 0.41 0.27 3/250 5862",
+   "date_utc": "2026-10-27T22:36:23.970522+00:00"
+  },
+  {
+   "file": "hw-post.json",
+   "phase": "post",
+   "cpu_stat": "usage_usec 2086786100\nuser_usec 1716863561\nsystem_usec 369922538\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 0\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+   "psi_cpu": "some avg10=0.37 avg60=18.50 avg300=25.43 total=258094907\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=0",
+   "steal_ticks": 0,
+   "loadavg": "2.96 3.99 2.78 2/252 10930",
+   "date_utc": "2026-10-27T22:55:13.144343+00:00"
+  },
+  {
+   "file": "hw-pre.json",
+   "phase": "pre",
+   "cpu_stat": "usage_usec 1368300894\nuser_usec 1123346520\nsystem_usec 244954374\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 0\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+   "psi_cpu": "some avg10=0.15 avg60=16.82 avg300=22.04 total=162600329\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=0",
+   "steal_ticks": 0,
+   "loadavg": "3.41 3.80 2.21 1/255 9295",
+   "date_utc": "2026-10-27T22:48:56.704515+00:00"
+  },
+  {
+   "file": "hw-post.json",
+   "phase": "post",
+   "cpu_stat": "usage_usec 2826335965\nuser_usec 2326981959\nsystem_usec 499354006\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 0\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+   "psi_cpu": "some avg10=0.89 avg60=21.64 avg300=26.92 total=354538040\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=0",
+   "steal_ticks": 0,
+   "loadavg": "4.27 4.57 3.36 2/251 12566",
+   "date_utc": "2026-10-27T23:01:41.252322+00:00"
+  },
+  {
+   "file": "hw-pre.json",
+   "phase": "pre",
+   "cpu_stat": "usage_usec 2103013681\nuser_usec 1731092178\nsystem_usec 371921503\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 0\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+   "psi_cpu": "some avg10=0.09 avg60=14.65 avg300=24.23 total=258112593\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=0",
+   "steal_ticks": 0,
+   "loadavg": "2.53 3.84 2.76 4/254 11002",
+   "date_utc": "2026-10-27T22:55:28.814420+00:00"
+  },
+  {
+   "file": "hw-post.json",
+   "phase": "post",
+   "cpu_stat": "usage_usec 5045893650\nuser_usec 4166424000\nsystem_usec 879469649\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 0\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+   "psi_cpu": "some avg10=0.14 avg60=17.09 avg300=25.59 total=638773429\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=0",
+   "steal_ticks": 0,
+   "loadavg": "2.69 4.42 4.11 2/254 17728",
+   "date_utc": "2026-10-27T23:21:22.474455+00:00"
+  },
+  {
+   "file": "hw-pre.json",
+   "phase": "pre",
+   "cpu_stat": "usage_usec 4325628601\nuser_usec 3569303256\nsystem_usec 756325345\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 0\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+   "psi_cpu": "some avg10=0.03 avg60=13.62 avg300=24.56 total=544538154\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=0",
+   "steal_ticks": 0,
+   "loadavg": "3.05 4.52 3.99 1/257 16086",
+   "date_utc": "2026-10-27T23:15:02.030382+00:00"
+  },
+  {
+   "file": "hw-post.json",
+   "phase": "post",
+   "cpu_stat": "usage_usec 3572903443\nuser_usec 2947638007\nsystem_usec 625265436\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 0\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+   "psi_cpu": "some avg10=0.24 avg60=18.55 avg300=26.39 total=450080893\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=0",
+   "steal_ticks": 0,
+   "loadavg": "4.02 4.99 3.87 2/254 14223",
+   "date_utc": "2026-10-27T23:08:14.052201+00:00"
+  },
+  {
+   "file": "hw-pre.json",
+   "phase": "pre",
+   "cpu_stat": "usage_usec 2843267471\nuser_usec 2341786429\nsystem_usec 501481042\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 0\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+   "psi_cpu": "some avg10=0.14 avg60=16.04 avg300=25.31 total=354560909\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=0",
+   "steal_ticks": 0,
+   "loadavg": "3.62 4.41 3.33 2/254 12638",
+   "date_utc": "2026-10-27T23:01:57.616481+00:00"
+  },
+  {
+   "file": "hw-post.json",
+   "phase": "post",
+   "cpu_stat": "usage_usec 4309403558\nuser_usec 3555047927\nsystem_usec 754355630\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 0\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+   "psi_cpu": "some avg10=0.18 avg60=17.78 avg300=25.95 total=544510644\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=0",
+   "steal_ticks": 0,
+   "loadavg": "3.64 4.70 4.04 7/256 16009",
+   "date_utc": "2026-10-27T23:14:46.165635+00:00"
+  },
+  {
+   "file": "hw-pre.json",
+   "phase": "pre",
+   "cpu_stat": "usage_usec 3588905530\nuser_usec 2961660085\nsystem_usec 627245444\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 0\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+   "psi_cpu": "some avg10=0.04 avg60=14.21 avg300=24.98 total=450103301\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=0",
+   "steal_ticks": 0,
+   "loadavg": "3.47 4.81 3.84 5/255 14293",
+   "date_utc": "2026-10-27T23:08:29.731326+00:00"
+  },
+  {
+   "file": "hw-post.json",
+   "phase": "post",
+   "cpu_stat": "usage_usec 1352337620\nuser_usec 1109359065\nsystem_usec 242978555\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 0\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+   "psi_cpu": "some avg10=0.62 avg60=21.23 avg300=23.12 total=162571453\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=0",
+   "steal_ticks": 0,
+   "loadavg": "4.10 3.95 2.23 2/252 9227",
+   "date_utc": "2026-10-27T22:48:41.022704+00:00"
+  },
+  {
+   "file": "hw-pre.json",
+   "phase": "pre",
+   "cpu_stat": "usage_usec 644445647\nuser_usec 526276060\nsystem_usec 118169587\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 0\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+   "psi_cpu": "some avg10=0.12 avg60=10.19 avg300=11.99 total=68633019\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=0",
+   "steal_ticks": 0,
+   "loadavg": "2.40 2.41 1.22 2/257 7658",
+   "date_utc": "2026-10-27T22:42:34.585356+00:00"
+  }
+ ],
+ "note": "المفاتيحُ الوصفيّةُ (الخنق، PSI، steal) تُعرضُ ولا تُبطلُ — لا قاعدةَ قرارٍ مسجّلةً لها."
+}

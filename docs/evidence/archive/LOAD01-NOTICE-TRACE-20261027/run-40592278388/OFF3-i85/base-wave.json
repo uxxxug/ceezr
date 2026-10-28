@@ -1,0 +1,136 @@
+{
+ "contact_acq": {
+  "gateAcq": 24660,
+  "jobs": 12330,
+  "per_job": 2.0
+ },
+ "failedGates": [
+  "G1",
+  "G4",
+  "P7"
+ ],
+ "g1": {
+  "ok": 6360,
+  "pct": 51.58,
+  "total": 12330
+ },
+ "gates": {
+  "CONC-peak": "peak 1500 / target 1500",
+  "EGRESS-CLASSIFIED": "unknown +0",
+  "G1": "51.58% (6360/12330)✗",
+  "G2": "0",
+  "G3": "0 + 0",
+  "G4": "VIOLATIONS✗",
+  "G5": "0",
+  "G6": "0.00% (0)",
+  "G7": "0.00%",
+  "G8": "0",
+  "GW-STABILITY": "stable",
+  "I1-identities": "riders 12330/12330 · drivers 12330/12330",
+  "P1": "713ms",
+  "P2": "755ms",
+  "P3": "722ms",
+  "P4": "6669ms",
+  "P5": "11261ms",
+  "P6a": "1036ms",
+  "P6b": "1247ms",
+  "P6c": "999ms",
+  "P7": "124s✗",
+  "P8": "0.00%",
+  "P9": "0.00%"
+ },
+ "onboarding": {
+  "contact_jobs": {
+   "max_ms": 30125,
+   "n": 12330,
+   "over_20s": 6065,
+   "over_20s_share": 0.4919,
+   "p50_ms": 19854,
+   "p90_ms": 25546,
+   "p99_ms": 29657,
+   "status": {
+    "done": 12330
+   }
+  },
+  "failed_step_patterns": {
+   "ok|200|timeout|201|True": 429,
+   "ok|200|timeout|409|False": 5541
+  },
+  "failed_with_phoneProofJob_timeout_share": 1.0,
+  "little": {
+   "contact_arrival_span_s": 174.829,
+   "exec_share_gateWait": 0.9604,
+   "jobs_per_s_measured": 91.12,
+   "lane_ceiling_jobs_per_s": 96.4,
+   "lane_utilization": 0.9452,
+   "lanes": 32,
+   "per_job_ms_claim_plus_exec": 331.96
+  },
+  "onboarding_failed": 5970,
+  "timeline_all": {
+   "claim": 103.52,
+   "exec": 228.44,
+   "gateWait": 219.4,
+   "n": 15930,
+   "notDone": 0,
+   "queue": 19000.11,
+   "queue_p50": 19057.39
+  }
+ },
+ "pool": {
+  "driver_location": {
+   "drainer": false,
+   "holdS": 128.68,
+   "maxWindowP95Ms": 414.44,
+   "n": 50919,
+   "path": "http:POST /v1/driver/location",
+   "waitMsPerCall": 161.61,
+   "waitS": 8228.92
+  },
+  "saturatedWindows": 39,
+  "seats": 5,
+  "top_wait_paths": [
+   {
+    "holdS": 128.68,
+    "n": 50919,
+    "path": "http:POST /v1/driver/location",
+    "waitS": 8228.92
+   },
+   {
+    "holdS": 100.63,
+    "n": 25050,
+    "path": "http:POST /v1/session/telegram",
+    "waitS": 4489.22
+   },
+   {
+    "holdS": 43.23,
+    "n": 17752,
+    "path": "http:GET /v1/rides/:id/trip-events",
+    "waitS": 3336.27
+   },
+   {
+    "holdS": 82.13,
+    "n": 17748,
+    "path": "http:POST /v1/rides/:id/trip-events/ack",
+    "waitS": 3308.64
+   },
+   {
+    "holdS": 67.26,
+    "n": 19133,
+    "path": "http:POST /v1/onboarding/driver",
+    "waitS": 3201.88
+   },
+   {
+    "holdS": 72.89,
+    "n": 15930,
+    "path": "http:POST /webhook/telegram/driver",
+    "waitS": 2991.62
+   }
+  ],
+  "totalHoldS": 990.29,
+  "totalWaitS": 46646.8,
+  "windows": 54
+ },
+ "verdict": "FAIL",
+ "wave": "load01noticetrace-ntr-OFF3-i85-M-1500"
+}

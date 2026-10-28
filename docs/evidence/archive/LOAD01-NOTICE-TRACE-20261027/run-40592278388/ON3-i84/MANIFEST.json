@@ -1,0 +1,216 @@
+{
+  "generatedBy": "deploy/capacity-run/monitor/collect-evidence.ts",
+  "hashes": "SHA256SUMS",
+  "missing": [],
+  "absentOptional": [],
+  "undeclaredPresent": [
+    {
+      "name": "db-audit-post.out",
+      "bytes": 50
+    },
+    {
+      "name": "db-audit-pre.out",
+      "bytes": 733
+    },
+    {
+      "name": "diag-env.txt",
+      "bytes": 167
+    },
+    {
+      "name": "dispatch-trace.jsonl.load.jsonl",
+      "bytes": 174195111
+    },
+    {
+      "name": "gateway.pid",
+      "bytes": 6
+    },
+    {
+      "name": "gateway.wave.log",
+      "bytes": 50126275
+    },
+    {
+      "name": "notice-rows.csv",
+      "bytes": 5551613
+    },
+    {
+      "name": "notification-outbox.csv",
+      "bytes": 15078962
+    },
+    {
+      "name": "pgss-top.txt",
+      "bytes": 3916
+    },
+    {
+      "name": "telegram-mock.jsonl",
+      "bytes": 12708745
+    },
+    {
+      "name": "wave-report.err",
+      "bytes": 0
+    }
+  ],
+  "entries": [
+    {
+      "source": "b24-env.json",
+      "stored": "b24-env.json",
+      "bytes": 201,
+      "storedBytes": 201
+    },
+    {
+      "source": "db-audit-post.json",
+      "stored": "db-audit-post.json",
+      "bytes": 10910,
+      "storedBytes": 10910
+    },
+    {
+      "source": "db-audit-pre.json",
+      "stored": "db-audit-pre.json",
+      "bytes": 1124,
+      "storedBytes": 1124
+    },
+    {
+      "source": "resources.jsonl",
+      "stored": "resources.jsonl",
+      "bytes": 35900,
+      "storedBytes": 35900
+    },
+    {
+      "source": "timeline.jsonl",
+      "stored": "timeline.jsonl",
+      "bytes": 328,
+      "storedBytes": 328
+    },
+    {
+      "source": "wave-report.json",
+      "stored": "wave-report.json",
+      "bytes": 4130,
+      "storedBytes": 4130
+    },
+    {
+      "source": "session-limit.json",
+      "stored": "session-limit.json",
+      "bytes": 231,
+      "storedBytes": 231
+    },
+    {
+      "source": "mock-stats-pre.json",
+      "stored": "mock-stats-pre.json",
+      "bytes": 320,
+      "storedBytes": 320
+    },
+    {
+      "source": "mock-stats-post.json",
+      "stored": "mock-stats-post.json",
+      "bytes": 320,
+      "storedBytes": 320
+    },
+    {
+      "source": "conn-samples.csv",
+      "stored": "conn-samples.csv.gz",
+      "bytes": 33910,
+      "storedBytes": 3028
+    },
+    {
+      "source": "load-trace.jsonl",
+      "stored": "load-trace.jsonl.gz",
+      "bytes": 174195111,
+      "storedBytes": 20719680
+    },
+    {
+      "source": "miniapp-load-events.jsonl",
+      "stored": "miniapp-load-events.jsonl.gz",
+      "bytes": 20055523,
+      "storedBytes": 1575015
+    },
+    {
+      "source": "load-events.jsonl",
+      "stored": "load-events.jsonl.gz",
+      "bytes": 51764212,
+      "storedBytes": 6041843
+    },
+    {
+      "source": "rl-window.jsonl",
+      "stored": "rl-window.jsonl.gz",
+      "bytes": 25889,
+      "storedBytes": 3285
+    },
+    {
+      "source": "pgss-full.csv",
+      "stored": "pgss-full.csv.gz",
+      "bytes": 39387,
+      "storedBytes": 12144
+    },
+    {
+      "source": "telegram-jobs.csv",
+      "stored": "telegram-jobs.csv.gz",
+      "bytes": 736035,
+      "storedBytes": 106103
+    },
+    {
+      "source": "update-jobs.csv",
+      "stored": "update-jobs.csv.gz",
+      "bytes": 976000,
+      "storedBytes": 137634
+    },
+    {
+      "source": "sched-samples.jsonl",
+      "stored": "sched-samples.jsonl.gz",
+      "bytes": 127318,
+      "storedBytes": 9617
+    },
+    {
+      "source": "dispatch-trace.jsonl",
+      "stored": "dispatch-trace.jsonl.gz",
+      "bytes": 3442453,
+      "storedBytes": 829395
+    },
+    {
+      "source": "orders.csv",
+      "stored": "orders.csv.gz",
+      "bytes": 395551,
+      "storedBytes": 166267
+    },
+    {
+      "source": "offers.csv",
+      "stored": "offers.csv.gz",
+      "bytes": 2764831,
+      "storedBytes": 396081
+    },
+    {
+      "source": "mixed-sent.jsonl",
+      "stored": "mixed-sent.jsonl.gz",
+      "bytes": 552858,
+      "storedBytes": 61065
+    },
+    {
+      "source": "notice-decompose.json",
+      "stored": "notice-decompose.json",
+      "bytes": 6303,
+      "storedBytes": 6303
+    },
+    {
+      "source": "notice-trace.jsonl",
+      "stored": "notice-trace.jsonl.gz",
+      "bytes": 2095422,
+      "storedBytes": 172627
+    },
+    {
+      "source": "drain-passes.jsonl",
+      "stored": "drain-passes.jsonl.gz",
+      "bytes": 1436,
+      "storedBytes": 370
+    },
+    {
+      "source": "pg-activity.csv",
+      "stored": "pg-activity.csv.gz",
+      "bytes": 1223239,
+      "storedBytes": 80623
+    },
+    {
+      "source": "claim-wait.json",
+      "stored": "claim-wait.json",
+      "bytes": 1088,
+      "storedBytes": 1088
+    }
+  ]
+}

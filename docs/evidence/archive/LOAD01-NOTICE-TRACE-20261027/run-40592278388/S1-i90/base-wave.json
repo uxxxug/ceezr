@@ -1,0 +1,129 @@
+{
+ "contact_acq": {
+  "gateAcq": 9984,
+  "jobs": 4992,
+  "per_job": 2.0
+ },
+ "failedGates": [],
+ "g1": {
+  "ok": 4992,
+  "pct": 100,
+  "total": 4992
+ },
+ "gates": {
+  "CONC-peak": "peak 100 / target 100",
+  "EGRESS-CLASSIFIED": "unknown +0",
+  "G1": "100.00% (4992/4992)",
+  "G2": "0",
+  "G3": "0 + 0",
+  "G4": "CLEAN",
+  "G5": "0",
+  "G6": "0.00% (0)",
+  "G7": "0.00%",
+  "G8": "0",
+  "GW-STABILITY": "stable",
+  "I1-identities": "riders 4992/4992 · drivers 4992/4992",
+  "P1": "159ms",
+  "P2": "129ms",
+  "P3": "99ms",
+  "P4": "2662ms",
+  "P5": "3542ms",
+  "P6a": "176ms",
+  "P6b": "161ms",
+  "P6c": "123ms",
+  "P7": "84s",
+  "P8": "0.00%",
+  "P9": "0.00%"
+ },
+ "onboarding": {
+  "contact_jobs": {
+   "max_ms": 588,
+   "n": 4992,
+   "over_20s": 0,
+   "over_20s_share": 0.0,
+   "p50_ms": 117,
+   "p90_ms": 271,
+   "p99_ms": 461,
+   "status": {
+    "done": 4992
+   }
+  },
+  "failed_step_patterns": {},
+  "failed_with_phoneProofJob_timeout_share": null,
+  "little": {
+   "contact_arrival_span_s": 179.701,
+   "exec_share_gateWait": 0.8974,
+   "jobs_per_s_measured": 47.81,
+   "lane_ceiling_jobs_per_s": 258.48,
+   "lane_utilization": 0.185,
+   "lanes": 32,
+   "per_job_ms_claim_plus_exec": 123.8
+  },
+  "onboarding_failed": 0,
+  "timeline_all": {
+   "claim": 38.65,
+   "exec": 85.15,
+   "gateWait": 76.41,
+   "n": 8592,
+   "notDone": 0,
+   "queue": 54.6,
+   "queue_p50": 33.87
+  }
+ },
+ "pool": {
+  "driver_location": {
+   "drainer": false,
+   "holdS": 69.25,
+   "maxWindowP95Ms": 116.2,
+   "n": 40038,
+   "path": "http:POST /v1/driver/location",
+   "waitMsPerCall": 27.28,
+   "waitS": 1092.19
+  },
+  "saturatedWindows": 0,
+  "seats": 5,
+  "top_wait_paths": [
+   {
+    "holdS": 69.25,
+    "n": 40038,
+    "path": "http:POST /v1/driver/location",
+    "waitS": 1092.19
+   },
+   {
+    "holdS": 30.15,
+    "n": 14140,
+    "path": "http:GET /v1/rides/:id/trip-events",
+    "waitS": 920.93
+   },
+   {
+    "holdS": 60.7,
+    "n": 14140,
+    "path": "http:POST /v1/rides/:id/trip-events/ack",
+    "waitS": 909.5
+   },
+   {
+    "holdS": 59.8,
+    "n": 14976,
+    "path": "http:POST /v1/session/telegram",
+    "waitS": 692.31
+   },
+   {
+    "holdS": 28.33,
+    "n": 9984,
+    "path": "http:POST /v1/driver/availability",
+    "waitS": 663.63
+   },
+   {
+    "holdS": 46.95,
+    "n": 9984,
+    "path": "http:POST /v1/rides",
+    "waitS": 637.49
+   }
+  ],
+  "totalHoldS": 589.38,
+  "totalWaitS": 8783.23,
+  "windows": 50
+ },
+ "verdict": "PASS",
+ "wave": "load01noticetrace-ntr-S1-i90-M-100"
+}

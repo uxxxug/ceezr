@@ -1,0 +1,259 @@
+{
+  "kind": "rider_trip_notice",
+  "auditAtMs": 1793142449431,
+  "rows": 25012,
+  "attemptsSeen": 13303,
+  "unmeteredAttempts": 0,
+  "pendingAtAudit": 3745,
+  "sendingAtAudit": 0,
+  "auditPending": 3745,
+  "auditOldestPendingSec": 113,
+  "reconstructedOldestPendingSec": 113,
+  "validity": {
+    "ok": true,
+    "reasons": []
+  },
+  "oldest": {
+    "id": "45eb67e6-c730-4c07-acc1-41d11c72f95a",
+    "event": "STARTED",
+    "attempts": 8,
+    "ageMs": 113182,
+    "breakdownMs": {
+      "queue_unclaimed": 101062,
+      "lane_wait": 0,
+      "limiter_requeue": 8000,
+      "queue_after_limiter": 4091,
+      "limiter_inline": 0,
+      "limiter_acquire": 3,
+      "telegram_api": 0,
+      "telegram_backoff": 0,
+      "processing": 26,
+      "app_ack_wait": 0,
+      "retry_gap": 0,
+      "in_flight": 0
+    },
+    "groupsMs": {
+      "queue_wait": 101062,
+      "telegram_limiter": 8000,
+      "queue_after_limiter": 4091,
+      "outbox_processing": 29,
+      "telegram_api": 0,
+      "app_ack_wait": 0,
+      "unattributed": 0
+    }
+  },
+  "oldest20": {
+    "n": 20,
+    "meanAgeMs": 112441,
+    "groupsPct": {
+      "queue_wait": 89.3,
+      "telegram_limiter": 7.1,
+      "queue_after_limiter": 3.5,
+      "outbox_processing": 0,
+      "telegram_api": 0,
+      "app_ack_wait": 0,
+      "unattributed": 0
+    }
+  },
+  "pendingAll": {
+    "n": 3745,
+    "groupsPct": {
+      "queue_wait": 99.1,
+      "telegram_limiter": 0.6,
+      "queue_after_limiter": 0.3,
+      "outbox_processing": 0,
+      "telegram_api": 0,
+      "app_ack_wait": 0,
+      "unattributed": 0
+    },
+    "breakdownMs": {
+      "queue_unclaimed": 219646125,
+      "lane_wait": 1804,
+      "limiter_requeue": 1215000,
+      "queue_after_limiter": 710114,
+      "limiter_inline": 5427,
+      "limiter_acquire": 447,
+      "telegram_api": 0,
+      "telegram_backoff": 0,
+      "processing": 3895,
+      "app_ack_wait": 0,
+      "retry_gap": 0,
+      "in_flight": 0
+    },
+    "congestionScopes": {
+      "chat": 962,
+      "global": 253
+    }
+  },
+  "delivered": {
+    "n": 21267,
+    "latencyMs": {
+      "p50": 797,
+      "p95": 77322,
+      "max": 115556
+    },
+    "groupsPct": {
+      "queue_wait": 94.5,
+      "telegram_limiter": 3.9,
+      "queue_after_limiter": 1.5,
+      "outbox_processing": 0.1,
+      "telegram_api": 0,
+      "app_ack_wait": 0,
+      "unattributed": 0
+    },
+    "byOutcome": {
+      "external:miniapp_ack": 17612,
+      "telegram": 3655
+    }
+  },
+  "drainPasses": {
+    "n": 20,
+    "idleShareBeforeAudit": 0.25,
+    "stopReasons": {
+      "empty": 1,
+      "budget": 19
+    },
+    "pass": {
+      "claimSplit": {
+        "timed": 13291,
+        "coveragePct": 100,
+        "queries": 26581,
+        "skewed": 0,
+        "pctOfClaim": {
+          "pre": 41.7,
+          "server": 30.2,
+          "post": 27.9,
+          "adapter_other": 0.2
+        },
+        "perQueryMs": {
+          "pre": 1.98,
+          "server": 1.44,
+          "post": 1.33
+        }
+      },
+      "claimWait": {
+        "q1": {
+          "n": 13291,
+          "stamped": 13291,
+          "pipelinedPctOfStamped": 0,
+          "skewed": 0,
+          "perQueryMs": {
+            "pre": 1.05,
+            "pool": 0.05,
+            "pipe": 0,
+            "rest": 1,
+            "server": 2.85,
+            "post": 1.98,
+            "wire": 1.97,
+            "cont": 0.01
+          },
+          "pctOfClaim": {
+            "pre": 11,
+            "pool": 0.5,
+            "pipe": 0,
+            "rest": 10.5,
+            "server": 30,
+            "post": 20.9,
+            "total": 61.9
+          }
+        },
+        "q2": {
+          "n": 13290,
+          "stamped": 13290,
+          "pipelinedPctOfStamped": 0,
+          "skewed": 0,
+          "perQueryMs": {
+            "pre": 2.92,
+            "pool": 0.02,
+            "pipe": 0,
+            "rest": 2.89,
+            "server": 0.03,
+            "post": 0.67,
+            "wire": 0.65,
+            "cont": 0.01
+          },
+          "pctOfClaim": {
+            "pre": 30.7,
+            "pool": 0.2,
+            "pipe": 0,
+            "rest": 30.4,
+            "server": 0.3,
+            "post": 7,
+            "total": 38
+          }
+        },
+        "stampedPct": 100,
+        "inflight": {
+          "n": 26581,
+          "meanQueries": 1.02,
+          "meanTransactions": 0.28,
+          "max": 8,
+          "busyAtIssuePct": 1.2
+        },
+        "calDriftMaxUs": 0
+      },
+      "loop": {
+        "passes": 20,
+        "delayMeanUs": 954,
+        "delayP99Us": 4590,
+        "delayMaxUs": 53102,
+        "eluPct": null
+      },
+      "totals": {
+        "claimed": 13290,
+        "elapsed_ms": 154240,
+        "claim_calls": 13291,
+        "claim_ms": 126304,
+        "send_ms": 585031,
+        "lane_wait_ms": 35654,
+        "lane_full_wait_ms": 25724,
+        "saturated_wait_ms": 0,
+        "congestion_sleep_ms": 0,
+        "congestion_requeues": 9635,
+        "claim_timed": 13291,
+        "claim_queries": 26581,
+        "claim_pre_ms": 52678,
+        "claim_server_ms": 38197,
+        "claim_post_ms": 35220,
+        "claim_skewed": 0,
+        "claim_q1_n": 13291,
+        "claim_q1_stamped": 13291,
+        "claim_q1_piped": 0,
+        "claim_q1_skewed": 0,
+        "claim_q1_pre_us": 13930164,
+        "claim_q1_spre_us": 13930164,
+        "claim_q1_pool_us": 687536,
+        "claim_q1_pipe_us": 9122,
+        "claim_q1_server_us": 37858451,
+        "claim_q1_post_us": 26374304,
+        "claim_q1_wire_us": 26199329,
+        "claim_q1_cont_us": 174976,
+        "claim_q2_n": 13290,
+        "claim_q2_stamped": 13290,
+        "claim_q2_piped": 0,
+        "claim_q2_skewed": 0,
+        "claim_q2_pre_us": 38747886,
+        "claim_q2_spre_us": 38747886,
+        "claim_q2_pool_us": 307662,
+        "claim_q2_pipe_us": 9346,
+        "claim_q2_server_us": 339260,
+        "claim_q2_post_us": 8846473,
+        "claim_q2_wire_us": 8665321,
+        "claim_q2_cont_us": 181147,
+        "claim_infl_n": 26581,
+        "claim_infl_q_sum": 27010,
+        "claim_infl_tx_sum": 7440,
+        "claim_infl_busy": 331
+      },
+      "passesWithClaimMs": 20,
+      "pctOfPassElapsed": {
+        "claim": 81.9,
+        "lane_full_wait": 16.7,
+        "saturated_wait": 0,
+        "congestion_sleep": 0
+      },
+      "claimMeanMs": 9.5
+    }
+  },
+  "riderTripLogEvents": {}
+}

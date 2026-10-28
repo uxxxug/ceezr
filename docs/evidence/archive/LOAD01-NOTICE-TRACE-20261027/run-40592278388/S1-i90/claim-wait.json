@@ -1,0 +1,52 @@
+{
+  "inputs": {
+    "drainPasses": true,
+    "pgActivity": true,
+    "sched": true,
+    "resources": true
+  },
+  "passes": 19,
+  "windowSec": 153.3,
+  "activity": {
+    "ticks": 1537,
+    "expectedTicks": 1533,
+    "coverage": 1.003,
+    "workerJobsActiveMean": 1.154,
+    "workerJobsClaimActiveMean": 0.374,
+    "allActiveMean": 2.873,
+    "workerJobsStateSamples": {
+      "active": 1774,
+      "idle": 5817,
+      "idle in transaction": 94
+    },
+    "workerJobsActiveByWaitType": {
+      "CPU_or_runnable": 770,
+      "LWLock": 103,
+      "Client": 783,
+      "IO": 118
+    },
+    "lockLikeShare": 0.125
+  },
+  "sched": {
+    "samples": 152,
+    "expectedSamples": 153,
+    "coverage": 0.993,
+    "postgres": {
+      "runPct1Core": 156.3,
+      "runqWaitPct1Core": 118.5,
+      "waitPerRun": 0.758
+    },
+    "gateway": {
+      "runPct1Core": 77.4,
+      "runqWaitPct1Core": 37.7,
+      "waitPerRun": 0.488
+    },
+    "psiSomePct": 30.8
+  },
+  "samplerCost": {
+    "samples": 37,
+    "samplerCpuPct1Core": 1.1,
+    "workerJobsCpuPct1Core": 52.4,
+    "postgresCpuPct1Core": 144.9
+  }
+}
