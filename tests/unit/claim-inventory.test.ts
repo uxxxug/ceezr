@@ -105,4 +105,28 @@ describe("claim-inventory.py — عقدُ القراءةِ", () => {
     expect(out.claims).toBeNull();
     expect(out.correlation).toBeNull();
   });
+
+  test("صفٌّ مبتورٌ غاب عنهُ query بعدَ صفِّ claims صالحٍ ⇒ null (لا صفرٌ مصنوعٌ من غيابِ الاستعلامِ)", () => {
+    // الصفُّ الثاني ناقصُ العمودِ الأخيرِ (query) — يجبُ أن يُرفضَ الملفُّ كاملًا
+    // لا أن يُتجاهلَ الصفُّ فيبقى claims موجبًا مع correlation=0 مصنوعٍ.
+    const csv = `${header}${claimRow(100)}5,1.0,1.0,1.0,1.0,5\n`;
+    const r = runCollector(csv);
+    expect(r.claims).toBeNull();
+    expect(r.correlation).toBeNull();
+  });
+
+  test("بنيةٌ تالفةٌ (صفٌّ بأعمدةٍ زائدةٍ غيرُ متوقّعةٍ) ⇒ null لا أرقامٌ جزئيّةٌ", () => {
+    // صفٌّ بأعمدةٍ زائدةٍ (restkey) — بنيةٌ لا يفترضها الملفُ السليمُ، فتُرفضُ
+    // قراءتُها كاملةً لا أن تُتجاهلَ فيبقى claims موجبًا مع correlation=0 مصنوعٍ.
+    const csv = `${header}${claimRow(100)}7,1.0,1.0,1.0,1.0,7,extra1,extra2\n`;
+    const r = runCollector(csv);
+    expect(r.claims).toBeNull();
+    expect(r.correlation).toBeNull();
+  });
+
+  test("calls سالبٌ أو غيرُ صحيحٍ ⇒ null", () => {
+    const r = runCollector(`${header}${claimRow(50)}-3,1.0,1.0,1.0,1.0,3,${CORR_SIG}\n`);
+    expect(r.claims).toBeNull();
+    expect(r.correlation).toBeNull();
+  });
 });

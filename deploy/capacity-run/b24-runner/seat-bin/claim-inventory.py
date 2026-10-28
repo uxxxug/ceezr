@@ -30,7 +30,23 @@ def main() -> int:
     correlation: int | None = None
     try:
         with open(evidence_dir / "pgss-full.csv", mode="rt", encoding="utf-8", newline="") as fh:
-            rows = list(csv.DictReader(fh))
+            reader = csv.DictReader(fh)
+            required = {"calls", "query"}
+            if not required.issubset(set(reader.fieldnames or [])):
+                raise ValueError("أعمدةٌ مطلوبةٌ غائبةٌ (calls/query)")
+            rows = list(reader)
+        # تحققٌ صارمٌ من البنيةِ: الأعمدةُ المطلوبةُ موجودةٌ، ولكلِّ صفٍّ query
+        # غيرُ فارغٍ وcalls رقمٌ صحيحٌ غيرُ سالبٍ. أيُّ خللٍ = فشلُ تحليلٍ كاملٌ
+        # (لا أرقامٌ جزئيّةٌ ولا صفرٌ مصنوعٌ من صفٍّ مبتورٍ غاب عنه query).
+        for row in rows:
+            if None in row:
+                raise ValueError("صفٌّ بأعمدةٍ زائدةٍ (بنيةٌ غيرُ متوقّعةٍ)")
+            q = (row.get("query") or "").strip()
+            if not q:
+                raise ValueError("صفٌّ بلا استعلامٍ (ملفٌّ مبتور؟)")
+            calls_raw = (row.get("calls") or "").strip()
+            if not calls_raw.isdigit():
+                raise ValueError(f"calls غيرُ رقمٍ صالحٍ غيرُ سالبٍ: {calls_raw!r}")
         claims = 0
         correlation = 0
         for row in rows:

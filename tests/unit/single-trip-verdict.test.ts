@@ -129,6 +129,31 @@ describe("computeVerdict — §5.8", () => {
     expect(v.reasons).toContain("cur_inventory_broken");
   });
 
+  test("S1 (بوابةُ الدخانِ) تُستثنى من الحكمِ كاملًا؛ موجاتُ القياسِ الستُّ تدخلُ كلُّها — انحدارُ نمطِ S* الذي كان يستثني ST1/ST2/ST3", () => {
+    // موجةُ دخانٍ S1 بجردٍ «فاسدٍ» (ارتباطٌ موجبٌ) لو دخلتْ لأبطلتِ الحكمَ؛
+    // وموجاتُ القياسِ الستُّ سليمةٌ. الحكمُ يجبُ أن يتجاهلَ S1 ويعتمدَ الأزواجَ الثلاثةَ.
+    const waves = [
+      w(
+        { slot: "S1", arm: "ST" },
+        {
+          p7Sec: 999,
+          g1Pct: 0,
+          failedGates: ["G1", "G4", "P7"],
+          inventory: { arm: "ST", claims: 100, correlation: 100, queriesPerClaim: 1 },
+        },
+      ),
+      ...threePairs(100, 130),
+    ];
+    const v = computeVerdict(waves);
+    expect(v.verdict).toBe("ACCEPT");
+    expect(v.reasons).not.toContain("st_inventory_broken");
+    // موجةُ S1 لا تظهرُ في تفاصيلِ الجردِ ولا في الأزواجِ
+    const invGate = v.gates.find((g) => g.rule === "inventory_st_single_trip");
+    expect(invGate?.detail).not.toContain("S1:");
+    expect(invGate?.detail).toContain("ST1:");
+    expect(invGate?.detail).toContain("ST3:");
+  });
+
   test("بوّاباتٌ: فشلٌ في ST أكثرَ من CUR = REJECT", () => {
     const v = computeVerdict(
       threePairs(100, 130, { ST1: { failedGates: ["G4"] }, ST2: { failedGates: ["G4"] } }),
