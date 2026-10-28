@@ -205,14 +205,41 @@ function permanentlyFailingShipper(detail = "HTTP 403: بادئةٌ غيرُ م�
   return { ship: async () => err({ permanent: true, detail }) };
 }
 
-const describeIf = DATABASE_URL === undefined ? describe.skip : describe;
-if (DATABASE_URL === undefined) {
+/**
+ * بوابةُ المخطَّطِ المؤجَّلِ: هذا الملفُ يقيسُ `W-4`/`W-5` على جداولِهِ
+ * (`operational_jobs` · `core_event_inbox` · `move_event_outbox`) التي **لا تُطبَّقُ
+ * على قاعدةِ المنتجِ** بقرارِ `O-7` (ADR 0094/0095). فتحقُّقُ `TEST_DATABASE_URL`
+ * وحدَهُ يُشغِّلُ الملفَّ على قاعدةٍ بلا هذهِ الجداولِ فيُخفِقُ ٤٥ اختبارًا بخطأِ
+ * «relation does not exist» — فشلٌ زائفٌ يُخفي حكمَ الدليلِ الصحيح: أنَّ المخطَّطَ
+ * المطلوبَ غيرُ موجودٍ فيُتخطَّى الاختبارُ بعلةٍ مقروءةٍ لا أن يُكسَر. والقاعدةُ
+ * المُطابِقةُ للمخطَّطِ تُختبَرُ كما كانت: البوابةُ لا تُغيِّرُ حكمًا صحيحًا بل تمنعُ
+ * الفشلَ الصامتَ عن غيرِ قصدٍ (اختبارُ انحدارٍ: تشغيلٌ جُملةً على قاعدةٍ مُهاجَرةٍ
+ * بلا هجراتِ التأجيلِ ⇒ تخطٍّ معلَنٌ لا إخفاق).
+ */
+let deferredSchemaPresent = false;
+if (DATABASE_URL !== undefined) {
+  const probe = createSql({ connectionString: DATABASE_URL });
+  try {
+    const rows = await probe<{ present: boolean }[]>`
+      select (to_regclass('public.operational_jobs') is not null
+              and to_regclass('public.core_event_inbox') is not null
+              and to_regclass('public.move_event_outbox') is not null) as present`;
+    deferredSchemaPresent = rows[0]?.present === true;
+  } finally {
+    await probe.end({ timeout: 5 });
+  }
+}
+const describeOnDeferredSchema = deferredSchemaPresent ? describe : describe.skip;
+if (DATABASE_URL !== undefined && !deferredSchemaPresent) {
   console.warn(
-    "⚠️  اختبارات التكامل مُتخطّاة: عيّن TEST_DATABASE_URL لقاعدة PostgreSQL بها الهجرات مطبَّقة.",
+    "⚠️  اختباراتُ التأجيلِ مُتخطّاة: القاعدةُ لا تحملُ جداولَ W-4/W-5 " +
+      "(operational_jobs · core_event_inbox · move_event_outbox). " +
+      "طبِّق هجراتِ deferred/core-integration/migrations على قاعدةِ الاختبارِ لتفعيلِها " +
+      "(README المجلسِ يمنعُ تطبيقَها على قاعدةِ المنتجِ).",
   );
 }
 
-describeIf("دورةُ حياةِ مهمّةِ التنفيذِ الواردةِ من CORE — W-4/W-5", () => {
+describeOnDeferredSchema("دورةُ حياةِ مهمّةِ التنفيذِ الواردةِ من CORE — W-4/W-5", () => {
   beforeAll(() => {
     sql = createSql({ connectionString: DATABASE_URL ?? "" });
     store = createOperationalJobRepository(sql);
