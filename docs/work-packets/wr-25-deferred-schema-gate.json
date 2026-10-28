@@ -1,0 +1,23 @@
+{
+  "id": "wr-25-deferred-schema-gate",
+  "goal": "§25 اختبارات الوحدة والتكامل: اختبارات deferred/core-integration كانت تفشل إخفاقًا زائفًا على قاعدة بلا هجرات التأجيل (deferred migrations)، فتُقفز المجموعة كلها خلف فشل واحد لا يعنيها. البوابة تتحقق من وجود الجداول قبل التشغيل وتتخطى بعلة مقروءة إن غابت.",
+  "canonical_source": ["docs/roadmap/execution/ORDER-20261012.md"],
+  "implementation": [
+    "scripts/lib/skip-registry.ts",
+    "tests/unit/check-deferred-schema-gate.test.ts",
+    "deferred/core-integration/tests/wasla-core-transport.test.ts",
+    "deferred/core-integration/tests/wasla-fulfillment-lifecycle.test.ts"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": ["docs/roadmap/execution/STATUS.md"],
+  "decision": "لا تغيير في الشيفرة الإنتاجية. بوابة قراءة فقط في skip-registry تفحص وجود جداول التأجيل قبل تشغيل اختبارات deferred وتتخطى الملفات بعلة مقروءة بدل إخفاق زائف. لا يمس سلوك الاختبارات على قاعدة كاملة الهجرات.",
+  "tests": [
+    "TEST_DATABASE_URL=… bun test tests/unit/check-deferred-schema-gate.test.ts",
+    "قاعدة nodefer (بلا هجرات تأجيل): التخطي بعلة مقروءة",
+    "قاعدة كاملة الهجرات: تشغيل فعلي لاختبارات deferred"
+  ],
+  "evidence": "قاعدة nodefer بلا هجرات التأجيل: اختبارا wasla-core-transport وwasla-fulfillment-lifecycle يُخطَّان بعلة مقروءة لا إخفاق. قاعدة كاملة الهجرات: تشتغل فعليًا. المجموعة الكاملة 9,861 نجاحًا في التشغيل full6 بعد سلسلة الإصلاحات المتكاملة.",
+  "constraints": ["لا كتابة على الإنتاج", "لا هجرة", "لا تغيير في سلوك الاختبارات على قاعدة كاملة"],
+  "limitations": "البوابة تفحص وجود الجداول لا صحة محتواها؛ وهي في skip-registry (مسار اختبار) لا في الشيفرة الإنتاجية."
+}
