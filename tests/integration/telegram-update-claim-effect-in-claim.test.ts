@@ -30,12 +30,21 @@ let sql: Sql;
 const BASE = 9_600_000 + (Date.now() % 100_000) * 10;
 const SPAN = 100;
 
+/**
+ * إزاحةُ عمرٍ تجعلُ وظائفِ هذا الملفِّ أقدمَ من كلِّ وظيفةٍ غريبةٍ متروكةٍ في الجدولِ.
+ * الالتقاطُ يعيدُ الأقدمَ المعلَّقَ عالميًّا (عدالةُ FIFO من `20261025120000`)، لا الأقدمَ في
+ * نطاقِ الملفِّ فقط، فأيُّ وظيفةٍ متروكةٍ من ملفٍّ سابقٍ (مثلَ بقايا `tests/real-redis` التي
+ * تنظِّفُ الجدولَ في بدايتِها لا نهايتِها) تسبقُ وظائفَنا في الالتقاطِ وتكسرُ الحتميّةَ.
+ * فنحسبُ عمرَ أقدمِ صفٍّ موجودٍ وقتَ البدءِ ونضيفُ إزاحةً فوقَه إلى كلِّ أعمارِ هذا الملفِّ.
+ */
+let AGE_OFFSET = 0;
+
 async function enqueue(bot: string, id: number, user: number, secsAgo: number) {
   await sql`select claim_and_enqueue_telegram_update(${bot}, ${id}, ${sql.json({
     update_id: id,
     message: { from: { id: user }, chat: { id: user } },
   })}::jsonb, 100000)`;
-  await sql`update telegram_update_jobs set created_at = now() - make_interval(secs => ${secsAgo})
+  await sql`update telegram_update_jobs set created_at = now() - make_interval(secs => ${secsAgo + AGE_OFFSET})
              where bot = ${bot} and update_id = ${id}`;
 }
 
@@ -61,6 +70,14 @@ d("LOAD-01 · C1 — فحصُ الأثرِ داخلَ الالتقاطِ على 
     sql = createSql({ connectionString: URL ?? "" });
     await cleanup("driver", ALL_IDS);
     await cleanup("rider", ALL_IDS);
+    // وظائفُنا يجبُ أن تكونَ الأقدمَ المعلَّقَ عالميًّا وإلا استُهلكَ الالتقاطُ في بقايا غيرِنا.
+    const [oldest] = await sql<{ offset: number | null }[]>`
+      select (ceil(extract(epoch from (now() - min(created_at))) + 10))::int as offset
+      from telegram_update_jobs`;
+    AGE_OFFSET =
+      oldest?.offset !== null && oldest?.offset !== undefined && oldest.offset > 0
+        ? oldest.offset
+        : 0;
   });
   afterAll(async () => {
     await cleanup("driver", ALL_IDS);
