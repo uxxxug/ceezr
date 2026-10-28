@@ -74,9 +74,10 @@ d("LOAD-01 · C1 — فحصُ الأثرِ داخلَ الالتقاطِ على 
     const [oldest] = await sql<{ offset: number | null }[]>`
       select (ceil(extract(epoch from (now() - min(created_at))) + 10))::int as offset
       from telegram_update_jobs`;
-    AGE_OFFSET = oldest?.offset !== null && oldest?.offset !== undefined && oldest.offset > 0
-      ? oldest.offset
-      : 0;
+    AGE_OFFSET =
+      oldest?.offset !== null && oldest?.offset !== undefined && oldest.offset > 0
+        ? oldest.offset
+        : 0;
   });
   afterAll(async () => {
     await cleanup("driver", ALL_IDS);
