@@ -322,6 +322,14 @@ describeIf("F11-08 · نشرُ نسخةٍ أثناءَ الرحلةِ: التب�
   afterAll(async () => {
     // يُنفَّذُ ولو فشلَ الاختبارُ: لا عمليةَ تُتْرَكُ حيّةً على المنفذِ.
     await killSurvivors();
+    // التطهيرُ في البدايةِ لا يكفي: ما يُودِعُهُ سيناريو الاستمراريّةِ من وظائفَ
+    // معلَّقةٍ يبقى خلفَنا قابلًا للالتقاطِ، فيلتقطُهُ أولُ ملفِّ تكاملٍ لاحقٍ
+    // (drainOnce يلتقطُ الأقدمَ المعلَّقَ عالميًّا) فتكسرُ حتميّتُه — بقايا هذا
+    // الملفِّ أفسدت اختبارَ C1 في التشغيلِ الشاملِ من قبلُ.
+    if (sql !== undefined) {
+      await sql`delete from telegram_update_jobs where status in ('pending', 'claimed')`;
+      await sql`delete from telegram_update_receipts where status in ('pending', 'claimed')`;
+    }
     if (redisHandle !== undefined) {
       const remaining = await redisHandle.cleanup();
       if (remaining !== 0) {
