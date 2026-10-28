@@ -1,0 +1,14 @@
+{
+  "id": "wr-25-telegram-claim-test-isolation",
+  "goal": "§25 اختبارات الوحدة والتكامل: اختبار أثر الالتقاط في الطلب (telegram-update-claim-effect-in-claim) كان يفشل إذا خلّف تشغيلٌ سابقٌ وظيفة تيليجرام معلقة أقدم من وظيفته (claim تُعيد الأقدم عالميًا — عدالة FIFO من هجرة 20261025120000)، فالاختبار يلتقط وظيفة الغير ويفشل. التأريخ التكيفي في beforeAll يعزل الاختبار من البقايا مهما كان عمرها.",
+  "canonical_source": ["docs/roadmap/execution/ORDER-20261012.md"],
+  "implementation": ["tests/integration/telegram-update-claim-effect-in-claim.test.ts"],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": ["docs/roadmap/execution/STATUS.md"],
+  "decision": "لا تغيير في الشيفرة الإنتاجية ولا في دالة الالتقاط نفسها (العدالة الزمنية FIFO كما صممت). الاختبار يحسب إزاحة عمر ديناميكية في beforeAll من أقدم وظيفة معلقة قائمة ويؤرّخ وظائفه أقدم منها، فيبقى مساره الحقيقي (أقدم وظيفة = وظيفته) مهما تركت الاختبارات الأخرى.",
+  "tests": ["TEST_DATABASE_URL=… bun test tests/integration/telegram-update-claim-effect-in-claim.test.ts"],
+  "evidence": "إثبات بالحقن: زرع وظيفة معلقة غريبة (bot=driver، update_id=6500026، عمر 10 دقائق، مع إيصالها لضمان قيد المفتاح الأجنبي) أفشل الاختبار قبل الإصلاح (التقط 6500026 بدل 9859131)، ونجح 4/4 بعده. السبب الجذري: مسح الجداول في beforeAll لا afterAll في اختبارات real-redis المجاورة (عولج لاحقًا بحزمة wr-25-real-redis-jobs-cleanup).",
+  "constraints": ["لا كتابة على الإنتاج", "لا تغيير في دالة الالتقاط أو عدالة FIFO", "لا حذف أدلة"],
+  "limitations": "العزل داخل ملف الاختبار؛ البقايا من ملفات أخرى تعالجها الحزمة اللاحقة wr-25-real-redis-jobs-cleanup (المصدر)."
+}
