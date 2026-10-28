@@ -224,9 +224,7 @@ export function computeVerdict(waves: ReadWave[]): {
     stValid.every((w) => (w.inventory?.claims ?? 0) > 0 && (w.inventory?.correlation ?? 1) === 0);
   const curInvOk =
     curValid.length > 0 &&
-    curValid.every(
-      (w) => (w.inventory?.claims ?? 0) > 0 && (w.inventory?.correlation ?? 0) > 0,
-    );
+    curValid.every((w) => (w.inventory?.claims ?? 0) > 0 && (w.inventory?.correlation ?? 0) > 0);
   gates.push({
     rule: "inventory_st_single_trip",
     pass: stInvOk,
