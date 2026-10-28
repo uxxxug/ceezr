@@ -36,6 +36,13 @@ log "اختباراتٌ ذاتيّةٌ (§4) وفحوصُ المقعدِ الم�
 python3 "$H/deploy/capacity-run/b24-runner/base-analyze-selftest.py" || { echo "BASE_ANALYZER_SELFTEST_FAIL — لا موجة"; exit 1; }
 [ -z "${BUN_CONFIG_MAX_HTTP_REQUESTS:-}" ] || { echo "BUN_CONFIG_MAX_HTTP_REQUESTS_SET — لا موجة"; exit 1; }
 [ -z "${LOAD_GEN_FETCH_CAP:-}" ] || { echo "LOAD_GEN_FETCH_CAP_SET_IN_SEAT_ENV — لا موجة"; exit 1; }
+# شجرةُ الذراعِ النظيفةُ (كما في مقعدِ notice-trace): الاختبارُ الذاتيّ والإقلاعُ
+# والتدقيقُ من wt-acc لا من شجرةِ المقعدِ التي تُوسَخُ بأسرارِ الموجاتِ — وARM_SHA
+# نفسُهُ رأسُ الفرعِ فلا فروقَ بينَ الشجرتينِ قبلَ أيِّ تدقيقٍ.
+log "worktree: wt-acc على ARM_SHA"
+git -C "$H" worktree add -f --detach "$W/wt-acc" "$ARM_SHA" >/dev/null 2>&1
+(cd "$W/wt-acc" && bun install --frozen-lockfile >"$OUT/bun-install-wt-acc.log" 2>&1)
+(cd "$W/wt-acc/docker/upstash-rest-shim" && bun install --frozen-lockfile >>"$OUT/bun-install-wt-acc.log" 2>&1)
 # حزمةُ المحوّلِ: اختباراتُ §5.8 خضراءُ قبلَ أيِّ موجةٍ (وحدةً؛ والتكاملُ على PG
 # حقيقيّ في CI) — التأكيدُ الذاتيُّ هنا لا القبولَ.
 (cd "$W/wt-acc" && bun test tests/unit/notification-claim-single-trip.test.ts tests/unit/notification-claim-split.test.ts >"$OUT/selftest.log" 2>&1) || { tail -20 "$OUT/selftest.log"; echo "SINGLE_TRIP_SELFTEST_FAIL — لا موجة"; exit 1; }
