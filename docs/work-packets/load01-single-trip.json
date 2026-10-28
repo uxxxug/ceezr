@@ -46,6 +46,8 @@
   "affected_docs": [
     "ROADMAP.md",
     "docs/SYSTEM_STATE.md",
+    "docs/evidence/capacity/LOAD01-NOTICE-TRACE-20261027/RESULT-SINGLE-TRIP-20261028.md",
+    "docs/evidence/capacity/LOAD01-NOTICE-TRACE-20261027/SHA256SUMS",
     "docs/roadmap/execution/STATUS.md",
     "docs/work-packets/load01-single-trip.json"
   ]
