@@ -109,6 +109,26 @@ describe("computeVerdict — §5.8", () => {
     expect(v.reasons).toContain("st_inventory_broken");
   });
 
+  test("جردٌ فاسدٌ في CUR (استعلامُ الارتباطِ غائبٌ = الرحلتانِ لم تُمارَسا) = INCONCLUSIVE لا ACCEPT", () => {
+    const v = computeVerdict(
+      threePairs(100, 130, {
+        CUR1: { inventory: { arm: "CUR", claims: 24000, correlation: 0, queriesPerClaim: 0 } },
+      }),
+    );
+    expect(v.verdict).toBe("INCONCLUSIVE");
+    expect(v.reasons).toContain("cur_inventory_broken");
+  });
+
+  test("جردٌ فاسدٌ في CUR (قراءةٌ فاشلةٌ = null) = INCONCLUSIVE لا ACCEPT", () => {
+    const v = computeVerdict(
+      threePairs(100, 130, {
+        CUR2: { inventory: { arm: "CUR", claims: null, correlation: null, queriesPerClaim: null } },
+      }),
+    );
+    expect(v.verdict).toBe("INCONCLUSIVE");
+    expect(v.reasons).toContain("cur_inventory_broken");
+  });
+
   test("بوّاباتٌ: فشلٌ في ST أكثرَ من CUR = REJECT", () => {
     const v = computeVerdict(
       threePairs(100, 130, { ST1: { failedGates: ["G4"] }, ST2: { failedGates: ["G4"] } }),

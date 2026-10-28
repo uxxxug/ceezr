@@ -216,10 +216,17 @@ export function computeVerdict(waves: ReadWave[]): {
   if (!evidenceOk) reasons.push("missing_evidence");
 
   // 4) الجردُ قبلَ كلِّ شيءٍ — قبولٌ بجردٍ فاسدٍ لا يجوزُ.
+  // ST: صفرٌ رقميّ صريحٌ للاستعلامِ الثاني (الرحلةُ الواحدةُ). وCUR ضابطٌ موجبٌ:
+  // استعلامُ الارتباطِ حاضرٌ (الرحلتانِ) — مطالبةٌ بالعدّ الموجبِ لا بالعدّ فحسب.
+  // فشلُ القراءةِ (null) لا يمرّ في الذراعينِ (null??0 لا يعلو الصفرَ وnull??1 لا يساويه).
   const stInvOk =
     stValid.length > 0 &&
     stValid.every((w) => (w.inventory?.claims ?? 0) > 0 && (w.inventory?.correlation ?? 1) === 0);
-  const curInvOk = curValid.length > 0 && curValid.every((w) => (w.inventory?.claims ?? 0) > 0);
+  const curInvOk =
+    curValid.length > 0 &&
+    curValid.every(
+      (w) => (w.inventory?.claims ?? 0) > 0 && (w.inventory?.correlation ?? 0) > 0,
+    );
   gates.push({
     rule: "inventory_st_single_trip",
     pass: stInvOk,

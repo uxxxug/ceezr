@@ -197,25 +197,10 @@ wave() { # SLOT(ST1|CUR1|…) IDX [CONC] ⇒ يضبطُ V
   grep -q "^NOTIFICATION_CLAIM_SINGLE_TRIP=1$" "$E/diag-env.txt" 2>/dev/null && TRIP=1
   case "$TRIP" in 1) echo ST;; 0) echo CUR;; esac > "$D/arm-seen.txt"
   # جردُ §5.8: استعلاماتُ الالتقاطِ في هذهِ الموجةِ منَ pgss (عددُ نداءاتِ الدالةِ مقابلَ
-  # عددِ استعلاماتِ الارتباطِ) — ST رحلةٌ واحدةٌ (ارتباطٌ ≈ 0) وCUR اثنتينِ.
-  python3 - "$D" "$E" "$ARM" "$CLAIM_SIG" "$CORR_SIG" > "$D/claim-inventory.json" <<'PYI' || true
-import csv, json, sys
-D, E, ARM, CLAIM_SIG, CORR_SIG = sys.argv[1:6]
-claims = correlation = None
-try:
-    with open(f"{E}/pgss-full.csv", mode="rt", encoding="utf-8", newline="") as fh:
-        for row in csv.DictReader(fh):
-            q = (row.get("query") or "").strip()
-            if q.startswith(CLAIM_SIG):
-                claims = int(row["calls"])
-            elif q.startswith(CORR_SIG):
-                correlation = int(row["calls"])
-except OSError:
-    pass
-json.dump({"arm": ARM, "claims": claims, "correlation": correlation,
-           "queriesPerClaim": (round(correlation / claims, 3) if claims and correlation is not None else None)},
-          open(f"{D}/claim-inventory.json", "w", encoding="utf-8"), ensure_ascii=False)
-PYI
+  # عددِ استعلاماتِ الارتباطِ) — ST رحلةٌ واحدةٌ (ارتباطٌ = 0 مقيسًا) وCUR اثنتينِ.
+  # الجامعُ المستقلُّ claim-inventory.py بعقدِ القراءةِ الكاملةِ (فشلُها = null لا صفر).
+  python3 "$H/deploy/capacity-run/b24-runner/seat-bin/claim-inventory.py" "$D" "$E" "$ARM" "$CLAIM_SIG" "$CORR_SIG" || true
+  [ -s "$D/claim-inventory.json" ] || { echo "CLAIM_INVENTORY_MISSING $NAME"; V=INVALID; }
   local CRC=0; bun "$H/deploy/capacity-run/monitor/collect-evidence.ts" "$E" "$D" > "$D/collect.out" 2>&1 || CRC=$?
   echo "$NAME COLLECT_RC=$CRC conc=$WCONC"
   cp -r "$B/qual/$RUN" "$D/qual" 2>/dev/null || true
@@ -242,7 +227,9 @@ SD=$OUT/raw/load01singletrip-stp-S1-i$([ -d "$OUT/raw/load01singletrip-stp-S1-i1
 python3 - "$SD/claim-inventory.json" <<'PYS' || { echo "ST_PIPELINE_BROKEN — لا موجة (§5.8: الذراعُ لا يلتقطُ أو لا يُسقطُ الاستعلامَ الثاني)"; exit 1; }
 import json, sys
 d = json.load(open(sys.argv[1]))
-ok = d["arm"] == "ST" and d["claims"] is not None and d["claims"] > 0 and (d["correlation"] or 0) == 0
+# عقدُ الجامعِ: غيابُ الاستعلامِ بعدَ قراءةٍ ناجحةٍ = صفرٌ رقميّ، وفشلُ القراءةِ = null.
+# ففحصُ الصفرِ صريحٌ رقميًّا — null (قراءةٌ فاشلة) لا يمرّ.
+ok = d["arm"] == "ST" and d["claims"] is not None and d["claims"] > 0 and d["correlation"] == 0
 print("ST_PIPELINE", "OK" if ok else "BROKEN", json.dumps(d, ensure_ascii=False))
 sys.exit(0 if ok else 1)
 PYS
