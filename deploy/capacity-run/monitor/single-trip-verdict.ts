@@ -73,6 +73,17 @@ export interface ReadWave extends WaveIn {
   readonly claimed: number | null;
   readonly withoutRequestId: number | null;
   readonly inventory: InventoryIn | null;
+  /**
+   * حضورُ الأدلّةِ لا قيمُها: ملفٌّ غائبٌ أو حقلٌ غائبٌ لا يُقرأ نظافةً ولا صفرًا —
+   * موجةٌ صالحةٌ بلا أدلّتِها الأربعةِ تجعلُ الحكمَ INCONCLUSIVE لا ACCEPT
+   * (الفشلُ المغلقُ: الدليلُ الغائبُ شرطٌ غيرُ مُثبَتٍ لا شرطٌ مُستوفى).
+   */
+  readonly evidence: {
+    readonly base: boolean;
+    readonly audit: boolean;
+    readonly mock: boolean;
+    readonly inventory: boolean;
+  };
 }
 
 const P7_MIN_PAIRS = 2;
@@ -94,6 +105,17 @@ export function readWave(spec: WaveIn): ReadWave {
   const p7Raw = base.gates?.P7 ?? null;
   const p7 = p7Raw === null ? null : Number(/(\d+(?:\.\d+)?)/.exec(p7Raw)?.[1] ?? Number.NaN);
   const byKind = audit.snapshot?.outbox?.byKind ?? {};
+  // حضورُ الأدلّةِ: كلُّ ما يستهلكُهُ الحكمُ منَ الملفِّ يجبُ أن يكونَ موجودًا،
+  // فالغائبُ ليسَ صفرًا ولا نظافةً — وإلّا صارَ الحكمُ INCONCLUSIVE (فشلٌ مغلقٌ).
+  const evidence = {
+    base:
+      typeof base.gates?.P7 === "string" &&
+      Array.isArray(base.failedGates) &&
+      typeof base.g1?.pct === "number",
+    audit: audit.snapshot?.outbox?.byKind !== undefined,
+    mock: typeof mock.by_method?.sendMessage === "number",
+    inventory: inventory !== null,
+  };
   const rider = byKind.rider_trip_notice ?? {};
   let kindSumsOk = true;
   for (const k of Object.keys(byKind)) {
@@ -120,6 +142,7 @@ export function readWave(spec: WaveIn): ReadWave {
     claimed: audit.snapshot?.outbox?.claimedWithoutRequestId?.claimed ?? null,
     withoutRequestId: audit.snapshot?.outbox?.claimedWithoutRequestId?.withoutRequestId ?? null,
     inventory,
+    evidence,
   };
 }
 
@@ -159,6 +182,38 @@ export function computeVerdict(waves: ReadWave[]): {
   const curValid = cur.filter((w) => w.valid);
   const gates: GateResult[] = [];
   const reasons: string[] = [];
+
+  // 0) حضورُ الأدلّةِ — موجةٌ صالحةٌ بلا ملفّاتِها لا يُحكَمُ عليها أصلًا: الغائبُ
+  // ليسَ صفرًا ولا نظافةً. أيُّ موجةٍ صالحةٍ (غيرِ S1) بلا أدلّتِها الأربعةِ ⇒
+  // INCONCLUSIVE لا ACCEPT مهما بدتِ الأرقامُ.
+  const consumed = [...stValid, ...curValid];
+  const brokenEvidence = consumed.filter(
+    (w) => !(w.evidence.base && w.evidence.audit && w.evidence.mock && w.evidence.inventory),
+  );
+  const evidenceOk = brokenEvidence.length === 0;
+  gates.push({
+    rule: "evidence_present_for_every_valid_wave",
+    pass: evidenceOk,
+    detail:
+      brokenEvidence.length === 0
+        ? `waves=${consumed.length}`
+        : brokenEvidence
+            .map(
+              (w) =>
+                `${w.slot}:${
+                  [
+                    w.evidence.base ? "" : "base",
+                    w.evidence.audit ? "" : "audit",
+                    w.evidence.mock ? "" : "mock",
+                    w.evidence.inventory ? "" : "inventory",
+                  ]
+                    .filter((x) => x !== "")
+                    .join("+") || "?"
+                }!`,
+            )
+            .join(" "),
+  });
+  if (!evidenceOk) reasons.push("missing_evidence");
 
   // 4) الجردُ قبلَ كلِّ شيءٍ — قبولٌ بجردٍ فاسدٍ لا يجوزُ.
   const stInvOk =
@@ -299,7 +354,7 @@ export function computeVerdict(waves: ReadWave[]): {
   }
 
   const allPass = gates.every((g) => g.pass);
-  const decidable = stInvOk && curInvOk && validPairs.length >= P7_MIN_PAIRS;
+  const decidable = evidenceOk && stInvOk && curInvOk && validPairs.length >= P7_MIN_PAIRS;
   const verdict: "ACCEPT" | "REJECT" | "INCONCLUSIVE" = decidable
     ? allPass
       ? "ACCEPT"

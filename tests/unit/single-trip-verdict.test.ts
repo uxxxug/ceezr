@@ -35,6 +35,7 @@ const w = (
     correlation: p.arm === "ST" ? 0 : 24000,
     queriesPerClaim: p.arm === "ST" ? 0 : 1,
   },
+  evidence: { base: true, audit: true, mock: true, inventory: true },
   ...over,
 });
 
@@ -49,6 +50,14 @@ describe("readWave", () => {
   test("يقرأُ P7 وG1 وأزواجَ بوّاباتِ الموجةِ من ملفّاتِها", () => {
     const r = readWave({ slot: "ST1", arm: "ST", valid: true, dir: "tests/unit/__st_fixture" });
     expect(r.p7Sec).toBeNull(); // الدليلُ غائبٌ ⇒ لا رقمَ لا افتراضَ
+  });
+
+  test("فشلٌ مغلقٌ: ملفّاتٌ غائبةٌ بالكاملٍ ⇒ الأدلّةُ غيرُ حاضرةٍ لا «نظيفةً»", () => {
+    const r = readWave({ slot: "ST1", arm: "ST", valid: true, dir: "tests/unit/__st_fixture" });
+    expect(r.evidence.base).toBe(false);
+    expect(r.evidence.audit).toBe(false);
+    expect(r.evidence.mock).toBe(false);
+    expect(r.evidence.inventory).toBe(false);
   });
 });
 
@@ -156,5 +165,73 @@ describe("computeVerdict — §5.8", () => {
   test("الحكمُ وصفيٌّ دائماً: لا يرفعُ LOAD-01 ولا يدمجُ — الملاحظةُ الختاميّةُ", () => {
     const v = computeVerdict(threePairs(100, 130));
     expect(v.note).toContain("لا يرفعُ LOAD-01");
+  });
+
+  test("فشلٌ مغلقٌ: موجةُ ST صالحةٌ بلا أدلّتِها = INCONCLUSIVE مهما بدتِ الأرقامُ", () => {
+    const v = computeVerdict(
+      threePairs(100, 130, {
+        ST1: { evidence: { base: false, audit: true, mock: true, inventory: true } },
+      }),
+    );
+    expect(v.verdict).toBe("INCONCLUSIVE");
+    expect(v.reasons).toContain("missing_evidence");
+    expect(v.gates.find((g) => g.rule === "evidence_present_for_every_valid_wave")?.pass).toBe(
+      false,
+    );
+  });
+
+  test("فشلٌ مغلقٌ: تدقيقُ ما بعدَ الموجةِ غائبٌ لا يُقرأ نظافةً — INCONCLUSIVE", () => {
+    const v = computeVerdict(
+      threePairs(100, 130, {
+        CUR2: { evidence: { base: true, audit: false, mock: true, inventory: true } },
+      }),
+    );
+    expect(v.verdict).toBe("INCONCLUSIVE");
+    expect(v.reasons).toContain("missing_evidence");
+  });
+
+  test("فشلٌ مغلقٌ: جردُ التزامنِ غائبٌ أو إحصاءُ المحاكي غائبٌ = INCONCLUSIVE لا ACCEPT", () => {
+    const noInv = computeVerdict(
+      threePairs(100, 130, {
+        ST2: { evidence: { base: true, audit: true, mock: true, inventory: false } },
+      }),
+    );
+    expect(noInv.verdict).toBe("INCONCLUSIVE");
+    const noMock = computeVerdict(
+      threePairs(100, 130, {
+        ST3: { evidence: { base: true, audit: true, mock: false, inventory: true } },
+      }),
+    );
+    expect(noMock.verdict).toBe("INCONCLUSIVE");
+    expect(noMock.reasons).toContain("missing_evidence");
+  });
+
+  test("فشلٌ مغلقٌ: كلُّ الملفّاتِ غائبةٌ (أرقامٌ «نظيفةٌ» بالافتراضِ) = INCONCLUSIVE", () => {
+    const v = computeVerdict(
+      threePairs(100, 130, {
+        ST1: { evidence: { base: false, audit: false, mock: false, inventory: false } },
+        ST2: { evidence: { base: false, audit: false, mock: false, inventory: false } },
+        ST3: { evidence: { base: false, audit: false, mock: false, inventory: false } },
+        CUR1: { evidence: { base: false, audit: false, mock: false, inventory: false } },
+        CUR2: { evidence: { base: false, audit: false, mock: false, inventory: false } },
+        CUR3: { evidence: { base: false, audit: false, mock: false, inventory: false } },
+      }),
+    );
+    expect(v.verdict).toBe("INCONCLUSIVE");
+    expect(v.reasons).toContain("missing_evidence");
+    // وبوابةُ الحضورِ تفشلُ سابقةً إلى أيِّ قياسٍ.
+    expect(v.gates[0]?.rule).toBe("evidence_present_for_every_valid_wave");
+  });
+
+  test("موجةٌ غيرُ صالحةٍ بلا أدلّةٍ لا تُبطلُ الحكمَ (لا تُستهلكُ أصلًا)", () => {
+    const v = computeVerdict(
+      threePairs(100, 130, {
+        ST3: {
+          valid: false,
+          evidence: { base: false, audit: false, mock: false, inventory: false },
+        },
+      }),
+    );
+    expect(v.verdict).toBe("ACCEPT"); // ST3 مستبعدةٌ منَ الحكمِ لا منَ السجلِّ
   });
 });
