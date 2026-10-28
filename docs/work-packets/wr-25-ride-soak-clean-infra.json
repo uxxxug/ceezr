@@ -1,0 +1,18 @@
+{
+  "id": "wr-25-ride-soak-clean-infra",
+  "goal": "§25 اختبارات الوحدة والتكامل: اختبار الصمود ride-soak كان يقيس عمل المحرك فوق بقايا جداول البنية التحتية (telegram_update_jobs وreceipts وnotification_outbox) فيمتد قياس الصفوف الممسوحة فوق ميزانية 10,500 الصف، فإما يخفق زائفًا أو يقيس غير الذي يُراد قياسه. المسح في beforeAll يجعل القياس صافيًا.",
+  "canonical_source": ["docs/roadmap/execution/ORDER-20261012.md"],
+  "implementation": ["tests/e2e/ride-soak.test.ts"],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": ["docs/roadmap/execution/STATUS.md"],
+  "decision": "لا تغيير في الشيفرة الإنتاجية ولا في ميزانيات الاختبار المحمية (ROWS_SCANNED_BUDGET=10500 وBLOCKS_TOUCHED_BUDGET=10900 كما هي). truncate لجداول البنية التحتية في beforeAll فقط — أثر الاختبار نفسه على القياس اللاحق يبقى مقيسًا كما صمم.",
+  "tests": ["TEST_DATABASE_URL=… bun test tests/e2e/ride-soak.test.ts"],
+  "evidence": "قبل الإصلاح: قاعدة متسخة من تشغيلات سابقة تدفع الصفوف فوق الميزانية (إخفاق زائف). بعد الإصلاح: تشغيل منفرد 9,785/10,500 صفًا و6,597/10,900 كتلة — داخل الميزانية. ملاحظة: على قاعدة محلية طويلة العمر قد يتدخل autovacuum (يُعطَّل في CI لهذا الاختبار عمدًا — BUG-017) فلا يُقرأ إخفاقه عيبًا في هذا الإصلاح.",
+  "constraints": [
+    "لا كتابة على الإنتاج",
+    "لا تغيير في الميزانيات المحمية",
+    "لا تغيير في منطق القياس"
+  ],
+  "limitations": "القياس حساس لنشاط autovacuum على القاعدة؛ الحكم النظيف يكون في CI حيث يُعطَّل أو على قاعدة نظيفة."
+}

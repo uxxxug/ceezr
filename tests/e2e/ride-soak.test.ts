@@ -115,12 +115,30 @@ describeIf("صمود: ثلاثون رحلة متتابعة بلا تدخّل", (
     if (id === undefined) throw new Error("لم تُطبَّق هجرة بذر المدن على قاعدة الاختبار");
     cityId = id;
 
-    // تنظيف مرّة واحدة فقط في البداية: المقصود من الاختبار أن تتراكم الحالة
-    // عبر الرحلات الثلاثين، فمسحها بين كل رحلة يُبطل الغرض منه أصلاً.
+    // تنظيف مرّة واحدة فقط في البداية: المقصود من الاختبار أن تتراكم حالةُ
+    // الرحلاتِ الثلاثين، فمسحُها بينَ كلِّ رحلةٍ يُبطلُ الغرضَ منه أصلاً.
+    //
+    // والقائمةُ **أوسعُ من جداولِ الرحلةِ نفسِها**: ميزانيةُ عملِ المحرّكِ
+    // (`ROWS_SCANNED_BUDGET` · ADR 0130) تقيسُ صفوفًا ممسوحةً على مستوى القاعدةِ
+    // كلِّها، فأيُّ صفوفٍ متروكةٍ في جداولِ البنيةِ التحتيةِ التي تلمسُها الرحلةُ
+    // (مهامُ تيليجرام·صناديقُ الإشعارات·رسائلُ الطلبِ·إيصالاتُ الأحداثِ·تاريخُ
+    // المواقعِ) تُضخِّمُ القياسَ وتُكسِرُ معايرةَ السقفِ التي ضُبِطَت على قاعدةٍ
+    // نظيفةٍ. فتشغيلُ الحزمةِ جُملةً على قاعدةٍ سبقَ أن جرت عليها اختباراتُ
+    // التكاملِ كان يقرأُ ١٦٧٩١ صفًّا للكتلةِ الدافئةِ — ١٫٨ ضِعفِ السقفِ — لا
+    // لعيبٍ في المسارِ بل لبقايا قاعدةٍ لم يمسحها أحدٌ. مسحُ هذهِ الجداولِ هنا
+    // يُعيدُ القياسَ إلى موضوعِهِ: عملَ ثلاثينَ رحلةٍ متتاليةٍ لا عملَ بقايا
+    // اختباراتٍ أخرى.
     await sql`truncate table agent_outcomes, agent_decisions, audit_log, attendance_log, ratings,
                              support_tickets, unsubscribed_claims, unsubscribed_negotiations,
                              order_offers, orders, subscriptions, driver_capabilities,
                              driver_availability, drivers, riders, users restart identity cascade`;
+    await sql`truncate table telegram_update_jobs, telegram_update_receipts,
+                             notification_outbox, order_messages, order_message_reads,
+                             rider_trip_event_receipts, webhook_events, tracking_sessions,
+                             trip_tracking_tokens, driver_location_history,
+                             driver_offers_board_receipts, queue_backpressure_events,
+                             job_heartbeats, eta_observations, user_notifications,
+                             safety_incidents, safety_incident_deliveries restart identity cascade`;
     await sql`
       update cities
          set is_active = true,
