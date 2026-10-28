@@ -214,7 +214,9 @@ wave() { # SLOT(ST1|CUR1|…) IDX [CONC] ⇒ يضبطُ V
   [ "$(cat "$D/arm-seen.txt")" = "$ARM" ] || { echo "ARM_MISMATCH $NAME"; V=INVALID_ARM; }
   echo "VALIDITY_$NAME $V"; cat "$D/validity.json"; echo
   python3 "$BA" wave "$D" "$D/base-wave.json" 2>"$D/base-wave.err" && python3 -c "import json,sys;d=json.load(open(sys.argv[1]));print('BASE_WAVE',d['wave'],d['g1'],d['failedGates'])" "$D/base-wave.json" || echo "BASE_WAVE_ANALYZE_FAIL $NAME"
-  case "$SLOT" in S*) ;; *) WDIR["$SLOT"]=$D; WVAL["$SLOT"]=$V; WARM["$SLOT"]=$ARM ;; esac
+  # S1 وحدها لا تدخلُ الحكمَ (بوابةُ دخانٍ §5.8)؛ ST1/ST2/ST3 تدخلُ. النمطُ القديمُ
+  # S*) استثناها كلَّها فبطلَ الحكمُ بلا موجاتِ ST (INCONCLUSIVE ظلمًا).
+  case "$SLOT" in S1) ;; *) WDIR["$SLOT"]=$D; WVAL["$SLOT"]=$V; WARM["$SLOT"]=$ARM ;; esac
 }
 bash "$H/deploy/capacity-run/b24-runner/seat-bin/run-wave-handoff.test.sh" || exit 1
 
