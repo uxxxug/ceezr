@@ -23,7 +23,7 @@ EXP_FN_A=fn_md5=1db3b1a24626ed2c4fb9b86e59352529
 # الهجرةُ الوحيدةُ المتوقَّعةُ في الذراعِ مقابلَ main — §5.8: «الهجرةُ في الذراعينِ معًا».
 EXP_MIGRATION=supabase/migrations/20261028120000_load01_claim_single_trip.sql
 OVERLAY="deploy/capacity-run/load/driver-onboarding.ts deploy/capacity-run/load/job-status-poller.ts deploy/capacity-run/load/miniapp-load.ts tests/unit/job-status-poller.test.ts"
-export MIXED_RATE=${MIXED_RATE:?} MIXED_SEC=${MIXED_SEC:-${WAVE_SEC:-300}} MIXED_SEED=${MIXED_SEED:-1}
+export MIXED_RATE=${MIXED_RATE:?} MIXED_SEC=${MIXED_SEC:-${WAVE_SEC:-180}} MIXED_SEED=${MIXED_SEED:-1}
 mkdir -p "$OUT"
 log() { echo "[$(date -u +%T)] $*"; }
 BA="$H/deploy/capacity-run/b24-runner/base-analyze.py"
