@@ -49,12 +49,16 @@ git -C "$H" worktree add -f --detach "$W/wt-acc" "$ARM_SHA" >/dev/null 2>&1
 
 log "بنيةُ الذراعِ (نفسُ فحوصِ المقعدِ) + جردُ هجراتِ §5.8"
 git -C "$H" cat-file -e "$ARM_SHA^{commit}" 2>/dev/null || { echo "ARM_SHA_UNREADABLE — لا موجة"; exit 1; }
+# الحدودُ المحميّةُ الأخرى: لا يغيّرُها فرقُ الذراعِ عن main (تُقارَنُ ملفّاتُها حرفًا)
+PROTECTED="packages/shared/config/connection-budget.ts packages/infrastructure/notification/outbound-rate-bucket.ts packages/shared/config/domain-ingress.ts apps/gateway/src/container.ts"
+for F in $PROTECTED; do
+  git -C "$H" cat-file -e "$ARM_SHA:$F" || { echo "PROTECTED_FILE_MISSING $F — لا موجة"; exit 1; }
+  git -C "$H" diff --quiet "$MAIN_SHA" "$ARM_SHA" -- "$F" || { echo "PROTECTED_FILE_CHANGED $F — لا موجة"; exit 1; }
+done
 PARENT=$(git -C "$H" rev-parse "$ARM_SHA^")
 OV_DIFF=$(git -C "$H" diff --name-only "$PARENT" "$ARM_SHA" | sort | tr '\n' ' ')
 [ "$(echo "$OV_DIFF" | xargs)" = "$(echo "$OVERLAY" | xargs)" ] || { echo "OVERLAY_DIFF_NOT_LIGHT_HARNESS files='$OV_DIFF' — لا موجة"; exit 1; }
-for F in $OVERLAY; do
-  [ "$(git -C "$H" rev-parse "$PARENT:$F" 2>/dev/null)" = "$HARNESS_SHA" ] || { echo "HARNESS_SHA_MISMATCH $F — لا موجة"; exit 1; }
-done
+git -C "$H" diff --quiet "$HARNESS_SHA" "$ARM_SHA" -- $OVERLAY || { echo "OVERLAY_NOT_IDENTICAL_TO_HARNESS — لا موجة"; exit 1; }
 PROD_DIFF=$(git -C "$H" diff --name-only "$MAIN_SHA" "$PARENT" -- apps packages supabase docker package.json bun.lock | sort | tr '\n' ' ')
 echo "OVERLAY_OK files=$(echo $OV_DIFF | wc -w) parent=${PARENT:0:8}" >> "$OUT/frozen-constants.txt"
 echo "PRODUCT_DIFF_VS_MAIN files=$(echo $PROD_DIFF | wc -w)" >> "$OUT/frozen-constants.txt"
