@@ -2,11 +2,7 @@
   "id": "load01-single-trip",
   "title": "تجربةُ §5.8 — الالتقاطُ في رحلةٍ واحدةٍ: `request_id` يعودُ معَ الصفِّ فيسقطُ استعلامُ الارتباطِ الثاني (مطبَّقٌ ومُختبرٌ، لم يُشغَّلْ بعد)",
   "status": "in-progress",
-  "tags": [
-    "load-01",
-    "capacity",
-    "claim-path"
-  ],
+  "tags": ["load-01", "capacity", "claim-path"],
   "created": "2026-10-28",
   "updated": "2026-10-28",
   "branch": "exp/load01-claim-single-trip",
@@ -29,18 +25,11 @@
     "tests/unit/single-trip-verdict.test.ts",
     "tests/unit/skip-audit.test.ts"
   ],
-  "state": [
-    "docs/SYSTEM_STATE.md"
-  ],
-  "roadmap": [
-    "ROADMAP.md"
-  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
   "results": {
     "status": "التنفيذُ مكتمِلٌ ومُختبرٌ (وحدةً وتكاملًا على PG حقيقي وCI أخضر على الرأسِ الأخير)؛ مقعدُ §5.8 أُطلقَ ستَّ مراتٍ: أربعٌ فشلتْ في بنيةِ الإطلاقِ (YAML، worktree، فحصُ تراكبٍ مخترعٌ، MIXED_SEC)، والخامسةُ فشلتْ بيئيًّا (iowait 3.38>2.0 على القرصِ)، والسادسةُ (rerun) أثبتتْ أنّ ذراعَ ST تعملُ (جردُ claims=31175 وارتباطٌ=0) لكنّ فحصَ ST_PIPELINE رفضها ظلمًا بسببِ خللينِ في العدةِ (لا في الذراعِ): (1) جامعُ الجردِ قرأَ pgss-full.csv.gz بينما post-diag يكتبُ pgss-full.csv غيرَ مضغوطٍ (فشلُ القراءةِ يُبتلَعُ فيخرجُ claims:null)، و(2) فحصُ الحكمِ (correlation ?? 1)===0 يعاملُ null كـ1 فيرفضُ غيابَ الاستعلامِ الصحيحَ. أُصلِحَ الخللانِ: الجامعُ المستقلُّ claim-inventory.py بعقدِ قراءةٍ كاملةٍ (نجاحٌ=أرقامٌ صريحةٌ وغيابُ الاستعلامِ=صفرٌ مقيسٌ؛ فشلٌ=null)، وفحصُ S1 صريحٌ رقميًّا، وفحصُ CUR قُوّيَ بضابطٍ موجبٍ (ارتباطٌ>0). S1: G4/P7 خرقٌ واحدٌ stale_pending_outbox (أقدمُ معلّقٍ 126ث>120ث) — لا يدخلُ الحكمَ",
-    "official_state_unchanged": [
-      "LOAD-01 = FAIL",
-      "LOAD-01M = NOT_MET"
-    ],
+    "official_state_unchanged": ["LOAD-01 = FAIL", "LOAD-01M = NOT_MET"],
     "integration_verified_locally": "ST/CUR تكافؤٌ كاملٌ، صفرُ استعلاماتِ ارتباطٍ في ST، التقاطٌ متزامنٌ بلا تكرارٍ، واسترجاعُ إعدادِ المقعدِ سليمٌ؛ وإعادةُ تشغيلِ لقطةِ S1 المنزّلةِ عبرَ الجامعِ المصحَّحِ تُخرجُ claims=31175 وcorrelation=0 (ST_PIPELINE OK)",
     "fail_closed": "الحكمُ يفشلُ مغلقًا: موجةٌ صالحةٌ بلا أدلّتِها الأربعةِ ⇒ INCONCLUSIVE لا ACCEPT (مُثبَتٌ باختباراتِ وحدةٍ)؛ والجردُ: فشلُ قراءةٍ = null لا يمرُّ في الذراعينِ (مُثبَتٌ باختباراتِ وحدةٍ)"
   },
