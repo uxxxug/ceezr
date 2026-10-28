@@ -133,14 +133,36 @@ async function outbox(fulfillmentId: string): Promise<readonly OutboxRow[]> {
       from move_event_outbox where entity_id = ${fulfillmentId} order by dedup_key`;
 }
 
-const describeIf = DATABASE_URL === undefined ? describe.skip : describe;
-if (DATABASE_URL === undefined) {
+/**
+ * بوابةُ المخطَّطِ المؤجَّلِ — النظيرُ في wasla-fulfillment-lifecycle.test.ts:
+ * `TEST_DATABASE_URL` وحدَهُ يُشغِّلُ هذا الملفَّ على قاعدةٍ بلا جداولِ `W-5`
+ * فيُخفِقُ بـ«relation does not exist» لا بحدِّ مُقاسٍ. فالتخطِّي المُعلَنُ بعلةٍ
+ * مقروءةٍ هو الحكمُ الصادقُ حينَ يغيبُ المخطَّطُ المطلوبُ.
+ */
+let deferredSchemaPresent = false;
+if (DATABASE_URL !== undefined) {
+  const probe = createSql({ connectionString: DATABASE_URL });
+  try {
+    const rows = await probe<{ present: boolean }[]>`
+      select (to_regclass('public.operational_jobs') is not null
+              and to_regclass('public.core_event_inbox') is not null
+              and to_regclass('public.move_event_outbox') is not null) as present`;
+    deferredSchemaPresent = rows[0]?.present === true;
+  } finally {
+    await probe.end({ timeout: 5 });
+  }
+}
+const describeOnDeferredSchema = deferredSchemaPresent ? describe : describe.skip;
+if (DATABASE_URL !== undefined && !deferredSchemaPresent) {
   console.warn(
-    "⚠️  اختبارات التكامل مُتخطّاة: عيّن TEST_DATABASE_URL لقاعدة PostgreSQL بها الهجرات مطبَّقة.",
+    "⚠️  اختباراتُ التأجيلِ مُتخطّاة: القاعدةُ لا تحملُ جداولَ W-4/W-5 " +
+      "(operational_jobs · core_event_inbox · move_event_outbox). " +
+      "طبِّق هجراتِ deferred/core-integration/migrations على قاعدةِ الاختبارِ لتفعيلِها " +
+      "(README المجلسِ يمنعُ تطبيقَها على قاعدةِ المنتجِ).",
   );
 }
 
-describeIf("ناقلُ الحدِّ مع CORE موصولاً بالقاعدةِ — W-5", () => {
+describeOnDeferredSchema("ناقلُ الحدِّ مع CORE موصولاً بالقاعدةِ — W-5", () => {
   beforeAll(() => {
     sql = createSql({ connectionString: DATABASE_URL ?? "" });
     store = createOperationalJobRepository(sql);
