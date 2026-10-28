@@ -1522,6 +1522,17 @@ export const ROLLBACK_DECLARATIONS: readonly RollbackDeclaration[] = [
     criticalPath: null,
     documentedIn: null,
   },
+  {
+    migration: "20261028120000_load01_claim_single_trip.sql",
+    change: "revoke_function:claim_notification_delivery(0)",
+    why: "الهجرةُ `20261028120000` (`LOAD-01` §5.8 · SINGLE_TRIP) تُعيدُ تعريفَ `claim_notification_delivery()` **بالتوقيعِ والمردِّ نفسِهما**: الجسمُ حرفيٌّ كما في آخرِ تعريفٍ سابقٍ (`20261018130000_load01_claim_skip_decided_offers`) معَ سطرٍ واحدٍ زائدٍ في الإرجاعِ النهائيّ — `'request_id', n.request_id` — فتُعيدُ الدالةُ قيمةَ العمودِ من الصفِّ الملتقَطِ نفسِهِ في الاستجابةِ نفسِها، ويستغني المعالِجُ خلفَ العلمِ (`NOTIFICATION_CLAIM_SINGLE_TRIP`) عن استعلامِ الارتباطِ الثاني. لا يتغيّرُ شيءٌ من الالتقاطِ نفسِهِ: `for update skip locked` على الصفِّ نفسِهِ، والذريّةُ والترتيبُ ومنعُ التكرارِ كما هما — `request_id` قراءةٌ من الصفِّ ذاتِهِ فلا قيمةَ جديدةٍ ولا سباقًا. والسحبُ بعدَ `create or replace` إعادةُ قفلٍ كما كانَ: لـ`service_role` وحدَها، والسطرُ إبطالٌ للمنحِ الضمنيِّ لا انتزاعُ صلاحيةٍ قائمةٍ. والعودةُ إعادةُ تطبيقِ نصِّ `20261018130000` (تعريفُ `pg_get_functiondef` للرأسِ `67ffdb90` — تحقَّقَ بالتطبيقِ) — تراجعٌ سلوكيٌّ بحتٌ (عودةُ الاستعلامِ الثاني) لا فقدُ عقدِ قراءةٍ. والهجرةُ تُطبَّقُ في الذراعينِ معًا في تجربةِ §5.8 (المفتاحُ يتحكّمُ في السلوكِ لا الهجرةُ).",
+    breaksPreviousRelease: false,
+    rollbackPath: "code-only",
+    coupledDeploy: false,
+    owner: "منفّذ المستودع",
+    criticalPath: null,
+    documentedIn: null,
+  },
 ];
 
 /**

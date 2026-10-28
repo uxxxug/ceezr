@@ -46,6 +46,14 @@ export interface ClaimSplitClock {
 export interface NotificationOutboxPortOptions {
   /** CLAIM-SPLIT (`NOTIFICATION_CLAIM_SPLIT=1`): غيابُه = الاستعلامُ الافتراضيُّ بنصِّه. */
   readonly claimSplit?: ClaimSplitClock;
+  /**
+   * SINGLE_TRIP (`NOTIFICATION_CLAIM_SINGLE_TRIP=1`، `LOAD-01` §5.8): الالتقاطُ في
+   * رحلةٍ واحدةٍ — `request_id` يعودُ معَ الصفِّ منَ الدالّةِ نفسِها (هجرةُ
+   * `20261028120000`) فيسقطُ استعلامُ الارتباطِ الثاني. غيابُه = المسارُ الحاليّ.
+   * وإن غابَ المفتاحُ منَ الاستجابةِ (دالّةٌ غيرَ مهاجرةٍ) يتراجعُ إلى الاستعلامِ
+   * الثاني — الصحّةُ مقدَّمٌ على عددِ الرحلات.
+   */
+  readonly claimSingleTrip?: boolean;
 }
 
 interface Stamped {
@@ -133,6 +141,7 @@ export function createNotificationOutboxPort(
   options: NotificationOutboxPortOptions = {},
 ): NotificationOutboxPort {
   const clock = options.claimSplit;
+  const singleTrip = options.claimSingleTrip === true;
   return {
     claim: () =>
       guard("rpc.claim_notification_delivery", async () => {
@@ -194,6 +203,31 @@ export function createNotificationOutboxPort(
         // تمنعُ ذلك. والقراءةُ ههنا **بعدَ** الالتقاطِ فالصفُّ مملوكٌ برمزِ الحجزِ،
         // فلا تسابُقَ. وفشلُها لا يُخفى: `guard` يردُّه عطباً كسائرِ الاستعلامِ.
         const deliveryId = String(delivery.delivery_id);
+        if (singleTrip && delivery.request_id !== undefined) {
+          // `LOAD-01` §5.8 — SINGLE_TRIP: المفتاحُ حاضرٌ في الاستجابةِ (الدالّةُ
+          // مهاجرةٌ) فالقيمةُ منَ الصفِّ الملتقَطِ نفسِهِ — وهيَ هيَ التي كانَ سيُعيدُها
+          // الاستعلامُ الثاني بالمفتاحِ الأوّليّ. لا استعلامَ إضافيًّا، ولا فرقَ
+          // في الذرّيّةِ أو الترتيبِ أو التكرارِ: الصفُّ مملوكٌ بالفعلِ برمزِ الحجزِ.
+          const requestIdSource = delivery.request_id as string | null;
+          return {
+            delivery: {
+              deliveryId,
+              kind: String(delivery.kind),
+              cityId: String(delivery.city_id) as CityId,
+              claimToken: String(delivery.claim_token),
+              attempts: Number(delivery.attempts),
+              maxAttempts: Number(delivery.max_attempts),
+              signalWaitCount: Number(delivery.signal_wait_count ?? 0),
+              batchLimit: Number(delivery.batch_limit),
+              requestId: readCorrelationId(requestIdSource),
+              payload:
+                typeof payload === "object" && payload !== null
+                  ? (payload as Record<string, unknown>)
+                  : {},
+            } satisfies OutboxDelivery,
+            ...(timing === undefined ? {} : { timing }),
+          };
+        }
         let correlationRows: { request_id: string | null }[];
         if (clock === undefined) {
           correlationRows = await sql<{ request_id: string | null }[]>`

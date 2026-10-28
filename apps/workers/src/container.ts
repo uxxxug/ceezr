@@ -201,6 +201,7 @@ import {
   deliverNotifications,
   notificationAttemptLogFields,
   notificationAttemptTraceFromEnv,
+  notificationClaimSingleTripFromEnv,
   notificationClaimSplitFromEnv,
   notificationClaimSplitLogFields,
   notificationClaimWaitLogFields,
@@ -598,6 +599,9 @@ export function buildWorkerContainer(
   // `LOAD-01` (CLAIM-SPLIT/CLAIM-WAIT): يُقرأُ مبكّرًا لأنّ عدّادَ ما في الطيرانِ يلفُّ تجمّعَ `workerJobs`
   // نفسَه (Proxy عدٍّ فقط، لا يغيّرُ التوجيهَ ولا السعة). مطفأٌ ⇒ التجمّعُ كما هو حرفيًّا.
   const claimSplit = notificationClaimSplitFromEnv(process.env);
+  // `LOAD-01` §5.8 (SINGLE_TRIP): الالتقاطُ في رحلةٍ واحدةٍ — مُطفأٌ افتراضيًّا
+  // (الغيابُ أو `0` = المسارُ الحاليّ CUR). يُقرأُ مبكّرًا مع أخواتِه لا يغيّرُ التجمّعَ.
+  const claimSingleTrip = notificationClaimSingleTripFromEnv(process.env);
   const rawSql =
     overrides.sql ??
     createSql({
@@ -806,14 +810,17 @@ export function buildWorkerContainer(
    */
   // `LOAD-01` (CLAIM-SPLIT): تفكيكُ زمنِ الالتقاطِ — مُطفأٌ ما لم يُشعَلْ صراحةً؛ والاستعلامُ الافتراضيُّ بنصِّه.
   if (claimSplit.invalid) log.error("notification.claim_split_invalid", {});
+  // `LOAD-01` §5.8: قيمةٌ غيرُ معروفةٍ تُطفئُ المسارَ الجديدَ وتُعلَنُ — لا يُفعَّلُ
+  // تغييرُ مسارٍ بالتخمينِ، فيبقى التشغيلُ على CUR حتى يُصحَّحَ العَلَمُ.
+  if (claimSingleTrip.invalid) log.error("notification.claim_single_trip_invalid", {});
   const claimClock = claimSplit.enabled ? createCalibratedClock() : undefined;
   const loopProbe = claimSplit.enabled ? createLoopProbe() : undefined;
   // CLAIM-WAIT: انحرافُ المعايرةِ بينَ شوطينِ متتاليين (|Δ الفرق|)، يُسجَّلُ لصلاحيّةِ الأختام.
   let claimCalOffset: number | null = null;
   let claimCalDriftUs = 0;
-  const notificationOutbox = createNotificationOutboxPort(
-    sql,
-    claimClock === undefined
+  const notificationOutbox = createNotificationOutboxPort(sql, {
+    ...(claimSingleTrip.enabled ? { claimSingleTrip: true } : {}),
+    ...(claimClock === undefined
       ? {}
       : {
           claimSplit: {
@@ -821,8 +828,8 @@ export function buildWorkerContainer(
             ...(pooled === undefined ? {} : { inflight: pooled.counter.read }),
             poolMax: DB_POOL_MAX.workerJobs,
           },
-        },
-  );
+        }),
+  });
   /**
    * مُراسِلٌ **لكلِّ نوعٍ** لا مُراسِلٌ واحدٌ لثلاثةِ أنواعٍ (`F6-07`): الوسمُ يجري
    * عندَ بناءِ المُرسِلِ، فمُراسِلٌ واحدٌ مشتركٌ كانَ سيَسِمُ الأنواعَ الثلاثةَ بوسمِ

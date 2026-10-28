@@ -23,6 +23,11 @@ sed -i '/^NOTIFICATION_ATTEMPT_TRACE=/d;/^NOTIFICATION_ATTEMPT_TRACE_KINDS=/d;/^
 if [ -n "${NOTICE_TRACE_KIND:-}" ]; then
   printf 'NOTIFICATION_ATTEMPT_TRACE=1\nNOTIFICATION_ATTEMPT_TRACE_KINDS=%s\nNOTIFICATION_CLAIM_SPLIT=1\n' "$NOTICE_TRACE_KIND" >> $B/secrets.env
 fi
+# LOAD-01 §5.8 (SINGLE_TRIP): ذراعُ ST يُشعلُ الالتقاطَ في رحلةٍ واحدةٍ (الهجرةُ
+# 20261028120000 في القالبِ للذراعينِ معًا؛ لا يتغيّرُ لا حدٌّ محميّ ولا كنسٌ ولا ضغطٌ).
+# يُنظَّفُ قبلَ كلِّ موجةٍ فلا يتسرّبُ بينَ الذراعين؛ غيابُه = CUR بنصِّهِ.
+sed -i '/^NOTIFICATION_CLAIM_SINGLE_TRIP=/d' $B/secrets.env
+if [ -n "${CLAIM_TRIP:-}" ]; then printf 'NOTIFICATION_CLAIM_SINGLE_TRIP=%s\n' "$CLAIM_TRIP" >> $B/secrets.env; fi
 for kv in ${DIAG_EXTRA:-}; do echo "$kv" >> $B/secrets.env; done
 [ -n "${DIAG_POOL:-}" ] && echo "DISPATCH_DIAG_DEDICATED_POOL=$DIAG_POOL" >> $B/secrets.env
 [ -n "${DIAG_REQ:-}" ] && echo "DISPATCH_DIAG_REQUEST_POOL=$DIAG_REQ" >> $B/secrets.env

@@ -132,6 +132,22 @@ export function notificationClaimSplitFromEnv(env: Readonly<Record<string, strin
   return { enabled: raw === "1", invalid: raw !== "" && raw !== "0" && raw !== "1" };
 }
 
+/**
+ * `LOAD-01` §5.8 (SINGLE_TRIP): `NOTIFICATION_CLAIM_SINGLE_TRIP=1` يُشعلُ الالتقاطَ في
+ * رحلةٍ واحدةٍ — `request_id` يعودُ معَ الصفِّ منَ الدالّةِ فيسقطُ استعلامُ الارتباطِ
+ * الثاني. والغيابُ أو `0` = المسارُ الحاليّ (CUR). وقيمةٌ أخرى تُطفئُه وتُعلَنُ
+ * (`invalid`)، لا تُخمَّن — فلا يُفعَّلُ تغييرٌ مسارٍ بقييمةٍ غيرِ معروفةٍ.
+ */
+export function notificationClaimSingleTripFromEnv(
+  env: Readonly<Record<string, string | undefined>>,
+): {
+  readonly enabled: boolean;
+  readonly invalid: boolean;
+} {
+  const raw = env.NOTIFICATION_CLAIM_SINGLE_TRIP?.trim() ?? "";
+  return { enabled: raw === "1", invalid: raw !== "" && raw !== "0" && raw !== "1" };
+}
+
 /** حقولُ سطرِ الشوطِ للتفكيك: أعدادٌ صحيحةٌ وحدَها (ms وµs و‰) — قائمةٌ مغلقةٌ يثبّتُها اختبار. */
 export function notificationClaimSplitLogFields(
   split: {

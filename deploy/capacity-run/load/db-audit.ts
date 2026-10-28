@@ -51,6 +51,13 @@ interface Snapshot {
      */
     readonly pendingAgeByKind: PendingAgeByKind;
     readonly oldestPendingKind: string | null;
+    /**
+     * `LOAD-01` §5.8: صفوفٌ التُقطَتْ (`attempts > 0`) بلا `request_id` — نسبةُ
+     * الالتقاطِ بلا معرّفِ ارتباطٍ للذراعينِ على حدٍّ سواءٍ (الدالةُ لا يغيّرُ العمودَ
+     * عندَ الالتقاطِ فالنسبةُ منَ البياناتِ؛ وتكافؤُ العائدِ نفسِهِ يُثبَتُهُ اختبارُ
+     * التكاملِ بوابةً رابعةً). غيابُه (`null`) = نسخةُ تدقيقٍ أقدمُ لم تحسبه.
+     */
+    readonly claimedWithoutRequestId: { claimed: number; withoutRequestId: number } | null;
   };
   /** رصدٌ لا بوابة: خطُّ زمنِ قبولِ المحاكي لكلِّ بوتٍ بالثانية (`p7-attribution.ts`). */
   readonly egressTimeline: EgressTimeline | null;
@@ -105,27 +112,36 @@ async function snapshot(): Promise<Snapshot> {
       sinceMs = null;
     }
   }
-  const [orders, offers, avail, outbox, dups, byKindRows, byKindAllRows, pendingAgeRows] =
-    await Promise.all([
-      sql<
-        { status: string; n: string }[]
-      >`select status::text as status, count(*)::text as n from orders group by 1`,
-      sql<
-        { status: string; n: string }[]
-      >`select status::text as status, count(*)::text as n from order_offers group by 1`,
-      sql<{ available: string; total: string }[]>`
+  const [
+    orders,
+    offers,
+    avail,
+    outbox,
+    dups,
+    byKindRows,
+    byKindAllRows,
+    pendingAgeRows,
+    claimedNoRid,
+  ] = await Promise.all([
+    sql<
+      { status: string; n: string }[]
+    >`select status::text as status, count(*)::text as n from orders group by 1`,
+    sql<
+      { status: string; n: string }[]
+    >`select status::text as status, count(*)::text as n from order_offers group by 1`,
+    sql<{ available: string; total: string }[]>`
       select count(*) filter (where is_available)::text as available, count(*)::text as total from driver_availability`,
-      sql<{ status: string; n: string; oldest: string | null }[]>`
+    sql<{ status: string; n: string; oldest: string | null }[]>`
       select status::text as status, count(*)::text as n,
              extract(epoch from (now() - min(created_at)))::text as oldest
         from notification_outbox group by 1`,
-      sql<{ count: string }[]>`
+    sql<{ count: string }[]>`
       select count(*)::text as count from (
         select assigned_driver_id from orders
          where assigned_driver_id is not null and is_driver_engaged_order_status(status)
          group by assigned_driver_id having count(*) > 1
       ) as d`,
-      sql<{ kind: string; total: string; delivered: string; pending: string; dead: string }[]>`
+    sql<{ kind: string; total: string; delivered: string; pending: string; dead: string }[]>`
       select kind, count(*)::text as total,
              count(*) filter (where status = 'delivered')::text as delivered,
              count(*) filter (where status = 'pending')::text as pending,
@@ -133,20 +149,25 @@ async function snapshot(): Promise<Snapshot> {
         from notification_outbox
         ${sql`where created_at >= ${sinceMs === null ? new Date(0) : new Date(sinceMs)}`}
         group by 1`,
-      sql<{ kind: string; total: string; delivered: string; pending: string; dead: string }[]>`
+    sql<{ kind: string; total: string; delivered: string; pending: string; dead: string }[]>`
       select kind, count(*)::text as total,
              count(*) filter (where status = 'delivered')::text as delivered,
              count(*) filter (where status = 'pending')::text as pending,
              count(*) filter (where status = 'dead')::text as dead
         from notification_outbox group by 1`,
-      sql<{ kind: string; n: string; oldest: string | null }[]>`
+    sql<{ kind: string; n: string; oldest: string | null }[]>`
       select kind, count(*)::text as n,
              extract(epoch from (now() - min(created_at)))::text as oldest
         from notification_outbox where status = 'pending' group by 1`,
-    ]);
+    sql<{ claimed: string; without: string }[]>`
+      select count(*) filter (where attempts > 0)::text as claimed,
+             count(*) filter (where attempts > 0 and request_id is null)::text as without
+        from notification_outbox`,
+  ]);
   const byStatus = (rows: { status: string; n: string }[]) =>
     Object.fromEntries(rows.map((r) => [r.status, Number(r.n)]));
   const pendingOldest = outbox.find((r) => r.status === "pending")?.oldest ?? null;
+  const claimedNoRidRow = claimedNoRid[0];
   const activeRides = orders
     .filter((r) => ["searching", "matched", "in_progress", "scheduled"].includes(r.status))
     .reduce((acc, r) => acc + Number(r.n), 0);
@@ -271,6 +292,13 @@ async function snapshot(): Promise<Snapshot> {
       oldestPendingSec: pendingOldest === null ? null : Math.round(Number(pendingOldest)),
       pendingAgeByKind: ageByKind,
       oldestPendingKind: oldestPendingKind(ageByKind),
+      claimedWithoutRequestId:
+        claimedNoRidRow === undefined
+          ? null
+          : {
+              claimed: Number(claimedNoRidRow.claimed),
+              withoutRequestId: Number(claimedNoRidRow.without),
+            },
     },
     egress,
     egressTimeline,
