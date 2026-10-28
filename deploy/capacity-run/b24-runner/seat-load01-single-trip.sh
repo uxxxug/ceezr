@@ -199,11 +199,11 @@ wave() { # SLOT(ST1|CUR1|…) IDX [CONC] ⇒ يضبطُ V
   # جردُ §5.8: استعلاماتُ الالتقاطِ في هذهِ الموجةِ منَ pgss (عددُ نداءاتِ الدالةِ مقابلَ
   # عددِ استعلاماتِ الارتباطِ) — ST رحلةٌ واحدةٌ (ارتباطٌ ≈ 0) وCUR اثنتينِ.
   python3 - "$D" "$E" "$ARM" "$CLAIM_SIG" "$CORR_SIG" > "$D/claim-inventory.json" <<'PYI' || true
-import csv, gzip, json, sys
+import csv, json, sys
 D, E, ARM, CLAIM_SIG, CORR_SIG = sys.argv[1:6]
 claims = correlation = None
 try:
-    with gzip.open(f"{E}/pgss-full.csv.gz", mode="rt", encoding="utf-8", newline="") as fh:
+    with open(f"{E}/pgss-full.csv", mode="rt", encoding="utf-8", newline="") as fh:
         for row in csv.DictReader(fh):
             q = (row.get("query") or "").strip()
             if q.startswith(CLAIM_SIG):
