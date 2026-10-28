@@ -1031,7 +1031,10 @@ describe("السجلُّ الحقيقيُّ — أرقامٌ مقيسةٌ مُث
     // والاستلام، والمسارُ الافتراضيُّ بلا توقيت) — ساعةُ PostgreSQL لا يُثبِتُها بديلٌ في الذاكرة.
     // زيادةٌ (LOAD-01 · مراحلُ ما قبلَ التنفيذ · 2026-10-28 · حزمةُ `load01-claim-wait`):
     // 218 — `notification-claim-wait.test.ts` (خطّافاتُ مراحلِ postgres.js الحقيقيّ وعدّادُ ما في الطيران).
-    expect(SKIP_REGISTRY).toHaveLength(218);
+    // زيادةٌ (LOAD-01 · §5.8 الرحلةُ الواحدةُ · 2026-10-28 · حزمةُ `load01-single-trip`):
+    // 219 — `notification-claim-single-trip.test.ts` (ثلاثُ حالاتٍ: تكافؤُ ST/CUR، غيابُ
+    // `request_id` بلا سياقٍ مُلفَّقٍ، والالتقاطُ المتوازيُّ بلا تكرار).
+    expect(SKIP_REGISTRY).toHaveLength(219);
     // زيادةٌ (الدفعةُ 19 · تدقيقُ PR #595): 1689 — حالةُ سباقِ فتحِ الجلسةِ على PostgreSQL
     // حقيقيٍّ في `tracking-duty-and-trip-reader.test.ts` (تعملُ في وظيفةِ التكاملِ).
     // زيادةٌ (الدفعةُ 20): 1692 — حالاتُ الملفِّ الثلاث.
@@ -1051,7 +1054,8 @@ describe("السجلُّ الحقيقيُّ — أرقامٌ مقيسةٌ مُث
     // زيادةٌ (LOAD-01 · C2 دمجُ قراءةِ لغةِ المرسلِ · 2026-10-25): 1739 — حالاتُ `driver-sender-context.test.ts` الخمس.
     // زيادةٌ (LOAD-01 · تفكيكُ زمنِ الالتقاط · 2026-10-27): 1740 — حالةُ `notification-claim-split.test.ts`.
     // زيادةٌ (LOAD-01 · مراحلُ ما قبلَ التنفيذ · 2026-10-28): 1745 — حالاتُ `notification-claim-wait.test.ts` الخمس.
-    expect(SKIP_REGISTRY.reduce((sum, entry) => sum + entry.skipped, 0)).toBe(1745);
+    // زيادةٌ (LOAD-01 · §5.8 الرحلةُ الواحدةُ · 2026-10-28): 1748 — حالاتُ `notification-claim-single-trip.test.ts` الثلاث.
+    expect(SKIP_REGISTRY.reduce((sum, entry) => sum + entry.skipped, 0)).toBe(1748);
   });
 
   it("لا تجاوزَ على مسارٍ حرجٍ بلا مُشغِّلٍ، وما لا مُشغِّلَ له مُعلَنٌ ببيانٍ", () => {

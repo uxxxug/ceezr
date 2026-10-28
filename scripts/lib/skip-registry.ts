@@ -1532,6 +1532,20 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     whyNotRun: null,
   },
   {
+    file: "tests/integration/notification-claim-single-trip.test.ts",
+    suites: ["الالتقاطُ في رحلةٍ واحدةٍ — SINGLE_TRIP (§5.8)"],
+    skipped: 3,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "يُثبِتُ أنَّ الهجرةَ `20261028120000` تُعيدُ تعريفَ `claim_notification_delivery()` بتكافؤٍ تامٍّ معَ المسارِ الحاليّ (نفسُ الصفِّ والرمزِ والمحاولةِ و`request_id`)، وأنَّ الذراعَ المُشعَلَ (`NOTIFICATION_CLAIM_SINGLE_TRIP=1`) لا يُصدرُ استعلامَ الارتباطِ الثاني كليًا بينما يُصدرُه المسارُ الحاليّ، وأنَّ غيابَ `request_id` يُرجَعُ `null` في المسارينِ بلا سياقٍ مُلفَّقٍ، وأنَّ ثمانيةَ التقطاطٍ متوازيةٍ لا تلتقطُ صفًّا مرّتين (`LOAD-01` §5.8 SINGLE_TRIP). ولا يُثبَتُ ذلك ببديلٍ في الذاكرة: المقصودُ `for update skip locked` على PostgreSQL حقيقيّ، وسلوكُ `pg_stat_statements` في عدِّ الاستعلامات.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بالهجرات مطبَّقة (ومنها `20261028120000`). يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي»، ويفعله المطورُ محلّياً بحاويةِ postgres.",
+    owner: "منفّذ المستودع",
+    criticalPath: null,
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+  {
     file: "tests/integration/notification-claim-wait.test.ts",
     suites: ["مراحلُ الاستعلامِ وما في الطيران — CLAIM-WAIT"],
     skipped: 5,
