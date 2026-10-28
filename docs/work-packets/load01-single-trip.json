@@ -2,11 +2,7 @@
   "id": "load01-single-trip",
   "title": "تجربةُ §5.8 — الالتقاطُ في رحلةٍ واحدةٍ: `request_id` يعودُ معَ الصفِّ فيسقطُ استعلامُ الارتباطِ الثاني (مطبَّقٌ ومُختبرٌ، لم يُشغَّلْ بعد)",
   "status": "in-progress",
-  "tags": [
-    "load-01",
-    "capacity",
-    "claim-path"
-  ],
+  "tags": ["load-01", "capacity", "claim-path"],
   "created": "2026-10-28",
   "updated": "2026-10-28",
   "branch": "exp/load01-claim-single-trip",
@@ -25,18 +21,11 @@
     "tests/unit/notification-claim-single-trip.test.ts",
     "tests/unit/single-trip-verdict.test.ts"
   ],
-  "state": [
-    "docs/SYSTEM_STATE.md"
-  ],
-  "roadmap": [
-    "ROADMAP.md"
-  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
   "results": {
     "status": "التنفيذُ مكتمِلٌ ومُختبرٌ (وحدةً وتكاملًا على PG حقيقي)؛ لم يُشغَّلْ المقعدُ بعدُ فلا حكمَ §5.8",
-    "official_state_unchanged": [
-      "LOAD-01 = FAIL",
-      "LOAD-01M = NOT_MET"
-    ],
+    "official_state_unchanged": ["LOAD-01 = FAIL", "LOAD-01M = NOT_MET"],
     "integration_verified_locally": "ST/CUR تكافؤٌ كاملٌ، صفرُ استعلاماتِ ارتباطٍ في ST، التقاطٌ متزامنٌ بلا تكرارٍ، واسترجاعُ إعدادِ المقعدِ سليم"
   },
   "next": "دفعُ الفرعِ وPR #686 (مكدَّسٌ على #685) فإذا اخضرَّ CI: فرعُ التشغيلِ exp/load01-single-trip-run1 (+ تراكبُ 50121273) وإطلاقُ المقعدِ والحكمُ بـ§5.8",
