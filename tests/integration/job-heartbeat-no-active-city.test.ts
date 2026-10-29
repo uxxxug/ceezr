@@ -46,18 +46,20 @@ describeIf("نبضةُ المهمّةِ العامّةِ بلا مدينةٍ م�
   it("بلا مدينةٍ مفعَّلةٍ: صفٌّ لكلِّ مدينةٍ معرَّفة، فيراها `/ready`", async () => {
     await inRolledBackTx(async (tx) => {
       await tx`update cities set is_active = false where is_active = true`;
-      const [{ total }] = await tx<{ total: number }[]>`select count(*)::int as total from cities`;
+      const totalRows = await tx<{ total: number }[]>`select count(*)::int as total from cities`;
+      const total = totalRows[0]?.total ?? 0;
       const name = `hb-test-global-${crypto.randomUUID()}`;
 
-      const [{ result }] = await tx<{ result: { ok: boolean; rows: number } }[]>`
+      const resultRows = await tx<{ result: { ok: boolean; rows: number } }[]>`
         select record_job_heartbeat(${name}::text, null::uuid, 'ok'::text, null::text) as result
       `;
-      expect(result.ok).toBe(true);
-      expect(result.rows).toBe(total);
+      expect(resultRows[0]?.result.ok).toBe(true);
+      expect(resultRows[0]?.result.rows).toBe(total);
 
-      const [{ count }] = await tx<{ count: number }[]>`
+      const countRows = await tx<{ count: number }[]>`
         select count(*)::int as count from job_heartbeats where job_name = ${name}
       `;
+      const count = countRows[0]?.count ?? -1;
       expect(count).toBe(total);
       expect(total).toBeGreaterThan(0);
     });
@@ -83,9 +85,10 @@ describeIf("نبضةُ المهمّةِ العامّةِ بلا مدينةٍ م�
       if (city === undefined) throw new Error("لا مدينةَ في البذرة");
       const name = `hb-test-city-${crypto.randomUUID()}`;
       await tx`select record_job_heartbeat(${name}::text, ${city.id}::uuid, 'ok'::text, null::text)`;
-      const [{ count }] = await tx<{ count: number }[]>`
+      const countRows = await tx<{ count: number }[]>`
         select count(*)::int as count from job_heartbeats where job_name = ${name}
       `;
+      const count = countRows[0]?.count ?? -1;
       expect(count).toBe(1);
     });
   });
