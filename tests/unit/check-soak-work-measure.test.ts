@@ -43,6 +43,9 @@ const GOOD_SUPPORT = [
 const GOOD_SOAK = [
   "import { settleEngineWork, WORK_GROWTH_CEILING } from '../support/engine-work.ts';",
   "const at10 = await settleEngineWork(sql);",
+  "const maintenance10 = await readMaintenanceJobs(sql);",
+  "const polluted = maintenanceJobsBetween(maintenance10, maintenance30);",
+  "throw new Error('نافذة ملوثة BUG-017');",
   "expect(growth.rowsRatio).toBeLessThan(WORK_GROWTH_CEILING);",
   "expect(growth.blocksRatio).toBeLessThan(WORK_GROWTH_CEILING);",
 ].join("\n");
@@ -146,6 +149,24 @@ describe("حاجزُ قياسِ التدهورِ — سالباتٌ مزروعة
     const violations = soakWorkMeasureViolations([{ path: SOAK_TEST_FILE, source: GOOD_SOAK }]);
     expect(violations.map((violation) => violation.file)).toContain(WORK_SUPPORT_FILE);
   });
+
+  it("١١-ج) `BUG-017`: صمودٌ بلا قراءةِ عدّاداتِ الصيانةِ يُلتقَطُ — النافذةُ تُحرسُ لا تُفترَضْ نظيفةً", () => {
+    const planted = GOOD_SOAK.replace("const maintenance10 = await readMaintenanceJobs(sql);", "");
+    expect(rules(planted, GOOD_SUPPORT)).toContain("maintenance.pollution");
+  });
+
+  it("١١-د) `BUG-017`: حذفُ مقارنةِ حدَّي النافذةِ يُلتقَطُ — قراءةٌ بلا حُكمٍ ليست حرساً", () => {
+    const planted = GOOD_SOAK.replace(
+      "const polluted = maintenanceJobsBetween(maintenance10, maintenance30);",
+      "",
+    );
+    expect(rules(planted, GOOD_SUPPORT)).toContain("maintenance.pollution");
+  });
+
+  it("١١-هـ) `BUG-017`: حذفُ الإحالةِ إلى الدليلِ يُلتقَطُ — الخرقُ بلا بديلٍ مكتوبٍ لا يُعالَجْ", () => {
+    const planted = GOOD_SOAK.replace("نافذة ملوثة BUG-017", "نافذة ملوثة");
+    expect(rules(planted, GOOD_SUPPORT)).toContain("maintenance.pollution");
+  });
 });
 
 describe("حاجزُ قياسِ التدهورِ — موجباتٌ لا تُلتقَطُ", () => {
@@ -179,7 +200,7 @@ describe("حاجزُ قياسِ التدهورِ — موجباتٌ لا تُل�
 });
 
 describe("حاجزُ قياسِ التدهورِ — كلُّ قاعدةٍ لها سالبةٌ (`ح-٧`)", () => {
-  it("١٦) القواعدُ الستُّ كلُّها مبذورةٌ في هذا الملفِّ", () => {
+  it("١٦) القواعدُ المبذورةُ كلُّها في هذا الملفِّ", () => {
     const seeded = new Set<string>([
       ...rules(
         [
@@ -194,6 +215,7 @@ describe("حاجزُ قياسِ التدهورِ — كلُّ قاعدةٍ له�
         GOOD_SOAK.replace("await settleEngineWork(sql)", "await readEngineWork(sql)"),
         GOOD_SUPPORT,
       ),
+      ...rules(GOOD_SOAK.replace("await readMaintenanceJobs(sql);", ""), GOOD_SUPPORT),
     ]);
     expect([...seeded].sort()).toEqual([...RULE_NAMES].sort());
   });

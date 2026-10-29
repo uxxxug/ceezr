@@ -62,7 +62,7 @@ export interface SoakWorkViolation {
   readonly detail: string;
 }
 
-/** أسماءُ القواعدِ الستِّ — تُقرأُ في الاختبارِ فلا تُنسى قاعدةٌ بلا سالبةٍ. */
+/** أسماءُ القواعدِ المبذورةِ في الاختبارِ — تُقرأُ هناكَ فلا تُنسى قاعدةٌ بلا سالبةٍ. */
 export const RULE_NAMES: readonly string[] = [
   "clock.assertion",
   "work.source",
@@ -70,6 +70,7 @@ export const RULE_NAMES: readonly string[] = [
   "ceiling.single-source",
   "settle.before-read",
   "no-retry",
+  "maintenance.pollution",
 ];
 
 /**
@@ -262,6 +263,37 @@ export const PGSTAT_IDLE_INTERVAL_MS = 10_000;
 const SETTLE_GRACE_DECLARATION = /const\s+SETTLE_GRACE_MS\s*(?::[^=]+)?=\s*([0-9_]+)\s*;/;
 
 /**
+ * القاعدةُ الثامنةُ (`BUG-017`): **نافذةُ القياسِ تُحرسُ من الصيانةِ الخلفيّةِ**.
+ * عدّاداتُ `pg_stat_database` تُحتسِبُ عملَ `autovacuum` في عملِ الاستعلاماتِ،
+ * فيُنسَبُ عملُ الصيانةِ إلى الشيفرةِ المقيوسةِ وهوَ ليسَ منها — وهوَ ما قرأَ
+ * ٣٢٤٨١ كتلةً في تشغيلٍ و١٢٤٣٠ في إعادتِهِ على الالتزامِ نفسِهِ. فالاختبارُ
+ * ملزمٌ بأن يقرأَ عدّاداتِ الصيانةِ عندَ حدَّي النافذةِ ويُفشِلَ صريحاً إن
+ * دخَلَتها مهمّةٌ واحدةٌ — لا أن يُقرِّرَ رقمًا من نافذةٍ ملَوَّثةٍ.
+ */
+const MAINTENANCE_READ = /\breadMaintenanceJobs\s*\(/;
+const MAINTENANCE_WINDOW = /\bmaintenanceJobsBetween\s*\(/;
+const MAINTENANCE_DOC = /\bBUG-017\b/;
+
+function maintenancePollutionViolations(file: GuardedFile): readonly SoakWorkViolation[] {
+  const code = stripComments(file.source);
+  const missing: string[] = [];
+  if (!MAINTENANCE_READ.test(code)) missing.push("`readMaintenanceJobs(`");
+  if (!MAINTENANCE_WINDOW.test(code)) missing.push("`maintenanceJobsBetween(`");
+  if (!MAINTENANCE_DOC.test(code)) missing.push("`BUG-017`");
+  if (missing.length === 0) return [];
+  return [
+    {
+      rule: "maintenance.pollution",
+      file: file.path,
+      detail:
+        `غابَ من ملفِّ الصمودِ: ${missing.join(" · ")} — ` +
+        "صيانةُ القاعدةِ الخلفيّةُ يُحتسَبُ عملُها في القياسِ فيُنسَبُ إلى الشيفرةِ، " +
+        "وقد أسقطَ القياسَ مراراً بلا ذنبٍ للشيفرةِ (`BUG-017`).",
+    },
+  ];
+}
+
+/**
  * القاعدةُ السابعةُ (`D-35` · `ADR 0191`): **السكونُ أطولُ من مهلةِ الإفراغِ الخاملِ**.
  * مهلةٌ أقصرُ منها تقرأُ عدّاداتٍ ثابتةً وخادمٌ خامِلٌ ما زالَ يحملُ عملاً لم يُفرِغْه،
  * فيُنسَبُ إحماءُ كتلةٍ إلى تاليتِها — وهوَ ما أسقطَ `36122019657` ×4.52 وأخضرَ غيرَه ×0.37.
@@ -325,6 +357,7 @@ export function soakWorkMeasureViolations(
     found.push(...workAssertionViolations(soak));
     found.push(...settleViolations(soak));
     found.push(...retryViolations(soak));
+    found.push(...maintenancePollutionViolations(soak));
   }
 
   const support = byPath.get(WORK_SUPPORT_FILE);
