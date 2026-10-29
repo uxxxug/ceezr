@@ -89,10 +89,21 @@ await serve({
       return jsonResponse(reply ?? null);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      console.error(`[upstash-shim] command failed: ${args.join(" ")} -> ${message}`);
+      // اسمُ الأمرِ وحدَه: الوسائطُ قد تحملُ جلساتٍ أو رموزًا، فلا تُطبَعُ في السجلّ.
+      console.error(`[upstash-shim] command failed: ${String(args[0] ?? "?")} -> ${message}`);
       return errorResponse(message);
     }
   },
 });
 
-console.log(`[upstash-shim] listening on :${PORT} -> ${REDIS_URL}`);
+/** المضيفُ والمنفذُ وحدَهما: الرابطُ الكاملُ يحملُ كلمةَ سرِّ Redis ولا يُطبَعُ أبدًا. */
+function redactedRedisTarget(raw: string): string {
+  try {
+    const url = new URL(raw);
+    return `${url.protocol}//${url.hostname}${url.port === "" ? "" : `:${url.port}`}`;
+  } catch {
+    return "<redis>";
+  }
+}
+
+console.log(`[upstash-shim] listening on :${PORT} -> ${redactedRedisTarget(REDIS_URL)}`);
