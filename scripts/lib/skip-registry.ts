@@ -2867,6 +2867,20 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     whyNotRun: null,
   },
   {
+    file: "tests/integration/job-heartbeat-no-active-city.test.ts",
+    suites: ["نبضةُ المهمّةِ العامّةِ بلا مدينةٍ مفعَّلة"],
+    skipped: 3,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "المُدَّعى في `WR-27` أنَّ `record_job_heartbeat` للمهمّةِ العامّةِ (`p_city_id` فارغٌ) تكتبُ صفًّا لكلِّ مدينةٍ معرَّفةٍ حينَ لا مدينةَ مفعَّلة، ولكلِّ مفعَّلةٍ وحدَها حينَ توجدُ، وأنَّ المهمّةَ المدنيّةَ لا تتأثّر — وهذا سلوكُ دالّةٍ في المحرّكِ نفسِه وقيدِ `job_heartbeats.city_id not null` لا يُقاسُ بمحرّكٍ مُصنَّع.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بها postgis والهجرات مطبَّقة (ومنها 20261029180000). يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي».",
+    owner: "منفّذ المستودع",
+    criticalPath: null,
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+  {
     file: "tests/integration/driver-support-intake.test.ts",
     suites: ["بوّابةُ الدورِ — في القاعدةِ لا في الشِفرةِ", "صفحةُ تذاكرِ السائقِ — تُفرَزُ بصفِّ سياقتِه"],
     skipped: 13,

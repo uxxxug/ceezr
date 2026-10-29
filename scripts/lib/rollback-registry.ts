@@ -1522,6 +1522,17 @@ export const ROLLBACK_DECLARATIONS: readonly RollbackDeclaration[] = [
     criticalPath: null,
     documentedIn: null,
   },
+  {
+    migration: "20261029180000_job_heartbeat_global_without_active_cities.sql",
+    change: "revoke_function:record_job_heartbeat(4)",
+    why: "WR-27 — `create or replace` لـ`record_job_heartbeat` بالتوقيعِ نفسِه: المهمّةُ العامّةُ (`p_city_id` فارغٌ) تكتبُ نبضتَها لكلِّ مدينةٍ معرَّفةٍ إن لم تكن مدينةٌ مفعَّلة، فلا يبقى `/ready` على `critical_jobs` في نشرٍ مدنُه كلُّها غيرُ مفعَّلة. إعادةُ `revoke all ... from public` تكرارٌ حرفيٌّ لصلاحياتِ الدالّةِ قبلَها (والمنحُ لـ`service_role` باقٍ كما هو) — لا تضييقَ جديد. والعودةُ إعادةُ تطبيقِ نصِّ الدالّةِ السابق — تراجعٌ سلوكيٌّ لا فقدُ عقد.",
+    breaksPreviousRelease: false,
+    rollbackPath: "code-only",
+    coupledDeploy: false,
+    owner: "منفّذ المستودع",
+    criticalPath: null,
+    documentedIn: null,
+  },
 ];
 
 /**

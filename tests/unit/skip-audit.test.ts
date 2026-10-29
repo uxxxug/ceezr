@@ -1026,7 +1026,9 @@ describe("السجلُّ الحقيقيُّ — أرقامٌ مقيسةٌ مُث
     // صفِّ سائقٍ تُصانُ لغتُهُ و`driver = null`، والغائبُ ⇒ `null` كما كانَ، وعقدُ الاستعلامِ
     // موثّقٌ في نصِّهِ، ورحلةٌ واحدةٌ على عدّادِ postgres.js) — لقطةُ PostgreSQL ومشغِّلاتُها
     // لا يُثبِتُها بديلٌ في الذاكرةِ.
-    expect(SKIP_REGISTRY).toHaveLength(217);
+    // زيادةٌ (WR-27 · نبضةُ المهمّةِ العامّةِ بلا مدينةٍ مفعَّلة · 2026-10-29 · حزمةُ
+    // `wr-27-heartbeat-no-active-city`): 218 — `job-heartbeat-no-active-city.test.ts`.
+    expect(SKIP_REGISTRY).toHaveLength(218);
     // زيادةٌ (SEC-22 · 2026-10-29): ملفُّ إنفاذِ الحجبِ في إنشاءِ الطلبِ
     // (`blocked-rider-request-enforcement.test.ts`) وحالاتُهُ الأربعُ — كلُّها على
     // `TEST_DATABASE_URL` لأنَّ المقصودَ قفلُ صفِّ المستخدمِ وحكمُ قاعدةِ
@@ -1048,7 +1050,8 @@ describe("السجلُّ الحقيقيُّ — أرقامٌ مقيسةٌ مُث
     // زيادةٌ (LOAD-01 · تسجيلُ السائقِ بجملةٍ واحدة · 2026-10-25): 1731 — حالاتُ `driver-register-single-statement.test.ts` الأربع.
     // زيادةٌ (LOAD-01 · توفّرُ السائقِ بجملةٍ واحدة · 2026-10-25): 1734 — حالاتُ `driver-availability-single-statement.test.ts` الثلاث.
     // زيادةٌ (LOAD-01 · C2 دمجُ قراءةِ لغةِ المرسلِ · 2026-10-25): 1739 — حالاتُ `driver-sender-context.test.ts` الخمس.
-    expect(SKIP_REGISTRY.reduce((sum, entry) => sum + entry.skipped, 0)).toBe(1743);
+    // زيادةٌ (WR-27 · 2026-10-29): 1746 — حالاتُ `job-heartbeat-no-active-city.test.ts` الثلاث.
+    expect(SKIP_REGISTRY.reduce((sum, entry) => sum + entry.skipped, 0)).toBe(1746);
   });
 
   it("لا تجاوزَ على مسارٍ حرجٍ بلا مُشغِّلٍ، وما لا مُشغِّلَ له مُعلَنٌ ببيانٍ", () => {
