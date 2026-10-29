@@ -29,6 +29,10 @@ import { testConfig } from "../support/config.ts";
 import {
   describeWorkGrowth,
   type EngineWork,
+  type MaintenanceJobs,
+  maintenanceJobsBetween,
+  maintenanceJobsRan,
+  readMaintenanceJobs,
   settleEngineWork,
   WORK_BLOCK_RIDES,
   WORK_GROWTH_CEILING,
@@ -110,6 +114,20 @@ if (DATABASE_URL === undefined) {
 describeIf("صمود: ثلاثون رحلة متتابعة بلا تدخّل", () => {
   beforeAll(async () => {
     sql = createSql({ connectionString: DATABASE_URL ?? "" });
+
+    // إنذارٌ مبكّرٌ لا حُكمٌ (`BUG-017`): مَن يُشغِّلُ الصمودَ على قاعدةٍ
+    // بإعدادِ `autovacuum` الافتراضيِّ قد يرى القياسَ يتلوَّنُ بعملِ الصيانةِ
+    // الخلفيّةِ فيُنسَبُ إلى الشيفرةِ وهوَ ليسَ منها. وCI يعطِّلُها قبلَ الصمودِ
+    // فعلاً. والإنذارُ لا يُخفي شيئاً: التلوّثُ الفعليُّ يُلتقَطُ بالعدّادِ
+    // أدناه ويُفشِلُ الاختبارَ برسالةٍ صريحةٍ.
+    const [autovacuumSetting] = await sql<{ autovacuum: string }[]>`show autovacuum`;
+    if (autovacuumSetting?.autovacuum === "on") {
+      console.warn(
+        "⚠️  صمود/تحذير: autovacuum مُفعَّلٌ — الصيانةُ الخلفيّةُ قد تُلوِّثُ القياسَ " +
+          "(BUG-017). CI يعطِّلُها قبلَ الصمودِ: " +
+          "alter system set autovacuum = off; select pg_reload_conf();",
+      );
+    }
     const cities = await sql<{ id: string }[]>`select id from cities where code = 'JED'`;
     const id = cities[0]?.id;
     if (id === undefined) throw new Error("لم تُطبَّق هجرة بذر المدن على قاعدة الاختبار");
@@ -194,6 +212,8 @@ describeIf("صمود: ثلاثون رحلة متتابعة بلا تدخّل", (
     const starCycle = [3, 4, 5, 4] as const;
     /** حدودُ الكُتَلِ الثلاثِ: بعدَ الرحلةِ العاشرةِ والعشرينَ والثلاثينَ. */
     const boundaries = new Map<number, EngineWork>();
+    /** عدّاداتُ الصيانةِ عندَ الحدودِ نفسِها: نافذةُ القياسِ تُحرسُ من التلوّثِ. */
+    const maintenance = new Map<number, MaintenanceJobs>();
     let expectedStarSum = 0;
 
     for (let ride = 0; ride < RIDES; ride += 1) {
@@ -228,7 +248,11 @@ describeIf("صمود: ثلاثون رحلة متتابعة بلا تدخّل", (
 
       // حدُّ كتلةٍ: تُقرأُ العدّاداتُ بعدَ سكونٍ مقيسٍ، ثلاثَ مرّاتٍ لا ثلاثينَ.
       if ((ride + 1) % WORK_BLOCK_RIDES === 0) {
-        boundaries.set(ride + 1, await settleEngineWork(sql));
+        const settled = await settleEngineWork(sql);
+        boundaries.set(ride + 1, settled);
+        // عدّاداتُ الصيانةِ تُقرأُ بعدَ السكونِ لا قبله: إفراغُها من الآليّةِ
+        // نفسِها، فيُدرِكُ السكونُ ما جرى قبلَهُ من مهامَّ خلفيّةٍ.
+        maintenance.set(ride + 1, await readMaintenanceJobs(sql));
       }
 
       // تحقّق داخل الحلقة: الفشل يجب أن يُنسب إلى رحلته لا أن يظهر مجمّعاً في
@@ -290,6 +314,32 @@ describeIf("صمود: ثلاثون رحلة متتابعة بلا تدخّل", (
     const atThirty = boundaries.get(30);
     if (atTen === undefined || atTwenty === undefined || atThirty === undefined) {
       throw new Error("لم تُقرأْ حدودُ الكُتَلِ الثلاثُ — القياسُ ناقصٌ فلا حكمَ له");
+    }
+
+    // نافذةُ القياسِ نظيفةٌ من الصيانةِ الخلفيّةِ (`BUG-017`): عدّاداتُ القاعدةِ
+    // تُحتسِبُ عملَ `autovacuum` في مسحوصاتِ الاستعلاماتِ وكُتَلِها، فيُنسَبُ
+    // عملُ الصيانةِ إلى الشيفرةِ المقيوسةِ وهوَ ليسَ منها — وهذا ما قرأَ ٣٢٤٨١
+    // كتلةً في تشغيلٍ و١٢٤٣٠ في إعادتِهِ على الالتزامِ نفسِهِ. والكشفُ هنا ليسَ
+    // ظنَّ احتمالٍ بل عدّادٌ يُقرأُ عندَ حدَّي النافذةِ: مهمّةٌ واحدةٌ داخلَها
+    // تُبطلُ القياسَ كلَّه — سواءٌ أخضرَ أم سقطَ — لأنَّ الحُكمَ صارَ عن عملٍ
+    // ليسَ كلُّهُ من الشيفرةِ. فالنظافةُ شرطُ صحةٍ للحُكمِ لا حُكمٌ يُدارُ.
+    const maintenanceStart = maintenance.get(WORK_BLOCK_RIDES);
+    const maintenanceEnd = maintenance.get(RIDES);
+    if (maintenanceStart === undefined || maintenanceEnd === undefined) {
+      throw new Error("لم تُقرأْ عدّاداتُ الصيانةِ عندَ حدَّي النافذةِ — التحقُّقُ ناقصٌ فلا حكمَ له");
+    }
+    const pollutedMaintenance = maintenanceJobsBetween(maintenanceStart, maintenanceEnd);
+    if (maintenanceJobsRan(pollutedMaintenance)) {
+      throw new Error(
+        `قياسٌ ملَوَّثٌ بصيانةٍ خلفيّةٍ داخلَ نافذةِ القياسِ: ` +
+          `autovacuum=${String(pollutedMaintenance.autovacuumCount)} · ` +
+          `autoanalyze=${String(pollutedMaintenance.autoanalyzeCount)} — ` +
+          `عملُ الصيانةِ يُحتسَبُ في عدّاداتِ القاعدةِ فيُنسَبُ إلى الشيفرةِ وحدَها ` +
+          `(BUG-017: docs/evidence/correctness/BUG-017-20260919.md). ` +
+          `عطِّلِ الصيانةَ قبلَ القياسِ كما يفعلُ CI ` +
+          `(alter system set autovacuum = off; select pg_reload_conf();) ` +
+          `ثمَّ أعِدِ التشغيلَ — لا تُقبَلْ قراءةٌ من نافذةٍ ملَوَّثةٍ.`,
+      );
     }
     const warmBaseline = workBetween(atTen, atTwenty);
     const finalBlock = workBetween(atTwenty, atThirty);
