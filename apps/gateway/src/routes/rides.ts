@@ -179,7 +179,7 @@ export interface RidesRouteDependencies {
  */
 export const RIDE_REQUEST_MAX_BYTES = 12_288;
 
-const STATUS_BY_ERROR: Readonly<Record<RequestRidePublicErrorCode, 400 | 401 | 404 | 503>> = {
+const STATUS_BY_ERROR: Readonly<Record<RequestRidePublicErrorCode, 400 | 401 | 403 | 404 | 503>> = {
   SESSION_REQUIRED: 401,
   SESSION_INVALID: 401,
   SESSION_EXPIRED: 401,
@@ -205,6 +205,8 @@ const STATUS_BY_ERROR: Readonly<Record<RequestRidePublicErrorCode, 400 | 401 | 4
   // الجلسةُ صحيحةٌ ولا صفَّ مستخدمٍ: `404` لا `401`، ولا يُنشَأُ الصفُّ (`ADR 0035`).
   ACCOUNT_NOT_FOUND: 404,
   RIDER_NOT_REGISTERED: 404,
+  // SEC-22 — الموقوفُ يُرفَضُ بصفةِ حسابِهِ لا بعطبِ الخدمةِ: `403` لا `503`.
+  ACCOUNT_BLOCKED: 403,
   RIDE_STORE_NOT_AVAILABLE: 503,
 };
 
@@ -228,7 +230,7 @@ export const RIDE_RATING_MAX_BYTES = 4096;
  * وأمّا رفضُ القاعدةِ (`ALREADY_RATED` · `RATING_WINDOW_CLOSED` · …) فيُنشَرُ
  * `200` بـ`accepted:false` كما في بقيّةِ مساراتِ الرحلةِ.
  */
-const STATUS_BY_RATING_ERROR: Readonly<Record<RatingErrorCode, 400 | 401 | 404 | 503>> = {
+const STATUS_BY_RATING_ERROR: Readonly<Record<RatingErrorCode, 400 | 401 | 403 | 404 | 503>> = {
   ...STATUS_BY_ERROR,
   STARS_OUT_OF_RANGE: 400,
   COMMENT_TOO_LONG: 400,
@@ -247,7 +249,9 @@ function ratingRejected(c: Context, error: RatingErrorCode) {
  * و`SHARING_NOT_CONFIGURED` تُنشَرُ `503` لا `400`: المُنادي لم يُخطئْ، والمنصّةُ
  * هيَ التي لم تُضبَطْ. و`400` كانت ستدفعُ العميلَ إلى تصحيحِ طلبٍ سليمٍ أبداً.
  */
-const STATUS_BY_SHARE_ERROR: Readonly<Record<RideSharePublicErrorCode, 400 | 401 | 404 | 503>> = {
+const STATUS_BY_SHARE_ERROR: Readonly<
+  Record<RideSharePublicErrorCode, 400 | 401 | 403 | 404 | 503>
+> = {
   ...STATUS_BY_ERROR,
   SHARING_NOT_CONFIGURED: 503,
 };

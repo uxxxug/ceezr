@@ -137,6 +137,10 @@ export const NON_REFUSAL_ERROR_CODES: readonly string[] = [
   "ORDER_NOT_CANCELLABLE",
   "ORDER_NOT_FOUND",
   "INVALID_ORDER_ID",
+  // SEC-22 — حسابٌ موقوفٌ من الإدارةِ (`users.is_blocked`): حالةُ حسابٍ لا رفضَ
+  // منتجٍ؛ خطأُ متجرٍ برمزِهِ يُترجَمُ `403`، ويُعلَنُ ههنا كي لا يُوسَّعَ
+  // الاستثناءُ صامتاً إذا ما وُلِدَ رمزٌ آخرُ في `request_ride` بلا عقدٍ.
+  "ACCOUNT_BLOCKED",
 ];
 
 /** مفاتيحُ شاشةِ البحثِ التي يُوجِبُها معيارُ القبولِ في `SR-05` حرفاً. */

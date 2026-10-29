@@ -92,6 +92,11 @@ export type RequestRidePublicErrorCode =
   | PlaceMetaRefusal
   | "ACCOUNT_NOT_FOUND"
   | "RIDER_NOT_REGISTERED"
+  /**
+   * SEC-22 — حسابٌ موقوفٌ من الإدارةِ يُطلَبُ منه رحلةٌ: `403` لا `503` ولا
+   * رفضَ منتجٍ. العزلُ عندَ موضعِ الأثرِ (إنشاءِ الطلبِ) لا عندَ إصدارِ الجلسةِ.
+   */
+  | "ACCOUNT_BLOCKED"
   | "RIDE_STORE_NOT_AVAILABLE";
 
 function sessionErrorFrom(reason: string): RequestRidePublicErrorCode {
@@ -103,6 +108,7 @@ function sessionErrorFrom(reason: string): RequestRidePublicErrorCode {
 export function rideStoreErrorFrom(failure: RideStoreFailure): RequestRidePublicErrorCode {
   if (failure.reason === "USER_NOT_FOUND") return "ACCOUNT_NOT_FOUND";
   if (failure.reason === "RIDER_NOT_REGISTERED") return "RIDER_NOT_REGISTERED";
+  if (failure.reason === "ACCOUNT_BLOCKED") return "ACCOUNT_BLOCKED";
   return "RIDE_STORE_NOT_AVAILABLE";
 }
 
