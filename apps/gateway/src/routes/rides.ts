@@ -249,7 +249,7 @@ function ratingRejected(c: Context, error: RatingErrorCode) {
  * و`SHARING_NOT_CONFIGURED` تُنشَرُ `503` لا `400`: المُنادي لم يُخطئْ، والمنصّةُ
  * هيَ التي لم تُضبَطْ. و`400` كانت ستدفعُ العميلَ إلى تصحيحِ طلبٍ سليمٍ أبداً.
  */
-const STATUS_BY_SHARE_ERROR: Readonly<Record<RideSharePublicErrorCode, 400 | 401 | 403 | 404 | 503>> = {
+const STATUS_BY_SHARE_ERROR: Record<RideSharePublicErrorCode, 400 | 401 | 403 | 404 | 503> = {
   ...STATUS_BY_ERROR,
   SHARING_NOT_CONFIGURED: 503,
 };
