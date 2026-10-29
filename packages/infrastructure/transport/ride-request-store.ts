@@ -189,6 +189,9 @@ export function createRideRequestCommand(sql: Sql): RideRequestCommand {
         const code = result.error;
         if (code === "USER_NOT_FOUND") return err(failed("USER_NOT_FOUND"));
         if (code === "RIDER_NOT_REGISTERED") return err(failed("RIDER_NOT_REGISTERED"));
+        // SEC-22 — حالةُ حسابٍ لا رفضَ منتجٍ: تُقفزُ فحصَ الرفضِ (ليست في
+        // `RIDE_REFUSALS`) وتُترجَمُ خطأَ متجرٍ برمزِها لا عطبًا عامًّا.
+        if (code === "ACCOUNT_BLOCKED") return err(failed("ACCOUNT_BLOCKED"));
         if (!isRideRefusal(code)) return err(failed("STORE_ERROR"));
         if (code === "ACTIVE_RIDE_EXISTS") {
           const orderId = readText(result.order_id);

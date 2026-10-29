@@ -60,6 +60,8 @@ const STATUS_BY_ERROR: Readonly<Record<DeliveryCreateErrorCode, 400 | 401 | 403 
   PLACE_POINT_UNRELIABLE: 400,
   ACCOUNT_NOT_FOUND: 404,
   RIDER_NOT_REGISTERED: 403,
+  // SEC-22 — الحارسُ في `request_ride` يقعُ لخدمةِ التوصيلِ أيضاً (الدالّةُ نفسُها).
+  ACCOUNT_BLOCKED: 403,
   RIDE_STORE_NOT_AVAILABLE: 503,
   PARCEL_DESCRIPTION_INVALID: 400,
   // `WR-05` — سياسةُ المبلغ: عطبُ طلبٍ يُصلِحُه الراكب.

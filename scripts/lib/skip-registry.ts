@@ -626,6 +626,20 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     whyNotRun: null,
   },
   {
+    file: "tests/integration/blocked-rider-request-enforcement.test.ts",
+    suites: ["SEC-22: المحجوبُ لا يطلبُ — عبرَ المسارِ المكوَّنِ"],
+    skipped: 4,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "يُثبِت «المحجوبُ لا يطلبُ» على PostgreSQL حقيقيةٍ بالهجرات مطبَّقة. ولا يُثبَت ذلك ببديلٍ في الذاكرة: المقصودُ سلوكُ المحرّكِ نفسِه — القيودُ والترتيبُ وقفلُ صفِّ المستخدمِ — لا سلوكُ محاكٍ نكتبه نحن.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بالهجرات مطبَّقة. يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي»، ويفعله المطوّرُ محلّياً بحاويةِ postgres.",
+    owner: "منفّذ المستودع",
+    criticalPath: "دورةُ الرحلةِ والإسناد",
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+  {
     file: "tests/integration/blocking-enforcement.test.ts",
     suites: ["نفاذ الحجب في مسار الإسناد"],
     skipped: 6,

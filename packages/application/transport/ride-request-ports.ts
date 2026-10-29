@@ -43,6 +43,12 @@ export type RideStoreFailureReason =
   | "USER_NOT_FOUND"
   /** صفُّ مستخدمٍ قائمٌ ولا صفَّ راكبٍ: تسجيلٌ ناقصٌ يُعلَنُ ولا يُكمَلُ ضمناً. */
   | "RIDER_NOT_REGISTERED"
+  /**
+   * SEC-22 — الحسابُ موقوفٌ من الإدارةِ (`users.is_blocked`): ليسَ رفضَ منتجٍ
+   * لهُ مفتاحُ خروجٍ، بل حالةُ حسابٍ تُترجَمُ `403` على الشبكةِ. والرفضُ بلا
+   * كتابةٍ في القاعدةِ — الطلبُ لم يُنشَأْ.
+   */
+  | "ACCOUNT_BLOCKED"
   | "NOT_CONFIGURED"
   | "STORE_ERROR";
 
