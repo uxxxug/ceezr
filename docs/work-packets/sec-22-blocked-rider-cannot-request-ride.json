@@ -5,6 +5,7 @@
     "تدقيقُ 2026-10-29 الأمنيُّ (فحصُ إنفاذِ الحجبِ) — الأدلةُ المحفوظةُ خارجَ المستودعِ في حزمةِ جلسةِ التدقيق"
   ],
   "implementation": [
+    ".gitignore",
     "apps/gateway/src/routes/deliveries.ts",
     "apps/gateway/src/routes/rides.ts",
     "packages/application/transport/request-ride.ts",
