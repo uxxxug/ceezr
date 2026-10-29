@@ -6,7 +6,9 @@
     "supabase/migrations/20261029180000_job_heartbeat_global_without_active_cities.sql",
     "docker/upstash-rest-shim/shim.ts",
     "scripts/lib/rollback-registry.ts",
-    "tests/integration/job-heartbeat-no-active-city.test.ts"
+    "tests/integration/job-heartbeat-no-active-city.test.ts",
+    "scripts/lib/skip-registry.ts",
+    "tests/unit/skip-audit.test.ts"
   ],
   "state": ["docs/SYSTEM_STATE.md"],
   "roadmap": ["ROADMAP.md"],
