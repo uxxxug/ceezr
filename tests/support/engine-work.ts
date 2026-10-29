@@ -121,6 +121,76 @@ export function describeWorkGrowth(
   );
 }
 
+/**
+ * مهامُّ الصيانةِ الخلفيّةِ (`autovacuum`/`autoanalyze`) التي نُفِّذَت على جداولِ
+ * القاعدةِ — عدّادُ تلوّثِ القياسِ (`BUG-017`).
+ *
+ * عدّاداتُ `pg_stat_database` التي يقيسُ بها هذا الملفُ عملَ الشيفرةِ
+ * **قاعدةً عريضةً**: كلُّ ما جرى على القاعدةِ يُحتسَبُ، والصيانةُ الخلفيّةُ
+ * تعملُ على القاعدةِ نفسِها فتُدرَجُ مسحوصاتُها وكُتَلُها في القياسِ، فيُنسَبُ
+ * عملُها إلى الشيفرةِ المقيوسةِ وهيَ ليسَ منها — وهذا عينُ ما رُصدَ في
+ * `BUG-017`: الالتزامُ نفسُه في الجولةِ نفسِها قرأَ كُتَلاً ٣٢٤٨١ في تشغيلٍ
+ * و١٢٤٣٠ في إعادتِه (＋١٦١٪) — والفرقُ كلُّهُ صيانةٌ خلفيّةٌ.
+ *
+ * والعدّاداتُ الفردّيةُ لكلِّ جدولٍ (`pg_stat_user_tables`) تُفرَّغُ من الآليّةِ
+ * نفسِها التي تُفرِّغُ عدّاداتِ العملِ، فقراءتُها حولَ نافذةِ القياسِ تكشفُ ما
+ * دخلَها — والعدّاداتُ تُفرَّغُ دوريّاً بلا إعدادٍ، فغيابُ التحقُّقِ ليسَ دليلَ
+ * غيابِ التلوّثِ.
+ */
+export interface MaintenanceJobs {
+  /** مهامُّ `autovacuum` على جداولِ القاعدةِ — `sum(autovacuum_count)`. */
+  readonly autovacuumCount: bigint;
+  /** مهامُّ `autoanalyze` على جداولِ القاعدةِ — `sum(autoanalyze_count)`. */
+  readonly autoanalyzeCount: bigint;
+}
+
+/**
+ * فرقُ مهامِّ الصيانةِ بينَ حدَّينِ: ما تسلَّلَ إلى نافذةِ القياسِ.
+ * دالةٌ صرفةٌ تُقاسُ بسالباتٍ مزروعةٍ لا بما يصادفُه القرصُ (`ح-٧`).
+ */
+export function maintenanceJobsBetween(
+  before: MaintenanceJobs,
+  after: MaintenanceJobs,
+): MaintenanceJobs {
+  return {
+    autovacuumCount: after.autovacuumCount - before.autovacuumCount,
+    autoanalyzeCount: after.autoanalyzeCount - before.autoanalyzeCount,
+  };
+}
+
+/**
+ * هل جرَت مهامُّ صيانةٍ في النافذةِ؟ أيُّ انحرافٍ عن الصفرِ يُغني — حتى السالبَ:
+ * العدّاداتُ لا تعودُ إلى الوراءِ إلا بإعادةِ ضبطِها وسطَ القياسِ، وذلكَ بنفسِهِ
+ * يُبطلُ القياسَ (حدٌّ قُرئَ قبلَ الضبطِ وقيسَ بعدهُ).
+ */
+export function maintenanceJobsRan(jobs: MaintenanceJobs): boolean {
+  return jobs.autovacuumCount !== 0n || jobs.autoanalyzeCount !== 0n;
+}
+
+/**
+ * قراءةٌ واحدةٌ لعدّادَي الصيانةِ بعدَ مسحِ لقطةِ الجلسةِ. تُقرأُ **بعدَ
+ * سكونِ عدّاداتِ العملِ** (`settleEngineWork`) لا قبله: إفراغُها من الآليّةِ
+ * نفسِها، والسكونُ يضمنُ أنَّ ما أفرغَتْهُ الخوادمُ الخلفيّةُ صارَ فيها.
+ *
+ * وكلفةُها على القياسِ نفسِهِ معدومةً قياساً: تجميعٌ على منظورٍ لا يُعيدُ
+ * صفّاً من جداولِ المستخدمِ، فقد قيسَ أثرُها على عدّاداتِ القاعدةِ صفراً.
+ */
+export async function readMaintenanceJobs(sql: Sql): Promise<MaintenanceJobs> {
+  await sql`select pg_stat_clear_snapshot()`;
+  const [row] = await sql<{ autovacuum: string; autoanalyze: string }[]>`
+    select coalesce(sum(autovacuum_count), 0)::text as autovacuum,
+           coalesce(sum(autoanalyze_count), 0)::text as autoanalyze
+      from pg_stat_user_tables
+  `;
+  if (row === undefined) {
+    throw new Error("لا منظورَ `pg_stat_user_tables` للقاعدةِ الجاريةِ");
+  }
+  return {
+    autovacuumCount: BigInt(row.autovacuum),
+    autoanalyzeCount: BigInt(row.autoanalyze),
+  };
+}
+
 /** قراءةٌ واحدةٌ للعدّادَينِ بعدَ مسحِ لقطةِ الجلسةِ. */
 async function readEngineWork(sql: Sql): Promise<EngineWork> {
   await sql`select pg_stat_clear_snapshot()`;

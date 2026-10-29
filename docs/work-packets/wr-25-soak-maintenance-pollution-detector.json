@@ -1,0 +1,29 @@
+{
+  "id": "wr-25-soak-maintenance-pollution-detector",
+  "goal": "§25 اختبارات الوحدة والتكامل: قياس صمود ride-soak يقرأ عدادات pg_stat_database قاعدةً عريضة، فصيانة autovacuum/autoanalyze الخلفية تُدخل عملها في المقياس ويُنسب إلى الشيفرة المقيوسة (BUG-017: 32,481 كتلة مقابل 12,430 على الالتزام نفسه). CI يعطل الصيانة قبل الصمود، لكن الاختبار نفسه ظل يقبل نافذة ملَوَّثة ويقرأ رقمها — فالإخفاق المحلي الغامض يُقرأ عيبًا في الشيفرة وهو تلوث قياس. الحرس يُبطل النافذة الملوثة صريحًا لا أن يقرأها.",
+  "canonical_source": ["docs/roadmap/execution/ORDER-20261012.md"],
+  "implementation": [
+    "tests/support/engine-work.ts",
+    "tests/e2e/ride-soak.test.ts",
+    "scripts/lib/soak-work-measure.ts",
+    "tests/unit/check-soak-work-measure.test.ts",
+    "tests/unit/engine-work-maintenance.test.ts"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["docs/ROADMAP-MASTER.md"],
+  "affected_docs": ["docs/evidence/correctness/BUG-017-20260919.md"],
+  "decision": "لا تغيير في الشيفرة الإنتاجية ولا في الميزانيات المحمية (ROWS_SCANNED_BUDGET=10500 وBLOCKS_TOUCHED_BUDGET=10900 كما هي) ولا في توكيد DEC-18 ولا في أي بوابة قبول. الإضافة حرس صحة قياس: عدادات الصيانة تقرأ عند حدود الكتل الثلاث قبل توكيدات الميزانية والنمو، ومهمة واحدة داخل النافذة (أو عداد عاد إلى الوراء) تسقط الاختبار برسالة تحيل إلى BUG-017 وتبديله، مع إنذار مسبق عند autovacuum=on. قاعدة ثامنة maintenance.pollution في الحارس الساكن check-soak-work-measure بسالبات مبذورة.",
+  "tests": [
+    "TEST_DATABASE_URL=… bun test tests/unit/engine-work-maintenance.test.ts tests/unit/check-soak-work-measure.test.ts",
+    "TEST_DATABASE_URL=… bun test tests/e2e/ride-soak.test.ts",
+    "bun run scripts/check-soak-work-measure.ts"
+  ],
+  "evidence": "نافذة نظيفة (autovacuum معطل كما في CI): الصمود يمر — 7,724/10,500 صفًا و6,510/10,900 كتلة. نافذة ملَوَّثة (تكرار مضبوط: autovacuum مفعل بـ naptime=2s): الاختبار أخفق برسالة التلوث (autovacuum=1 · autoanalyze=11) لا برقم ميزانية. كلفة قراءة العدادات على القياس نفسه قيست صفراً (صفوفًا وكتلًا).",
+  "constraints": [
+    "لا كتابة على الإنتاج",
+    "لا تغيير في الميزانيات المحمية",
+    "لا تغيير في بوابة القبول أو السقوف أو توكيد DEC-18",
+    "لا رفع سقف ولا حذف اختبار"
+  ],
+  "limitations": "الكاشف يبطل القياس الملوث ولا يقيس مقدار التلوث؛ التلوث بعد آخر قراءة حدود لا يُلتقط (لا يلوث نافذة مقيسة أصلًا)؛ CI غير متأثر إذ يعطل الصيانة أصلًا. ومن شغل على قاعدة نظيفة وأخفق فإخفاقه المحروس له لا يُنسب للصيانة."
+}
