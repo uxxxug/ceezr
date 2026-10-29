@@ -45,7 +45,7 @@ describeIf("نبضةُ المهمّةِ العامّةِ بلا مدينةٍ م�
 
   it("بلا مدينةٍ مفعَّلةٍ: صفٌّ لكلِّ مدينةٍ معرَّفة، فيراها `/ready`", async () => {
     await inRolledBackTx(async (tx) => {
-      await tx`update cities set is_active = false where is_active = true`;
+      await tx`update cities set is_active = false where is_active`;
       const totalRows = await tx<{ total: number }[]>`select count(*)::int as total from cities`;
       const total = totalRows[0]?.total ?? 0;
       const name = `hb-test-global-${crypto.randomUUID()}`;
@@ -67,7 +67,7 @@ describeIf("نبضةُ المهمّةِ العامّةِ بلا مدينةٍ م�
 
   it("معَ مدينةٍ مفعَّلةٍ: صفوفُ المفعَّلةِ وحدَها، كما كانَ حرفًا", async () => {
     await inRolledBackTx(async (tx) => {
-      const active = await tx<{ id: string }[]>`select id from cities where is_active = true`;
+      const active = await tx<{ id: string }[]>`select id from cities where is_active`;
       if (active.length === 0) return; // لا تفعيلَ في هذا الملفِّ عن قصد (OPS-020).
       const name = `hb-test-active-${crypto.randomUUID()}`;
       await tx`select record_job_heartbeat(${name}::text, null::uuid, 'ok'::text, null::text)`;
@@ -80,7 +80,7 @@ describeIf("نبضةُ المهمّةِ العامّةِ بلا مدينةٍ م�
 
   it("المهمّةُ المدنيّةُ لا تتأثّر: صفٌّ واحدٌ لمدينتِها", async () => {
     await inRolledBackTx(async (tx) => {
-      await tx`update cities set is_active = false where is_active = true`;
+      await tx`update cities set is_active = false where is_active`;
       const [city] = await tx<{ id: string }[]>`select id from cities limit 1`;
       if (city === undefined) throw new Error("لا مدينةَ في البذرة");
       const name = `hb-test-city-${crypto.randomUUID()}`;
