@@ -1,0 +1,49 @@
+# الغرض: مخزنُ وثائقِ السائقِ ذاتيُّ الاستضافةِ على CasaOS (ADR 0294 · WR-21) — مقطعُ خدماتٍ
+#   يُلحَقُ بـ/opt/wasla/compose.yml بجانبِ مقطعِ البوابات (compose.gateways.yml).
+#
+# - `storage`: ‏supabase/storage-api مثبَّتٌ بالبصمة، وواجهتُه مثلُ Supabase Storage
+#   (`/object/upload/sign/…` و`/object/sign/…` و`HEAD`/`Range`)، فلا يتغيّرُ كودُ البوابة.
+#   البايتاتُ على قرصِ الخادم (`STORAGE_BACKEND=file`) في المجلّدِ المسمّى `storage-files`.
+# - `storage-db`: ‏Postgres منفصلٌ لبياناتِ المخزنِ الوصفيّة. لِمَ لا قاعدةُ `waslah`؟ لأنّ
+#   storage-api يحتاجُ أدوارَ `anon`/`authenticated`/`service_role` بصلاحيّاتٍ يمنحُها لنفسِه
+#   (DB_INSTALL_ROLES)، ومنحُها في عنقودِ التطبيقِ يفتحُ بياناتِ الركّابِ والسائقين لمفتاحِ المخزن.
+# - لا منفذَ منشور: الشبكةُ `internal` وحدَها. البوابةُ تصلُه عبرَ `lb:8090` (HAProxy يُعيدُ
+#   كتابةَ `/storage/v1/*` إلى `/*`)، والهاتفُ عبرَ `public_front` لمساريْن موقَّعَين فقط.
+# - الأسرارُ في /etc/wasla/storage.env (600، تُولَّدُ على الخادم ولا تُطبَعُ ولا تدخلُ Git):
+#     POSTGRES_PASSWORD  DATABASE_URL  AUTH_JWT_SECRET  PGRST_JWT_SECRET  ANON_KEY  SERVICE_KEY
+#   والبوابةُ تقرأُ SERVICE_KEY باسمِ OBJECT_STORAGE_SECRET_KEY من /etc/wasla/storage-client.env.
+# - النسخُ الاحتياطيُّ في backup.sh: ‏pg_dump لـ`storage-db` وأرشيفُ `storage-files` معاً.
+  storage-db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    env_file: [/etc/wasla/storage.env]
+    environment: {POSTGRES_DB: storage, POSTGRES_USER: postgres}
+    volumes: ["storage-db-data:/var/lib/postgresql/data"]
+    networks: [internal]
+    mem_limit: 256m
+    cpus: 0.5
+    healthcheck: {test: ["CMD-SHELL", "pg_isready -U postgres -d storage"], interval: 10s, timeout: 5s, retries: 10}
+  storage:
+    image: supabase/storage-api:v1.84.36@sha256:da5e5e14e48002ff7ec8f38e3ca2186edc9dc1940c45b6b17b649fca87cd3f8e
+    restart: unless-stopped
+    env_file: [/etc/wasla/storage.env]
+    environment:
+      DB_INSTALL_ROLES: "true"
+      DATABASE_MAX_CONNECTIONS: "5"
+      STORAGE_BACKEND: file
+      FILE_STORAGE_BACKEND_PATH: /var/lib/storage
+      # حدُّ المخزنِ = حدُّ البوابة (DRIVER_DOCUMENT_HARD_MAX_BYTES = 5 MiB) — دفاعٌ ثانٍ لا بديل.
+      FILE_SIZE_LIMIT: "5242880"
+      TENANT_ID: wasla
+      REGION: local
+      GLOBAL_S3_BUCKET: wasla
+      ENABLE_IMAGE_TRANSFORMATION: "false"
+    volumes: ["storage-files:/var/lib/storage"]
+    depends_on:
+      storage-db: {condition: service_healthy}
+    networks: [internal]
+    mem_limit: 384m
+    cpus: 0.5
+# ويُضافُ إلى قسمِ `volumes:` الأعلى في compose.yml:
+#   storage-db-data: {}
+#   storage-files: {}

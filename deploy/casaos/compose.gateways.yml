@@ -2,7 +2,8 @@
 # يحلُّ محلَّ الخدمةِ `gateway` الواحدة. الأسرارُ في ملفّاتِ البيئةِ على الخادمِ لا هنا:
 #   /etc/wasla/gateway.env (القائمُ) و/etc/wasla/signal.env (INTERNAL_SIGNAL_SECRET، 600)
 #   و/etc/wasla/public.env (MINIAPP_URL، يكتبُه wasla-tunnel-sync — ADR 0293) وهو آخرُ الملفّات
-#   فيغلبُ القيمةَ النائبةَ في gateway.env.
+#   فيغلبُ القيمةَ النائبةَ في gateway.env. و/etc/wasla/storage-client.env (600، ADR 0294):
+#   OBJECT_STORAGE_URL=http://lb:8090 وOBJECT_STORAGE_SECRET_KEY (مفتاحُ خدمةِ المخزنِ الذاتيّ).
 # `TAG` صورةُ البوابةِ المبنيّةُ من /opt/wasla/src.
 #
 # - العاملُ في gateway-1 وحدَها (RUN_WORKER_IN_GATEWAY)، والمصرِّفُ في الاثنتين (SKIP LOCKED).
@@ -13,7 +14,7 @@
     build: {context: /opt/wasla/src, dockerfile: docker/Dockerfile.gateway}
     image: wasla/gateway:${TAG}
     restart: unless-stopped
-    env_file: [/etc/wasla/gateway.env, /etc/wasla/signal.env, /etc/wasla/public.env]
+    env_file: [/etc/wasla/gateway.env, /etc/wasla/signal.env, /etc/wasla/storage-client.env, /etc/wasla/public.env]
     environment:
       PROCESS_TOPOLOGY: multi-process
       RUN_WORKER_IN_GATEWAY: "true"

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # الغرض: يقرأُ رابطَ النفقِ السريعِ الحاليَّ من cloudflared، فإن خالفَ MINIAPP_URL:
-#   1) يكتبُ /etc/wasla/public.env (600)،
+#   1) يكتبُ /etc/wasla/public.env (600): MINIAPP_URL وOBJECT_STORAGE_PUBLIC_URL (الأصلُ الذي
+#      تُسلَّمُ به روابطُ المخزنِ الموقَّعةُ للهاتف — ADR 0294) بالقيمةِ نفسِها،
 #   2) يُعيدُ إنشاءَ gateway-1 ثمّ gateway-2 واحدةً بعدَ أخرى (لا تخلو الخدمةُ من نسخةٍ جاهزة).
 #      gateway-1 أوّلاً لأنّها العامل: /ready في كلِّ نسخةٍ يقرأُ نبضاتِ العاملِ من القاعدة،
 #      ومهامُّه المدنيّةُ تُحسَبُ عندَ إقلاعِه وحدَه (`container.jobs()`)،
@@ -25,6 +26,7 @@ url="https://$host"
 val(){ sed -nE "s/^$1=(.*)$/\1/p" "$ENV" | tail -1; }
 secret=$(val TELEGRAM_WEBHOOK_SECRET)
 current=$(sed -nE 's/^MINIAPP_URL=(.*)$/\1/p' "$PUB" 2>/dev/null | tail -1 || true)
+storage_current=$(sed -nE 's/^OBJECT_STORAGE_PUBLIC_URL=(.*)$/\1/p' "$PUB" 2>/dev/null | tail -1 || true)
 
 wait_ready(){ # $1 = اسمُ الحاوية
   for _ in $(seq 1 60); do
@@ -34,9 +36,9 @@ wait_ready(){ # $1 = اسمُ الحاوية
   return 1
 }
 
-if [ "$current" != "$url" ]; then
+if [ "$current" != "$url" ] || [ "$storage_current" != "$url" ]; then
   log "url_changed from=${current:-none} to=$url"
-  printf 'MINIAPP_URL=%s\n' "$url" > "$PUB.tmp"; chmod 600 "$PUB.tmp"; mv "$PUB.tmp" "$PUB"
+  printf 'MINIAPP_URL=%s\nOBJECT_STORAGE_PUBLIC_URL=%s\n' "$url" "$url" > "$PUB.tmp"; chmod 600 "$PUB.tmp"; mv "$PUB.tmp" "$PUB"
   for svc in gateway-1 gateway-2; do
     "${COMPOSE[@]}" up -d --no-deps --force-recreate "$svc" >/dev/null 2>&1
     cid=$("${COMPOSE[@]}" ps -q "$svc")

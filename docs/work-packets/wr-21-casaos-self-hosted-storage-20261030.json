@@ -1,0 +1,41 @@
+{
+  "id": "wr-21-casaos-self-hosted-storage-20261030",
+  "goal": "§21 أهليّةُ السائق ورفعُ المستندات: على CasaOS لا مخزنَ لوثائقِ السائق، والرفعُ موقوف، فلا يُعتمَدُ سائقٌ جديد. المطلوبُ مخزنٌ ذاتيٌّ يُنسَخُ ويُستعادُ قبلَ فتحِ الرفع (قرارُ المالك 2026-10-30: «أبني التخزين أولًا»).",
+  "canonical_source": [
+    "docs/roadmap/execution/ORDER-20261012.md",
+    "docs/adr/0294-casaos-self-hosted-object-storage.md"
+  ],
+  "implementation": [
+    "packages/infrastructure/storage/client-url.ts",
+    "packages/infrastructure/storage/signed-upload.ts",
+    "packages/infrastructure/storage/signed-read.ts",
+    "tests/unit/storage-client-url.test.ts",
+    "deploy/casaos/compose.storage.yml",
+    "deploy/casaos/compose.gateways.yml",
+    "deploy/casaos/haproxy.cfg",
+    "deploy/casaos/tunnel/wasla-tunnel-sync.sh",
+    "deploy/casaos/backup.sh",
+    "deploy/casaos/storage-restore-drill.sh"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [
+    "docs/roadmap/execution/STATUS.md",
+    "docs/adr/0294-casaos-self-hosted-object-storage.md",
+    "docs/evidence/production/WR-27-casaos-deploy-20261030-9d538035.md"
+  ],
+  "decision": "storage-api (v1.84.36 بالبصمة) بقرصِ الخادم وقاعدةٍ وصفيّةٍ منفصلة، بلا منفذٍ منشور. البوابةُ تناديه داخليًّا عبرَ lb:8090، والإنترنتُ يصلُ إلى مسارَي الرفعِ والقراءةِ الموقَّعَين وحدَهما. الرابطُ المسلَّمُ للعميلِ يُعادُ تحتَ /storage/v1، ويُسلَّمُ بأصلِ النفقِ العامّ. النسخُ الليليُّ يشملُ المخزن، والاستعادةُ يُتمرَّنُ عليها في حاوياتٍ معزولة. والرفعُ لا يُفتَحُ إلّا بعدَ drill-PASS.",
+  "tests": [
+    "bun test tests/unit/storage-client-url.test.ts — 7/7",
+    "bun test (كامل) — 0 fail",
+    "bun run typecheck · bun run lint"
+  ],
+  "evidence": "على الخادم (قبلَ الدمج): المخزنُ قائمٌ و/status=200، والدلوُ خاصٌّ بحدِّ 5 MiB وثلاثةِ أنواع. إعادةُ تحميلِ HAProxy بلا انقطاع (40/40). ومن الإنترنت: كلُّ مسارٍ تحتَ /storage/ غيرُ المسارَين الموقَّعَين يردُّ 403، ورمزٌ فاسدٌ يردُّ 400. أمّا الرفعُ الطرفيُّ بصورةِ البوابةِ الجديدة، وتمرينُ الاستعادة، وفتحُ الرفع، فبعدَ الدمج، وتُسجَّلُ في دليلٍ منفصل.",
+  "constraints": [
+    "gatewayRequest=5 وIMMEDIATE_REDISPATCH_LIMIT=50 بلا تعديل",
+    "لا منفذَ خارجيٌّ ولا DNS",
+    "حدودُ الوثيقةِ (5 MiB والأنواعُ الثلاثة) بلا تعديل",
+    "render.yaml بلا مساس"
+  ],
+  "limitations": "النسخُ على قرصِ الخادمِ نفسِه، ولا نسخةَ خارجَ الموقع. والرابطُ العامُّ يتبعُ نفقًا مؤقّتًا. وصيغةُ أرشيفِ الإعداداتِ صارت بمساراتٍ كاملة (etc/wasla/… وopt/wasla/…)."
+}
