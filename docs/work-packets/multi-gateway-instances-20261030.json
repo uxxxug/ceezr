@@ -12,6 +12,7 @@
     "apps/gateway/src/realtime/peer-signal.ts",
     "apps/gateway/src/routes/internal-offers-signal.ts",
     "apps/gateway/src/index.ts",
+    "apps/gateway/src/rate-limit/policy.ts",
     "deploy/capacity-run/svc.sh",
     "deploy/capacity-run/b24-runner/seat-bin/host-sampler.py",
     "scripts/measure-tti.ts",
