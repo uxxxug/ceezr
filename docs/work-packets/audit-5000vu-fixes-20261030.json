@@ -1,0 +1,29 @@
+{
+  "id": "audit-5000vu-fixes-20261030",
+  "goal": "إصلاحُ ما ثبتَ من تقريرِ تدقيقِ 5,000 مستخدم: رابطُ startapp الميّت في الميني آب، ومسحُ حدِّ الذاكرةِ الخطّيُّ مع كلِّ طلب، ورحلةُ القاعدةِ الثانيةُ لكلِّ تسليمِ إشعار، ونصُّ «الأسرع يفوز» المخالفُ لمسارِ المرشّحين، وتنوينُ النصبِ الناقص.",
+  "canonical_source": ["docs/SYSTEM_STATE.md"],
+  "implementation": [
+    "apps/miniapp/src/identity/boot.ts",
+    "apps/gateway/src/rate-limit/fixed-window.ts",
+    "packages/infrastructure/notification/notification-outbox-adapters.ts",
+    "packages/shared/i18n/ar.json",
+    "packages/shared/i18n/en.json",
+    "packages/shared/i18n/ur.json",
+    "packages/shared/i18n/miniapp/ar.json",
+    "apps/miniapp/src/identity/boot.test.ts",
+    "tests/unit/rate-limit.test.ts"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": ["docs/SYSTEM_STATE.md"],
+  "decision": "تصحيحاتٌ لا تمسُّ الثابتَين المحميَّين ولا الهجراتِ المطبَّقة ولا دالّةَ الالتقاطِ الحاكمة؛ وبنودُ التوسّعِ (نسخٌ متعدّدة، رفعُ الأحواض، رفعُ حدِّ إعادةِ التوزيع) تبقى قرارَ مالك.",
+  "tests": [
+    "apps/miniapp/src/identity/boot.test.ts",
+    "tests/unit/rate-limit.test.ts",
+    "tests/unit/driver-dialog.test.ts",
+    "tests/integration/notification-outbox.test.ts"
+  ],
+  "evidence": "اختباراتُ الوحدة المذكورة، واختباراتُ تكاملِ صندوقِ الإشعاراتِ على قاعدةٍ حقيقيّةٍ في CI.",
+  "constraints": ["gatewayRequest=5 وIMMEDIATE_REDISPATCH_LIMIT=50 محميّان", "لا تعديلَ لهجرةٍ مطبَّقة"],
+  "limitations": "نصُّ سياسةِ الخصوصيّةِ الأرديّةِ (كلمة retention) وثيقةُ موافقةٍ مُؤرَّخةٌ فلا تُعدَّلُ هنا؛ وتوحيدُ «العميل/الراكب» قرارُ صياغة."
+}

@@ -72,6 +72,20 @@ describe("عدّاد النافذة الثابتة في الذاكرة", () => {
     expect((await limiter.hit("ك")).resetSeconds).toBe(20);
   });
 
+  it("داخل النافذة لا مسحَ للخريطة، والمفتاحُ المنتهي يبدأ نافذةً جديدةً عند لمسه", async () => {
+    let now = 0;
+    const limiter = createMemoryRateLimiter({ limit: 1, windowSeconds: 10 }, () => now);
+    await limiter.hit("أ");
+    now += 5_000;
+    await limiter.hit("ب");
+    now += 6_000;
+    // مضت 11 ثانية على «أ»: نافذتُه انتهت فيُسمَح له وإن لم يحن موعدُ تنظيفٍ لـ«ب».
+    const decision = await limiter.hit("أ");
+    expect(decision.allowed).toBe(true);
+    expect(decision.remaining).toBe(0);
+    expect((await limiter.hit("ب")).allowed).toBe(false);
+  });
+
   it("العدّادات المنتهية تُنظَّف فلا تتكدّس بمفاتيح مهاجم يبدّل عنوانه", async () => {
     let now = 0;
     const limiter = createMemoryRateLimiter({ limit: 5, windowSeconds: 10 }, () => now);

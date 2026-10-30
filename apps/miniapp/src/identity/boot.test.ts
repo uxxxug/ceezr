@@ -12,13 +12,19 @@
 
 import { afterEach, describe, expect, it } from "bun:test";
 import { ApiError, ApiNetworkError } from "../api/client.ts";
-import { type BootDeps, establishSession } from "./boot.ts";
+import {
+  type BootDeps,
+  establishSession,
+  resetBootStartParamForTests,
+  startParamFromBoot,
+} from "./boot.ts";
 import { clearPreboot } from "./preboot.ts";
 import { clearSession, getSession, setSession } from "./session.ts";
 
 afterEach(() => {
   clearSession();
   clearPreboot();
+  resetBootStartParamForTests();
 });
 
 const HOUR_MS = 3_600_000;
@@ -479,5 +485,44 @@ describe("استهلاكُ التقديمِ الساكنِ (DEC-19 / F1-09)", ()
     );
     expect(result).toEqual({ established: true, via: "exchanged" });
     expect(exchanged).toBe(1);
+  });
+});
+
+describe("ADR 0286 — هدفُ رابطِ startapp من التبادلِ الموثَّق", () => {
+  it("التبادلُ الذي يحملُ startParam يجعلُه هدفَ الهبوط", async () => {
+    const result = await establishSession(
+      baseDeps({
+        exchange: async () => ({
+          ok: true as const,
+          accessToken: "a",
+          expiresAtMs: Date.now() + HOUR_MS,
+          startParam: "group_request_42",
+        }),
+      }),
+    );
+    expect(result).toEqual({ established: true, via: "exchanged" });
+    expect(startParamFromBoot()).toBe("group_request_42");
+  });
+
+  it("تبادلٌ لاحقٌ بلا startParam يمحو الهدفَ السابق", async () => {
+    await establishSession(
+      baseDeps({
+        exchange: async () => ({
+          ok: true as const,
+          accessToken: "a",
+          expiresAtMs: Date.now() + HOUR_MS,
+          startParam: "group_request_42",
+        }),
+      }),
+    );
+    clearSession();
+    await establishSession(baseDeps());
+    expect(startParamFromBoot()).toBeNull();
+  });
+
+  it("الجلسةُ القائمةُ في الذاكرة لا تختلقُ هدفًا", async () => {
+    setSession({ accessToken: "live", expiresAt: Date.now() + HOUR_MS });
+    await establishSession(baseDeps());
+    expect(startParamFromBoot()).toBeNull();
   });
 });

@@ -35,7 +35,17 @@ export function createNotificationOutboxPort(sql: Sql): NotificationOutboxPort {
   return {
     claim: () =>
       guard("rpc.claim_notification_delivery", async () => {
-        const rows = await sql<{ result: unknown }[]>`select claim_notification_delivery() result`;
+        // `F8-01` + حِملُ ٥٠٠٠ — معرِّفُ الطلبِ يُقرأُ في **الرحلةِ نفسِها** إلى القاعدةِ:
+        // الالتقاطُ يُجسَّدُ أوّلاً (`materialized` فلا يُستدعى مرّتَين) ثمّ يُضَمُّ صفُّه
+        // بالمفتاحِ الأوّليِّ. الدالّةُ الحاكمةُ لا تُمَسُّ (القاعدة 0.6)، و`request_id`
+        // يُكتَبُ عندَ الإدراجِ فلقطةُ الجملةِ تراه. رحلةٌ واحدةٌ بدلَ اثنتَين لكلِّ تسليم.
+        const rows = await sql<{ result: unknown; request_id: string | null }[]>`
+          with claimed as materialized (select claim_notification_delivery() result)
+          select claimed.result, o.request_id
+            from claimed
+            left join notification_outbox o
+              on o.id = nullif(claimed.result -> 'delivery' ->> 'delivery_id', '')::uuid
+        `;
         const row = envelope(rows[0]?.result, "claim_notification_delivery");
         if (row.ok !== true) throw new Error(String(row.error ?? "UNKNOWN"));
         const delivery = row.delivery as Record<string, unknown> | null;
@@ -66,17 +76,6 @@ export function createNotificationOutboxPort(sql: Sql): NotificationOutboxPort {
         }
         const payload = delivery.payload;
 
-        // معرِّفُ الطلبِ الذي أنشأَ الصفَّ (`F8-01`) يُقرأُ بقراءةٍ ثانيةٍ بالمفتاحِ
-        // الأوّليِّ **لا بتعديلِ `claim_notification_delivery`**: تلكَ دالّةٌ ذرّيّةٌ
-        // حاكمةٌ (`FOR UPDATE SKIP LOCKED` · ضغطٌ عكسيٌّ · أولويّةُ مرورٍ) يُعادُ
-        // تعريفُها بجسمِها كلِّه في أيِّ هجرةٍ تمسُّها، فنسخُ مائةٍ وخمسينَ سطراً
-        // لأجلِ حقلِ مراقبةٍ يُنشئُ مصدرَ حقيقةٍ ثانياً للالتقاطِ — والقاعدةُ 0.6
-        // تمنعُ ذلك. والقراءةُ ههنا **بعدَ** الالتقاطِ فالصفُّ مملوكٌ برمزِ الحجزِ،
-        // فلا تسابُقَ. وفشلُها لا يُخفى: `guard` يردُّه عطباً كسائرِ الاستعلامِ.
-        const correlationRows = await sql<{ request_id: string | null }[]>`
-          select request_id from notification_outbox where id = ${String(delivery.delivery_id)}::uuid
-        `;
-
         return {
           delivery: {
             deliveryId: String(delivery.delivery_id),
@@ -92,7 +91,7 @@ export function createNotificationOutboxPort(sql: Sql): NotificationOutboxPort {
             // معرِّفُ الطلبِ الذي أنشأَ الصفَّ (`F8-01`): تكتبُه مُشغِّلاتُ القاعدةِ
             // عندَ الإدراجِ، ويُعادُ ههنا **كما هوَ في الصفِّ** فيستعيدُ العاملُ
             // سلسلةَ الارتباطِ. ونصٌّ غيرُ صالحٍ أو غيابٌ يعودُ `null` لا مولَّداً.
-            requestId: readCorrelationId(correlationRows[0]?.request_id),
+            requestId: readCorrelationId(rows[0]?.request_id),
             payload:
               typeof payload === "object" && payload !== null
                 ? (payload as Record<string, unknown>)
