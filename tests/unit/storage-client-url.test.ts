@@ -92,3 +92,42 @@ describe("المُوقِّعانِ بأصلٍ داخليٍّ وآخرَ عامّ
     );
   });
 });
+
+describe("بوّابةُ الصادرِ الافتراضيّةُ تقرأُ مضيفَ المخزنِ من البيئة", () => {
+  // بلا `{ env: process.env }` كانت البوّابةُ تقرأُ بيئةً فارغة، فتُجيزُ الحلقةَ الراجعةَ وحدَها
+  // وترفضُ `lb` (UNDECLARED_HOST) ⇒ SIGNER_UNAVAILABLE على CasaOS (مقيسٌ 2026-10-30).
+  it("مُوقِّعُ الرفعِ بلا جالبٍ محقونٍ يبلغُ مضيفًا غيرَ محلّيٍّ مضبوطًا في OBJECT_STORAGE_URL", async () => {
+    const savedFetch = globalThis.fetch;
+    const savedUrl = process.env.OBJECT_STORAGE_URL;
+    const seen: string[] = [];
+    process.env.OBJECT_STORAGE_URL = INTERNAL;
+    globalThis.fetch = (async (input: unknown) => {
+      seen.push(String(input));
+      return new Response(
+        JSON.stringify({ url: "/object/upload/sign/driver-documents/d/a.jpg?token=t", token: "t" }),
+        {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        },
+      );
+    }) as typeof fetch;
+    try {
+      const signer = new HttpUploadSigner({
+        baseUrl: INTERNAL,
+        secretKey: "service",
+        bucket: "driver-documents",
+      });
+      const result = await signer.signUpload({
+        objectPath: "d/a.jpg",
+        contentType: "image/jpeg",
+        ttlSeconds: 600,
+      });
+      expect(result.ok).toBe(true);
+      expect(seen[0]?.startsWith(`${INTERNAL}/storage/v1/`)).toBe(true);
+    } finally {
+      globalThis.fetch = savedFetch;
+      if (savedUrl === undefined) delete process.env.OBJECT_STORAGE_URL;
+      else process.env.OBJECT_STORAGE_URL = savedUrl;
+    }
+  });
+});

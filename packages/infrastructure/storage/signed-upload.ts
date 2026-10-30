@@ -168,7 +168,9 @@ export class HttpUploadSigner implements UploadSigner {
   constructor(config: SignedUploadConfig) {
     this.#config = config;
     this.#now = config.now ?? (() => new Date());
-    this.#transport = config.fetch ?? createGuardedFetch("supabase-object-storage");
+    this.#transport =
+      config.fetch ??
+      createGuardedFetch("supabase-object-storage", undefined, { env: process.env });
     this.#timeoutMs = config.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   }
 

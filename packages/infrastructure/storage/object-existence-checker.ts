@@ -47,7 +47,9 @@ export class HttpObjectExistenceChecker implements ObjectExistenceChecker {
 
   constructor(config: ObjectExistenceCheckerConfig) {
     this.#config = config;
-    this.#transport = config.fetch ?? createGuardedFetch("supabase-object-storage");
+    this.#transport =
+      config.fetch ??
+      createGuardedFetch("supabase-object-storage", undefined, { env: process.env });
     this.#timeoutMs = config.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   }
 
