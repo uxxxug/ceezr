@@ -143,6 +143,14 @@ async function dumpIntake(label: string): Promise<void> {
              (select count(*)::int from orders) as orders`;
     console.error(`🔎 [F5-06] تشخيصُ «${label}»: ${JSON.stringify(counts[0])}`);
     for (const job of jobs) console.error(`🔎 [F5-06] job ${JSON.stringify(job)}`);
+    if (label === "إنشاءُ الطلب") {
+      // النداءُ نفسُه الذي يُجريه البوتُ — يُسمّي رمزَ الرفضِ بدلَ «لا طلب».
+      const probe = await sql.unsafe<{ result: unknown }[]>(
+        "select request_ride_with_offer($1, $2, $3, $4, $5, null, null, null, null, null, null, null, null::jsonb, null::jsonb, 'open') as result",
+        [RIDER_CHAT, `f5-06-diag-${Date.now()}`, "transport", PICKUP.latitude, PICKUP.longitude],
+      );
+      console.error(`🔎 [F5-06] request_ride_with_offer: ${JSON.stringify(probe[0]?.result)}`);
+    }
   } catch (error) {
     console.error(`🔎 [F5-06] تعذّرَ التشخيص: ${String(error)}`);
   }
