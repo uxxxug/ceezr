@@ -1,4 +1,4 @@
-# نسختانِ من البوابةِ على خادمِ CasaOS (ADR 0292)
+# نسختانِ من البوابةِ على خادمِ CasaOS وبابُها العامّ (ADR 0292 · ADR 0293)
 
 مقطعُ compose وإعدادُ HAProxy لنشرِ نسختَين من البوابةِ خلفَ موزِّعٍ على المنفذِ الذي كانت تنشرُه النسخةُ الواحدةُ (`127.0.0.1:8080`). لا منفذَ جديدٌ ولا مساسَ بحاوياتِ المالك.
 
@@ -34,3 +34,34 @@ sudo docker compose -f /opt/wasla/compose.yml up -d --remove-orphans
 ```
 
 `--remove-orphans` يُزيلُ `gateway-1` و`gateway-2` و`lb`، ويُعيدُ `gateway` الواحدةَ على `127.0.0.1:8080`.
+
+## البابُ العامّ (ADR 0293)
+
+- نفقٌ سريعٌ (`tunnel/wasla-public-tunnel.service`) إلى `127.0.0.1:8443`، وهي الواجهةُ العامّةُ `public_front` في `haproxy.cfg`. لا منفذَ خارجيٌّ ولا DNS.
+- الواجهةُ العامّةُ ترفضُ ما لا يحملُ `Cf-Connecting-Ip`، وتحجبُ `/internal` و`/metrics` و`/admin`، وتُمرِّرُ إلى البوّابةِ القائمةَ البيضاءَ فقط. وما عداها يذهبُ إلى `miniapp` (`miniapp-nginx.conf`).
+- Mini App تُبنى بـ`VITE_WASLAH_API_BASE=` (الأصلُ نفسُه) في `/opt/wasla/miniapp/releases/<sha>`، والرابطُ `current` يشيرُ إلى الإصدارِ المنشور.
+- `wasla-tunnel-sync.timer` (60ث) ينسخُ رابطَ النفقِ إلى `/etc/wasla/public.env` (`MINIAPP_URL`)، ويُعيدُ `gateway-1` ثمّ `gateway-2`، ويضبطُ webhook البوتين.
+- تثبيت: انسخ ملفّاتِ `tunnel/*.service` و`*.timer` إلى `/etc/systemd/system/`، والسكربتَ إلى `/usr/local/sbin/`، ثمّ نفّذ `systemctl enable --now wasla-public-tunnel wasla-tunnel-sync.timer`.
+
+## تفعيلُ مدينةٍ أثناءَ التشغيل — أعِدْ `gateway-1`
+
+مهامُّ المدنِ تُحسَبُ عندَ إقلاعِ العاملِ وحدَه. ومدينةٌ تُفعَّلُ بعدَه لا تُكتَبُ لها نبضة، فيصيرُ `/ready` في النسختَين `not_ready` ويُخرجُهما HAProxy. **فورَ تفعيلِ أيِّ مدينة:**
+
+```sh
+sudo docker compose -f /opt/wasla/compose.yml restart gateway-1
+```
+
+ثمّ تحقّق من أنّ `/ready` يعيدُ `ready` في النسختَين.
+
+## العاملُ نقطةُ فشلٍ مفردة
+
+إيقافُ `gateway-1` لا يُسقِطُ الخدمة: `gateway-2` تخدمُ بحالةِ `degraded`. لكنّ انتهاءَ العروضِ وإعادةَ التوزيعِ والجدولةَ تتوقّفُ حتى تعود. فلا تُوقِفْها أثناءَ التجربةِ إلّا للنشر.
+
+## عودةُ البابِ العامّ
+
+```sh
+sudo systemctl disable --now wasla-tunnel-sync.timer wasla-public-tunnel
+sudo cp /opt/wasla/compose.yml.bak-pre-ingress /opt/wasla/compose.yml
+sudo cp /opt/wasla/haproxy.cfg.bak-pre-ingress /opt/wasla/haproxy.cfg
+sudo docker compose -f /opt/wasla/compose.yml up -d --remove-orphans
+```

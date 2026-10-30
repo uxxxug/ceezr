@@ -1,0 +1,21 @@
+# الغرض: بابُ WASLA العامُّ على CasaOS (ADR 0293) — نفقُ Cloudflare السريعُ إلى واجهةِ HAProxy العامّة.
+# يُثبَّتُ في /etc/systemd/system/. لا منفذَ يُفتَحُ في الراوتر: الاتّصالُ صادرٌ من الخادمِ إلى Cloudflare.
+# الرابطُ (*.trycloudflare.com) يتغيّرُ عندَ إعادةِ تشغيلِ هذه الوحدة؛ فيلتقطُه wasla-tunnel-sync.timer
+# من نقطةِ المقاييسِ المحلّيّة ويُعيدُ ضبطَ MINIAPP_URL والـwebhook. للإطلاقِ العامِّ: نفقٌ باسمٍ ونطاق.
+[Unit]
+Description=WASLA public ingress (Cloudflare quick tunnel -> HAProxy public_front)
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+ExecStart=/usr/local/bin/cloudflared tunnel --no-autoupdate --protocol http2 --metrics 127.0.0.1:20299 --url http://127.0.0.1:8443
+Restart=always
+RestartSec=5
+DynamicUser=yes
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target
