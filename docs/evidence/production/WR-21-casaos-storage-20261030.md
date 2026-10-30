@@ -38,3 +38,31 @@ ADR 0294 · PR #705 (`dd2b8c43`) · وهذه الحزمةُ `wr-21-storage-egres
 - السبب: الأصنافُ الأربعةُ في `packages/infrastructure/storage` تبني بوّابةَ الصادرِ بلا بيئة (`createGuardedFetch("supabase-object-storage")`). فلا يُجازُ إلّا مضيفٌ محلّيٌّ أو محفوظ، ويُرفَضُ `lb` (`UNDECLARED_HOST`). ويُرفَضُ كذلك مضيفُ Supabase المستضاف.
 - الإصلاح: `{ env: process.env }` كما في `osrm-provider` و`metrics-exporter` و`upstash`. واختبارُ انحدارٍ يفشلُ بدونِه ويجتازُ معه.
 - **الرفعُ ما زال `paused`.** الرفعُ الطرفيُّ بالبوابةِ يُعادُ بعدَ نشرِ هذا الإصلاح، ويُسجَّلُ في ملحقٍ لهذا الدليل.
+
+## ٦) ملحق: نشرُ `25932d35` وفتحُ الرفع (2026-10-30، بعدَ دمجِ #706)
+**[خ] إنتاجٌ حيّ. ولا تيليجرامَ حقيقيٌّ ولا جهازٌ حقيقيٌّ بعد.**
+- **الفحصُ المسبَق:** حاويةٌ لمرّةٍ واحدةٍ من صورةِ الفرعِ `a08589ad`، بملفّاتِ بيئةِ الإنتاج، شغّلت أصنافَ البوابةِ نفسَها:
+  - `HttpUploadSigner` ردَّ رابطًا على الأصلِ العامّ (`https://…trycloudflare.com/storage/v1/object/upload/sign/…`).
+  - `PUT` عبرَ الإنترنت: 200.
+  - `HttpObjectExistenceChecker`: `{ok:true,value:true}`.
+  - `HttpObjectContentInspector`: `sizeBytes=3006` يطابقُ الملفّ، والرأسُ `ffd8ffe0`، والذيلُ `ffd9`.
+  - `HttpReadSigner` ثمّ `GET` عبرَ الإنترنت: 200، وsha256 يطابقُ الأصل (`971f489be410…`).
+- **الصورة:** `wasla/gateway:25932d35` (`sha256:0e368ade01ca…`)، مبنيّةٌ من `/opt/wasla/src` عندَ الالتزامِ نفسِه.
+- **صورةُ العودة:** `wasla/gateway:9d538035`، والملفّان `/opt/wasla/.env.bak-pre-25932d35` و`/etc/wasla/gateway.env.bak-pre-25932d35`.
+- **التغيير:** `TAG=25932d35`، و`DRIVER_DOCUMENT_UPLOADS=enabled`. ثمّ إعادةُ `gateway-1` فـ`gateway-2` مع انتظارِ `healthy`.
+- **المسبار:** `GET /ready` من الإنترنتِ كلَّ نصفِ ثانية: **240/240 = 200**، فلم يسقطْ طلبٌ أثناءَ التناوب.
+- **بعدَ النشر:**
+  - `/ready` يعيدُ `ready` في النسختَين.
+  - `gateway-1`: `embedded_worker.started jobCount=91`. و`gateway-2`: `embedded_worker.disabled`.
+  - صفرُ أسطرٍ بمستوى `warn` أو `error`.
+  - لا سطرَ `driver_documents.uploads_paused` ولا `signer_not_configured`، أي أنّ الموقِّعَ فعّال (`apps/gateway/src/index.ts`).
+- **نسخٌ وتمرينٌ بعدَ النشر:**
+  - `backup-ok … storage_files=2`.
+  - `drill … object_rows=2 compared=2 equal=2 different=0` ⇒ **drill-PASS**، بلا بقايا.
+  - أرشيفُ الإعدادِ يضمُّ الملفّاتِ الأحدَ عشر، ومنها `storage.env` و`storage-client.env` و`public.env` و`signal.env`.
+
+### ما لم يُقَس، وما يُعلَم
+- **لم يُقَس:** رفعُ سائقٍ حقيقيٍّ من Mini App داخلَ تيليجرام على جهاز، والوثائقُ الستُّ، ثمّ الاعتمادُ من لوحةِ الإدارة. ذلك ينتظرُ حسابَ سائقِ الاختبارِ من المالك.
+- **كائنٌ غيرُ موجود:** storage-api يردُّ `HEAD` بـ400 لا 404، ويضعُ `statusCode:"404"` في جسمٍ لا يحملُه `HEAD`. فيردُّ `HttpObjectExistenceChecker` بـ`CHECKER_UNAVAILABLE` لا `ok(false)`. الحكمُ يبقى رفضًا، لكنّ تصنيفَه «تعذُّر» لا «غيرُ موجود».
+- **كائناتُ الفحص:** `e2e-probe/doc.pdf` و`e2e-gateway/probe.jpg` باقيتانِ في الدلو، ليجدَ تمرينُ الاستعادةِ ما يقارنُه. ولا تخصّانِ سائقًا.
+- **لا نسخةَ خارجَ الموقع.** والتمرينُ يدويٌّ، غيرُ مجدوَل.
