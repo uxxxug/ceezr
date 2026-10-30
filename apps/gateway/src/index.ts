@@ -209,6 +209,7 @@ import type { HttpGapTiming } from "./realtime/http-bridge.ts";
 import { createHttpBridge, stampRequestEvents } from "./realtime/http-bridge.ts";
 import { isLiveLocationBroadcastPermitted } from "./realtime/live-tracking-policy.ts";
 import { createOffersChannel } from "./realtime/offers-channel.ts";
+import { createPeerSignal } from "./realtime/peer-signal.ts";
 import { createRideChannel } from "./realtime/ride-channel.ts";
 import { createRiderTripChannel } from "./realtime/rider-trip-channel.ts";
 import { createUpstashRedis, sanitizeUpstashError } from "./redis/upstash.ts";
@@ -424,6 +425,17 @@ let offersChannel: ReturnType<typeof createOffersChannel> | null = null;
 let riderTripChannel: ReturnType<typeof createRiderTripChannel> | null = null;
 /** `WR-04` — قناةُ غرفِ المحادثة؛ تُركَّبُ بعدَ `ioServer`، والمساراتُ تبثُّ عبرَها متى وُجِدَت. */
 let chatChannel: ChatChannel | null = null;
+
+/**
+ * تعدُّدُ النسخ (قرارُ المالكِ 2026-10-30) — إشاراتُ المحادثةِ وأحداثِ رحلةِ الراكبِ إلى النسخِ
+ * الأخرى بعناوينِ `GATEWAY_INTERNAL_URL` (قائمةً). عنوانٌ واحدٌ أو لا شيء ⇒ معطَّلٌ بلا نداء.
+ */
+const peerSignal = createPeerSignal({
+  targets: config.gatewayInternalUrls,
+  secret: process.env.INTERNAL_SIGNAL_SECRET ?? null,
+  origin: crypto.randomUUID(),
+  log,
+});
 let ioServer: IoServer | null = null;
 
 /**
@@ -1232,8 +1244,14 @@ const orderChat =
           ),
           store: orderChatStore,
           now: () => new Date(),
-          onPosted: (signal: { readonly orderId: string; readonly lastSeq: number }) =>
-            chatChannel?.publish(signal),
+          onPosted: (signal: { readonly orderId: string; readonly lastSeq: number }) => {
+            chatChannel?.publish(signal);
+            // تعدُّدُ النسخ: الطرفُ الآخرُ قد يكونُ متّصلًا بنسخةٍ أخرى.
+            peerSignal.send("/internal/realtime/chat-signal", {
+              order_id: signal.orderId,
+              last_seq: signal.lastSeq,
+            });
+          },
           log,
           // `WR-04` — ترجمةُ رسالةِ الطرفِ الآخرِ إلى لغةِ القارئ بمزوّدِ `TRANSLATION_PROVIDER`
           // نفسِه. `none` ⇒ لا دالّةَ ترجمةٍ أصلًا، فيُعرَضُ الأصلُ وحدَه ولا إفصاحَ عن مزوّدٍ
@@ -2164,7 +2182,15 @@ if (config.miniappSessionSecret !== null) {
   riderTripChannel.start();
   const channel = riderTripChannel;
   container.riderTripSignal.notify = (telegramUserId, orderId) => {
-    if (channel.isRiderConnected(telegramUserId)) channel.notifyRider(telegramUserId, orderId);
+    if (channel.isRiderConnected(telegramUserId)) {
+      channel.notifyRider(telegramUserId, orderId);
+      return;
+    }
+    // تعدُّدُ النسخ: الراكبُ قد يكونُ متّصلًا بنسخةٍ أخرى (لا نداءَ مع نسخةٍ واحدة).
+    peerSignal.send("/internal/realtime/rider-trip-signal", {
+      telegram_user_id: telegramUserId,
+      order_id: orderId,
+    });
   };
 }
 
@@ -2182,6 +2208,8 @@ if (offersChannel !== null) {
       notifyDriver: offersChannel.notifyDriver,
       secret: process.env.INTERNAL_SIGNAL_SECRET ?? null,
       log,
+      origin: peerSignal.origin,
+      chat: { publish: (signal) => chatChannel?.publish(signal) },
       ...(riderTripChannel === null
         ? {}
         : {

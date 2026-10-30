@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import { createPeerSignal } from "../../apps/gateway/src/realtime/peer-signal.ts";
 import {
   fanoutSignal,
   signalTargets,
@@ -135,5 +136,46 @@ describe("GATEWAY_INTERNAL_URL قائمةً", () => {
     if (!result.ok) return;
     expect(result.value.gatewayInternalUrls).toEqual([]);
     expect(result.value.gatewayInternalUrl).toBeNull();
+  });
+});
+
+describe("createPeerSignal", () => {
+  it("نسخةٌ واحدةٌ = معطَّلٌ بلا نداء، ونسختان = نداءٌ لكلٍّ بمعرّفِ المصدر", async () => {
+    const calls: Call[] = [];
+    const fetch = fakeFetch({ "a:1": true, "b:2": false }, calls);
+    const single = createPeerSignal({
+      targets: ["http://a:1"],
+      secret: "s".repeat(32),
+      origin: "me",
+      fetch,
+    });
+    expect(single.enabled).toBe(false);
+    single.send("/internal/realtime/chat-signal", { order_id: "x" });
+    expect(calls).toHaveLength(0);
+
+    const multi = createPeerSignal({
+      targets: ["http://a:1", "http://b:2"],
+      secret: "s".repeat(32),
+      origin: "me",
+      fetch,
+    });
+    expect(multi.enabled).toBe(true);
+    multi.send("/internal/realtime/chat-signal", { order_id: "x", last_seq: 1 });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(calls).toHaveLength(2);
+    expect(JSON.parse(calls[0]?.body ?? "{}")).toEqual({
+      order_id: "x",
+      last_seq: 1,
+      origin: "me",
+    });
+  });
+
+  it("بلا سرٍّ = معطَّل", () => {
+    const peer = createPeerSignal({
+      targets: ["http://a:1", "http://b:2"],
+      secret: null,
+      origin: "me",
+    });
+    expect(peer.enabled).toBe(false);
   });
 });
