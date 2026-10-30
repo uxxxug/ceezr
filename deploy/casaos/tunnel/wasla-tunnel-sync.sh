@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # الغرض: يقرأُ رابطَ النفقِ السريعِ الحاليَّ من cloudflared، فإن خالفَ MINIAPP_URL:
 #   1) يكتبُ /etc/wasla/public.env (600)،
-#   2) يُعيدُ إنشاءَ gateway-2 ثمّ gateway-1 واحدةً بعدَ أخرى (لا تخلو الخدمةُ من نسخةٍ جاهزة)،
+#   2) يُعيدُ إنشاءَ gateway-1 ثمّ gateway-2 واحدةً بعدَ أخرى (لا تخلو الخدمةُ من نسخةٍ جاهزة).
+#      gateway-1 أوّلاً لأنّها العامل: /ready في كلِّ نسخةٍ يقرأُ نبضاتِ العاملِ من القاعدة،
+#      ومهامُّه المدنيّةُ تُحسَبُ عندَ إقلاعِه وحدَه (`container.jobs()`)،
 #   3) يضبطُ webhookَ البوتين على <الرابط>/webhook/telegram/{rider,driver} بالسرِّ نفسِه.
 # وفي كلِّ دورةٍ يقارنُ getWebhookInfo بالمتوقَّعِ ويُصلحُه إن انحرف. لا يطبعُ رمزاً ولا سرّاً:
 # الطلباتُ إلى api.telegram.org تُمرَّرُ إلى curl على stdin لا في سطرِ الأوامر.
@@ -14,7 +16,9 @@ COMPOSE=(docker compose -f /opt/wasla/compose.yml)
 LOG_TAG=wasla-tunnel-sync
 log(){ logger -t "$LOG_TAG" -- "$*"; echo "$*"; }
 
-host=$(curl -fsS -m 5 http://127.0.0.1:20241/quicktunnel 2>/dev/null | sed -nE 's/.*"hostname":"([^"]+)".*/\1/p' || true)
+host=$(curl -fsS -m 5 http://127.0.0.1:20299/quicktunnel 2>/dev/null | sed -nE 's/.*"hostname":"([^"]+)".*/\1/p' || true)
+# منفذُ المقاييسِ خاصٌّ بهذا النفق (20299): 20241 الافتراضيُّ قد يحجزُه نفقٌ آخرُ على الخادم
+# (نفقُ SSH المؤقّت)، فيُقرأُ رابطُه خطأً ويُوجَّهُ الـwebhook إليه.
 [ -n "$host" ] || { log "no_tunnel_hostname"; exit 0; }
 url="https://$host"
 
@@ -33,7 +37,7 @@ wait_ready(){ # $1 = اسمُ الحاوية
 if [ "$current" != "$url" ]; then
   log "url_changed from=${current:-none} to=$url"
   printf 'MINIAPP_URL=%s\n' "$url" > "$PUB.tmp"; chmod 600 "$PUB.tmp"; mv "$PUB.tmp" "$PUB"
-  for svc in gateway-2 gateway-1; do
+  for svc in gateway-1 gateway-2; do
     "${COMPOSE[@]}" up -d --no-deps --force-recreate "$svc" >/dev/null 2>&1
     cid=$("${COMPOSE[@]}" ps -q "$svc")
     if wait_ready "$cid"; then log "recreated_ready svc=$svc"; else log "recreated_NOT_READY svc=$svc"; exit 1; fi

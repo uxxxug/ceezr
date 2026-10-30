@@ -1,0 +1,36 @@
+{
+  "id": "wr-27-casaos-public-ingress-20261030",
+  "goal": "§27 خطة النشر والتحقق: بابٌ عامٌّ لإنتاجِ CasaOS بلا منفذٍ مفتوحٍ ولا DNS — نفقٌ سريعٌ إلى واجهةِ HAProxy عامّةٍ بقائمةٍ بيضاءَ تحجبُ /internal و/metrics و/admin، وMini App ساكنةٌ من الأصلِ نفسِه، ومزامنةُ الرابطِ والـwebhook آليًّا (ADR 0293).",
+  "canonical_source": ["docs/adr/0293-casaos-public-ingress-via-tunnel-with-whitelist.md"],
+  "implementation": [
+    "deploy/casaos/haproxy.cfg",
+    "deploy/casaos/compose.gateways.yml",
+    "deploy/casaos/miniapp-nginx.conf",
+    "deploy/casaos/tunnel/wasla-public-tunnel.service",
+    "deploy/casaos/tunnel/wasla-tunnel-sync.service",
+    "deploy/casaos/tunnel/wasla-tunnel-sync.timer",
+    "deploy/casaos/tunnel/wasla-tunnel-sync.sh"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [
+    "docs/roadmap/execution/STATUS.md",
+    "deploy/casaos/README.md",
+    "docs/adr/0293-casaos-public-ingress-via-tunnel-with-whitelist.md",
+    "docs/evidence/production/WR-27-casaos-public-ingress-20261030.md"
+  ],
+  "decision": "قرارُ المالكِ 2026-10-30: نطاقٌ مؤقّتٌ يختارُه الوكيل. نفقُ trycloudflare خارجٌ من الخادم، وواجهةٌ عامّةٌ منفصلةٌ على 127.0.0.1:8443 تشترطُ Cf-Connecting-Ip. الواجهةُ الداخليّةُ :8080 بلا تغيير. Render باقٍ في المستودعِ ولا يُستعمَل.",
+  "tests": [
+    "فحصٌ من الإنترنت: / و/ready و/health = 200، و/internal و/metrics و/admin = 403، والـwebhook بلا سرٍّ = 401، ومصافحةُ socket.io تعمل",
+    "getWebhookInfo للبوتَين: pending=0 بلا خطأ",
+    "تعافٍ: إيقافُ gateway-2 ثمّ gateway-1، كلٌّ منهما أسقطَ طلبًا جاريًا واحدًا فقط"
+  ],
+  "evidence": "docs/evidence/production/WR-27-casaos-public-ingress-20261030.md",
+  "constraints": [
+    "لا منفذَ خارجيٌّ ولا تغييرُ DNS",
+    "لا أسرارَ في Git ولا في السجلّ: الرموزُ تُمرَّرُ إلى curl على stdin",
+    "gatewayRequest=5 وIMMEDIATE_REDISPATCH_LIMIT=50 بلا تعديل",
+    "لا مساسَ بحاوياتِ المالكِ الأخرى"
+  ],
+  "limitations": "النفقُ السريعُ بلا SLA ورابطُه يتغيّر، فهو للتجربةِ المغلقةِ لا للإطلاقِ العامّ. العاملُ نقطةُ فشلٍ مفردة. وتفعيلُ مدينةٍ أثناءَ التشغيلِ يُسقِطُ /ready في النسختَين حتى تُعادَ gateway-1، والإصلاحُ البرمجيُّ لم يُنفَّذ."
+}
