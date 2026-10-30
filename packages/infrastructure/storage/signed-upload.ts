@@ -47,6 +47,7 @@ import {
 } from "../../domain/driver/driver-documents.ts";
 import { err, ok, type Result } from "../../shared/result/index.ts";
 import { createGuardedFetch, type FetchLike } from "../../shared/wasla/egress-gate.ts";
+import { readPublicStorageUrl, resolveStorageClientUrl } from "./client-url.ts";
 
 export interface SignedUploadConfig {
   /** أصلُ المخزنِ — مثلَ `https://<ref>.supabase.co` بلا شرطةٍ أخيرةٍ. */
@@ -54,6 +55,8 @@ export interface SignedUploadConfig {
   /** مفتاحُ خدمةٍ يملكُ الكتابةَ في الدلوِ. **لا يُسجَّلُ ولا يُعادُ أبداً.** */
   readonly secretKey: string;
   readonly bucket: string;
+  /** أصلٌ عامٌّ للرابطِ المسلَّمِ للعميل (`client-url.ts`)؛ غيابُه يعني أصلَ `baseUrl`. */
+  readonly publicBaseUrl?: string;
   /** ساعةٌ محقونةٌ — كي يُقاسَ الانتهاءُ في الاختبارِ بلا انتظارٍ. */
   readonly now?: () => Date;
   /**
@@ -134,7 +137,13 @@ export function readSignedUploadConfig(
   const bucket = (env.DRIVER_DOCUMENTS_BUCKET ?? "driver-documents").trim();
   if (baseUrl.length === 0 || secretKey.length === 0 || bucket.length === 0) return null;
   if (!SAFE_SEGMENT.test(bucket)) return null;
-  return { baseUrl: baseUrl.replace(/\/+$/, ""), secretKey, bucket };
+  const publicBaseUrl = readPublicStorageUrl(env);
+  return {
+    baseUrl: baseUrl.replace(/\/+$/, ""),
+    secretKey,
+    bucket,
+    ...(publicBaseUrl === undefined ? {} : { publicBaseUrl }),
+  };
 }
 
 /** مُوقِّعٌ لا يملكُ تهيئةً — يردُّ رفضاً مُصنَّفاً ولا يتظاهرُ بالنجاحِ. */
@@ -223,20 +232,13 @@ export class HttpUploadSigner implements UploadSigner {
 
     // المزوِّدُ يردُّ مساراً نسبيّاً؛ **يُطلَقُ على أصلِنا** ولا يُصدَّقُ أصلٌ
     // يأتي منه: أصلٌ مُبدَّلٌ في جوابٍ يُحوِّلُ رفعَ وثيقةٍ إلى خادمِ غريبٍ.
-    let absolute: string;
-    try {
-      const resolved = new URL(url, `${this.#config.baseUrl}/`);
-      const own = new URL(this.#config.baseUrl);
-      if (resolved.origin !== own.origin) {
-        return err<UploadSignerFailure>("SIGNER_MALFORMED_RESPONSE");
-      }
-      if (token !== null && !resolved.searchParams.has("token")) {
-        resolved.searchParams.set("token", token);
-      }
-      absolute = resolved.toString();
-    } catch {
-      return err<UploadSignerFailure>("SIGNER_MALFORMED_RESPONSE");
+    // (`client-url.ts`) ويُسلَّمُ بالأصلِ العامِّ إن ضُبِط.
+    const resolved = resolveStorageClientUrl(url, this.#config.baseUrl, this.#config.publicBaseUrl);
+    if (resolved === null) return err<UploadSignerFailure>("SIGNER_MALFORMED_RESPONSE");
+    if (token !== null && !resolved.searchParams.has("token")) {
+      resolved.searchParams.set("token", token);
     }
+    const absolute = resolved.toString();
 
     return ok({
       uploadUrl: absolute,

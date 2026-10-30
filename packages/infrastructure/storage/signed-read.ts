@@ -24,6 +24,7 @@
 
 import { err, ok, type Result } from "../../shared/result/index.ts";
 import { createGuardedFetch, type FetchLike } from "../../shared/wasla/egress-gate.ts";
+import { readPublicStorageUrl, resolveStorageClientUrl } from "./client-url.ts";
 
 /** نتيجةُ توقيعِ رابطِ قراءةٍ. */
 export interface SignedRead {
@@ -52,6 +53,8 @@ export interface SignedReadConfig {
   readonly baseUrl: string;
   readonly secretKey: string;
   readonly bucket: string;
+  /** أصلٌ عامٌّ للرابطِ المسلَّمِ للعميل (`client-url.ts`)؛ غيابُه يعني أصلَ `baseUrl`. */
+  readonly publicBaseUrl?: string;
   readonly now?: () => Date;
   readonly fetch?: FetchLike;
   readonly timeoutMs?: number;
@@ -94,7 +97,13 @@ export function readSignedReadConfig(
   const bucket = (env.DRIVER_DOCUMENTS_BUCKET ?? "driver-documents").trim();
   if (baseUrl.length === 0 || secretKey.length === 0 || bucket.length === 0) return null;
   if (!SAFE_SEGMENT.test(bucket)) return null;
-  return { baseUrl: baseUrl.replace(/\/+$/, ""), secretKey, bucket };
+  const publicBaseUrl = readPublicStorageUrl(env);
+  return {
+    baseUrl: baseUrl.replace(/\/+$/, ""),
+    secretKey,
+    bucket,
+    ...(publicBaseUrl === undefined ? {} : { publicBaseUrl }),
+  };
 }
 
 /** مُوقِّعٌ لا يملكُ تهيئةً — يردُّ رفضاً مُصنَّفاً ولا يتظاهرُ بالنجاحِ. */
@@ -169,17 +178,13 @@ export class HttpReadSigner implements ReadUrlSigner {
       return err<ReadSignerFailure>("SIGNER_MALFORMED_RESPONSE");
     }
 
-    let absolute: string;
-    try {
-      const resolved = new URL(signedURL, `${this.#config.baseUrl}/`);
-      const own = new URL(this.#config.baseUrl);
-      if (resolved.origin !== own.origin) {
-        return err<ReadSignerFailure>("SIGNER_MALFORMED_RESPONSE");
-      }
-      absolute = resolved.toString();
-    } catch {
-      return err<ReadSignerFailure>("SIGNER_MALFORMED_RESPONSE");
-    }
+    const resolved = resolveStorageClientUrl(
+      signedURL,
+      this.#config.baseUrl,
+      this.#config.publicBaseUrl,
+    );
+    if (resolved === null) return err<ReadSignerFailure>("SIGNER_MALFORMED_RESPONSE");
+    const absolute = resolved.toString();
 
     return ok({
       readUrl: absolute,
