@@ -81,6 +81,7 @@ services:
       # رحلةُ الفوضى تقودُ تدفّقَ البوتِ بالويبهوك (التسجيلُ والطلبُ نصّاً)، وهو سطحُ `legacy`
       # (ADR 0213) — لا سطحُ miniapp الذي يُحيلُ إلى التطبيقِ المصغَّر.
       BOT_SURFACE_MODE: legacy
+      BOT_SURFACE_TEST_LEGACY: "1"
       SESSION_STORE: redis
       PROCESS_TOPOLOGY: multi-process
       # ADR 0292 §٣ — إشاراتُ النسخِ شرطُ إقلاعِ multi-process: كلُّ النسخِ في القائمةِ وسرٌّ مشترك.
