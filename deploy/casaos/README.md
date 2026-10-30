@@ -43,15 +43,13 @@ sudo docker compose -f /opt/wasla/compose.yml up -d --remove-orphans
 - `wasla-tunnel-sync.timer` (60ث) ينسخُ رابطَ النفقِ إلى `/etc/wasla/public.env` (`MINIAPP_URL`)، ويُعيدُ `gateway-1` ثمّ `gateway-2`، ويضبطُ webhook البوتين.
 - تثبيت: انسخ ملفّاتِ `tunnel/*.service` و`*.timer` إلى `/etc/systemd/system/`، والسكربتَ إلى `/usr/local/sbin/`، ثمّ نفّذ `systemctl enable --now wasla-public-tunnel wasla-tunnel-sync.timer`.
 
-## تفعيلُ مدينةٍ أثناءَ التشغيل — أعِدْ `gateway-1`
+## تفعيلُ مدينةٍ أثناءَ التشغيل
 
-مهامُّ المدنِ تُحسَبُ عندَ إقلاعِ العاملِ وحدَه. ومدينةٌ تُفعَّلُ بعدَه لا تُكتَبُ لها نبضة، فيصيرُ `/ready` في النسختَين `not_ready` ويُخرجُهما HAProxy. **فورَ تفعيلِ أيِّ مدينة:**
+العاملُ يعيدُ حسابَ مهامِّ المدنِ كلَّ 60 ثانية (`embedded_worker.jobs_reconciled` في السجلّ). لكن بينَ التفعيلِ وأوّلِ شوطٍ لمهامِّ المدينة، قد يبقى `/ready` فاشلًا في النسختَين حتّى دقيقةٍ أو أكثرَ قليلًا («لا نبضةَ لها»)، ويُخرجُهما HAProxy خلالَها. **فعِّلِ المدنَ قبلَ فتحِ التجربةِ أو في وقتٍ هادئ.** وإيقافُ مدينةٍ لا يُزيلُ مهامَّها إلّا بإعادةِ `gateway-1`:
 
 ```sh
 sudo docker compose -f /opt/wasla/compose.yml restart gateway-1
 ```
-
-ثمّ تحقّق من أنّ `/ready` يعيدُ `ready` في النسختَين.
 
 ## العاملُ نقطةُ فشلٍ مفردة
 

@@ -55,12 +55,17 @@ interface FakeSqlLog {
  * تكامل على قاعدة حقيقية. تُعيد صفّ مدينة واحدة مفعَّلة، وصفوفاً فارغة لما بعدها،
  * فينتهي كل شوط مهمّة بنتيجة صفرية صحيحة لا بخطأ.
  */
-function fakeSql(log: FakeSqlLog): Sql {
+function fakeSql(log: FakeSqlLog, activeCities: () => readonly string[] = () => [CITY_ID]): Sql {
   const run = (strings: TemplateStringsArray | string): unknown[] => {
     const text = typeof strings === "string" ? strings : strings.join("?");
     log.queries.push(text.replace(/\s+/g, " ").trim());
     if (/from\s+cities/i.test(text) && /is_active\s*=\s*true/i.test(text)) {
-      return [{ id: CITY_ID, code: "UNI", name_ar: "مدينة الاختبار", name_en: "Unit City" }];
+      return activeCities().map((id, i) => ({
+        id,
+        code: `UN${i}`,
+        name_ar: "مدينة الاختبار",
+        name_en: "Unit City",
+      }));
     }
     return [];
   };
@@ -230,5 +235,58 @@ describe("العامل المدمج داخل عملية البوابة", () => {
     const afterStop = log.queries.length;
     await Bun.sleep(60);
     expect(log.queries.length).toBe(afterStop);
+  });
+});
+
+describe("WR-27 — مصالحةُ المدنِ المفعَّلةِ بلا إعادةِ إقلاع", () => {
+  const SECOND_CITY = "66666666-7777-8888-9999-000000000000";
+
+  it("مدينةٌ تُفعَّلُ بعدَ الإقلاعِ تُضافُ مهامُّها، وقراءةٌ فارغةٌ لا تحذفُ شيئًا", async () => {
+    const log: FakeSqlLog = { queries: [] };
+    let active: readonly string[] = [CITY_ID];
+    const sql = fakeSql(log, () => active);
+    const lines: string[] = [];
+    const sent: string[] = [];
+    const handle = await startEmbeddedWorker(
+      config,
+      {
+        info: (message, fields) => lines.push(`${message} ${JSON.stringify(fields ?? {})}`),
+        error: (message, fields) => lines.push(`ERROR ${message} ${JSON.stringify(fields ?? {})}`),
+      },
+      {
+        sql,
+        lockSql: sql,
+        lock: createNoopLock(),
+        driverOut: capturingSender(sent),
+        riderOut: capturingSender(sent),
+        warningSender: { send: async () => ok(undefined) },
+      },
+      { reconcileMs: 0 },
+    );
+    try {
+      const before = handle.jobCount;
+      expect(await handle.reconcile()).toEqual([]);
+      expect(handle.jobCount).toBe(before);
+
+      active = [CITY_ID, SECOND_CITY];
+      const added = await handle.reconcile();
+      expect(added).toContain(`expire-offers:${SECOND_CITY}`);
+      expect(added).toContain(`redispatch-searching:${SECOND_CITY}`);
+      expect(added.every((name) => !name.includes(CITY_ID))).toBe(true);
+      expect(handle.jobCount).toBe(before + added.length);
+      expect(lines.some((line) => line.startsWith("embedded_worker.jobs_reconciled"))).toBe(true);
+
+      // قراءةٌ فاشلةٌ أو مدينةٌ أُوقِفَت: لا حذفَ لمهامَّ قائمة.
+      const afterAdd = handle.jobCount;
+      active = [];
+      expect(await handle.reconcile()).toEqual([]);
+      expect(handle.jobCount).toBe(afterAdd);
+      expect(lines.some((line) => line.startsWith("embedded_worker.reconcile_kept_missing"))).toBe(
+        true,
+      );
+    } finally {
+      await handle.stop();
+    }
+    expect(await handle.reconcile()).toEqual([]);
   });
 });
