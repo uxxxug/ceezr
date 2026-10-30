@@ -1,9 +1,7 @@
 {
   "id": "deep-cleanup-20261030",
   "goal": "تنظيفُ المستودعِ بقرارِ المالك (2026-10-30): حذفُ 220 ملفَّ قالبٍ فارغٍ (`export {};`) لا يستوردُه شيء (D-15: الحذفُ قرارُ تطوير)، وملفِّ `document-expiry-sender.ts` الميّت، وأربعةِ ملفّاتِ `.pyc` متتبَّعةٍ رغمَ `.gitignore`؛ وأرشفةُ فروعِ التجاربِ المنتهيةِ وسومًا `archive/*` ثم حذفُها (§5.6).",
-  "canonical_source": [
-    "AGENTS.md"
-  ],
+  "canonical_source": ["AGENTS.md"],
   "implementation": [
     "apps/gateway/src/bots/driver/availability.ts",
     "apps/gateway/src/bots/driver/offers.ts",
@@ -233,16 +231,9 @@
     "packages/infrastructure/transport/index.ts",
     "packages/infrastructure/workflow/index.ts"
   ],
-  "state": [
-    "docs/SYSTEM_STATE.md"
-  ],
-  "roadmap": [
-    "ROADMAP.md"
-  ],
-  "affected_docs": [
-    "docs/archive/branch-archive-20261030.md",
-    "docs/archive/README.md"
-  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": ["docs/archive/branch-archive-20261030.md", "docs/archive/README.md"],
   "decision": "يُحذَفُ ما لا يصلُه مسارُ استيرادٍ ولا يقرؤه حاجزٌ نصيًّا. يُحفَظُ: `docs/evidence/**` (يُحفَظ ولا يُحذَف)، و`deferred/`، وملفّاتُ الامتثالِ التي تقرؤها حواجزُ `check-*`، وطبقةُ agent-core، وبرامجُ الإسنادِ في `scripts/`. القصدُ المستقبليُّ للوحداتِ المحذوفةِ باقٍ في ADRات والخارطة، و`git log` يحفظُ الملفّات.",
   "tests": [
     "bun run ci محليًّا",
