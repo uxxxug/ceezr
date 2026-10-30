@@ -7,6 +7,7 @@
     "apps/gateway/src/realtime/peer-signal.ts",
     "apps/gateway/src/index.ts",
     "scripts/f5-06-invariant-refusal.ts",
+    "scripts/f5-06-chaos.ts",
     "docker-compose.f5-06.yml",
     ".github/workflows/ci.yml",
     "deploy/casaos/compose.gateways.yml",
