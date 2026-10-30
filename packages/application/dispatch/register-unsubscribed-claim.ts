@@ -7,7 +7,7 @@
  *   تعطّلِ تيليجرامَ لحظةَ الضغطةِ، ولا شيءَ يُعيدُ المحاولةَ.
  * الحالة: منفّذ فعلياً — المرحلة 2.3 (القسم 3.4، الخطوتان 2 و3).
  * ينتمي إلى: application/dispatch
- * يُتوقع أن يستخدمه لاحقاً: apps/gateway/src/groups/unsubscribed-drivers-group.ts
+ * يستخدمه: application/bots/driver-dialog · application/negotiation/negotiation-app
  * ملاحظات مستقبلية: عند إضافة تقييم غير المشتركين يُرتَّب الدور بالتقييم لا بأسبقية الضغط.
  */
 

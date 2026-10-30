@@ -20,6 +20,7 @@
 | `reports-2026-08-09/roadmap.md` | خارطةٌ أُعلِنَ في رأسِها أنّها لم تعد حاكمة | `docs/ROADMAP-MASTER.md` |
 | `reports-2026-08-09/repo-manifest.md` | بيانُ مستودعِ 2026-08-06 (`reev-zeev/bnnz`) | `git ls-files` |
 | `reports-2026-08-09/production-readiness/` | تقاريرُ `PHASE-0` … `PHASE-16` (2026-08) و`safety-delta` | البوّابة (أعلاه) |
+| [`branch-archive-20261030.md`](branch-archive-20261030.md) | خريطةُ فروعِ `origin` المحذوفةِ في تنظيفِ 2026-10-30 ووسومِ `archive/*` الحافظةِ لها | `git tag -l 'archive/*'` |
 
 **المُخرَجاتُ الخامّةُ** (`.txt` و`.log`) مكانُها `docs/evidence/archive/` بحكمِ ADR 0094، لا هنا.
 
