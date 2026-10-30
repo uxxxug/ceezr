@@ -236,6 +236,9 @@ async function registerDriver(cityId: string): Promise<string> {
     return rows[0]?.id ?? null;
   });
   await sql`update drivers set verification_status = 'verified' where id = ${driverRows}`;
+  // PD-040: لا تجربةَ قبلَ التوثيق، ولا خدمةَ في المدينةِ بلا سائقٍ مشترِكٍ
+  // (`city_served_services`) — وبدونِها يُرفَضُ الطلبُ بـ`SERVICE_NOT_AVAILABLE_IN_CITY`.
+  await sql`select start_trial(${driverRows}::uuid, 'transport') as result`;
   await post(gw1, "driver", text(DRIVER_CHAT, "/available"));
   await post(gw1, "driver", location(DRIVER_CHAT, DRIVER_AT));
   log("تسجيلُ السائق", `عبرَ gateway-1 — ${driverRows}`);
