@@ -6,8 +6,8 @@
  * ينتمي إلى: shared/config
  * يُتوقع أن يستخدمه لاحقاً: apps/gateway/src/index.ts — وكلُّ نقطةِ تشغيلٍ تُركِّب
  *    ناقلَ الأحداثِ داخلَ العمليةِ (`packages/infrastructure/tracking/event-bus.ts`).
- * ملاحظات مستقبلية: يومَ تُقرَّر آليةُ توزيعٍ تعبر حدودَ العمليةِ بـADR ناسخٍ لـADR 0050
- *    §٨ تُضاف قيمتُها إلى `EVENT_DISTRIBUTION_MECHANISMS` ويُبدَّل الثابتُ المُقرَّر —
+ * ملاحظات مستقبلية: قُرِّرت آليةٌ تعبرُ حدودَ العمليةِ بـ[ADR 0292](../../../docs/adr/0292-multi-instance-gateway-distribution-is-decided.md)
+ *    الناسخِ لـADR 0050 §٣-د و§٨ (قرارُ المالكِ 2026-10-30): `redis-streams-peer-signal`.
  *    ولا يُضاف تجاوزٌ بمتغيّرِ بيئةٍ إلى هذا الملفّ أبداً.
  *
  * ## لماذا شرطُ صحّةٍ لا تفضيلُ سعة
@@ -55,10 +55,16 @@
 import type { ProcessTopologyName, SessionStoreName } from "./index.ts";
 
 /**
- * آلياتُ توزيعِ الأحداثِ المعروفةُ للنظام. قائمةٌ مغلقةٌ بمُدخلٍ واحدٍ اليومَ: لا
- * محوِّلَ اختِير (`ADR 0050` §٣-د). وإضافةُ قيمةٍ ههنا قرارٌ معماريٌّ يوجب ADR ناسخاً.
+ * آلياتُ توزيعِ الأحداثِ المعروفةُ للنظام. قائمةٌ مغلقةٌ، وإضافةُ قيمةٍ ههنا قرارٌ معماريٌّ
+ * يوجب ADR ناسخاً.
+ *
+ * - `in-process`: خريطةُ اشتراكاتٍ في ذاكرةِ عمليةٍ واحدة (ADR 0050).
+ * - `redis-streams-peer-signal` (ADR 0292): أحداثُ التتبّعِ عبرَ Redis Streams (`SCL-004`)،
+ *   وإشاراتُ القنواتِ الآنيةِ (لوحةُ العروض، رحلةُ الراكب، المحادثة) تُبَثُّ إلى كلِّ نسخِ
+ *   البوابةِ في `GATEWAY_INTERNAL_URL` بمعرّفِ مصدرٍ يمنعُ الصدى. والحقيقةُ في القاعدةِ دائماً:
+ *   الإشارةُ تُوقِظُ قراءةَ لقطةٍ ولا تحملُ حالةً تُفقَد.
  */
-export const EVENT_DISTRIBUTION_MECHANISMS = ["in-process"] as const;
+export const EVENT_DISTRIBUTION_MECHANISMS = ["in-process", "redis-streams-peer-signal"] as const;
 
 export type EventDistributionMechanism = (typeof EVENT_DISTRIBUTION_MECHANISMS)[number];
 
@@ -66,7 +72,7 @@ export type EventDistributionMechanism = (typeof EVENT_DISTRIBUTION_MECHANISMS)[
  * الآليةُ المُقرَّرةُ. **ثابتٌ في الشيفرةِ لا متغيّرُ بيئةٍ**: من جعله متغيّراً جعل
  * شرطَ الصحّةِ قابلاً للإطفاءِ بنقرةٍ في لوحةِ تحكّم، وهذا عينُ ما يُعالجه `R-17`.
  */
-export const DECIDED_EVENT_DISTRIBUTION: EventDistributionMechanism = "in-process";
+export const DECIDED_EVENT_DISTRIBUTION: EventDistributionMechanism = "redis-streams-peer-signal";
 
 /**
  * هل تعبر الآليةُ حدودَ العمليةِ؟ سؤالٌ في موضعٍ واحدٍ كي لا يتكرّر الحكمُ: يومَ
@@ -84,16 +90,20 @@ export function distributionCrossesProcessBoundary(
  * - `MULTI_PROCESS_WITHOUT_DISTRIBUTION`: طوبولوجيا متعدّدةٌ مع آليةٍ لا تعبر العمليةَ.
  * - `MULTI_PROCESS_WITHOUT_SHARED_SESSION_STORE`: طوبولوجيا متعدّدةٌ مع جلساتٍ في الذاكرةِ
  *   — خرقُ `multi-process ⇒ redis` (`ADR 0011`).
+ * - `MULTI_PROCESS_WITHOUT_PEER_SIGNAL`: طوبولوجيا متعدّدةٌ وإشاراتُ النسخِ معطَّلةٌ (أقلُّ من
+ *   عنوانَين في `GATEWAY_INTERNAL_URL` أو لا سرَّ إشارة) — فرسالةٌ تُحفَظُ في نسخةٍ لا تصلُ
+ *   مقبسَ الطرفِ الآخرِ في أخرى، والتدهورُ صامتٌ (ADR 0292 §٣).
  */
 export const SINGLE_INSTANCE_VIOLATION_REASONS = [
   "MULTI_PROCESS_WITHOUT_DISTRIBUTION",
   "MULTI_PROCESS_WITHOUT_SHARED_SESSION_STORE",
+  "MULTI_PROCESS_WITHOUT_PEER_SIGNAL",
 ] as const;
 
 export type SingleInstanceViolationReason = (typeof SINGLE_INSTANCE_VIOLATION_REASONS)[number];
 
 /**
- * مُدخلُ الحكمِ: ثلاثةُ حقولٍ لا يحملُ أحدُها سرّاً — لا رمزَ بوتٍ ولا رابطَ قاعدةٍ
+ * مُدخلُ الحكمِ: أربعةُ حقولٍ لا يحملُ أحدُها سرّاً — لا رمزَ بوتٍ ولا رابطَ قاعدةٍ
  * ولا مفتاحَ Redis. وهذا **قيدُ نوعٍ لا اتفاقٌ**: رسالةُ الخرقِ لا تستطيع كشفَ سرٍّ
  * لأنّ الدالّةَ لا تستقبل سرّاً أصلاً (`scripts/check-secret-logging.ts`).
  */
@@ -111,6 +121,11 @@ export interface EventTopologyInput {
   readonly sessionStore: SessionStoreName;
   /** آليةُ التوزيعِ المُقرَّرةُ — تُمرَّر لا تُقرَأ من البيئةِ. */
   readonly distribution: EventDistributionMechanism;
+  /**
+   * هل إشاراتُ النسخِ مفعَّلةٌ فعلاً (`createPeerSignal(...).enabled`)؟ قيمةٌ منطقيّةٌ لا
+   * العناوينُ ولا السرّ. لا تُقرَأ إلّا مع `multi-process` (ADR 0292 §٣).
+   */
+  readonly peerSignalEnabled: boolean;
 }
 
 /**
@@ -143,6 +158,9 @@ export class SingleInstanceInvariantError extends Error {
  * | `single-process` | `redis` | `in-process` | **يسمح** — مكانُ الجلساتِ لا يخلق عمليةً ثانيةً |
  * | `multi-process` | `redis` | `in-process` | يرفض — التوزيعُ غيرُ منفَّذٍ |
  * | `multi-process` | `memory` | `in-process` | يرفض — خرقانِ معاً |
+ * | `multi-process` | `memory` | `redis-streams-peer-signal` | يرفض — الجلساتُ في الذاكرة |
+ * | `multi-process` | `redis` | `redis-streams-peer-signal` | يرفض ما لم تُفعَّل إشاراتُ النسخ |
+ * | `multi-process` | `redis` | `redis-streams-peer-signal` + إشاراتٌ مفعَّلة | **يسمح** (ADR 0292) |
  */
 export function singleInstanceInvariantViolation(
   input: EventTopologyInput,
@@ -168,7 +186,7 @@ export function singleInstanceInvariantViolation(
     );
   }
 
-  // آليةٌ عابرةٌ للعمليةِ (لا وجودَ لها اليومَ): يبقى إلزامُ `multi-process ⇒ redis`.
+  // آليةٌ عابرةٌ للعمليةِ (ADR 0292): يبقى إلزامُ `multi-process ⇒ redis`.
   if (input.sessionStore !== "redis") {
     return new SingleInstanceInvariantError(
       "MULTI_PROCESS_WITHOUT_SHARED_SESSION_STORE",
@@ -180,6 +198,22 @@ export function singleInstanceInvariantViolation(
         "الإعدادُ يُعلِن PROCESS_TOPOLOGY=multi-process وجلساتُ الحوارِ في ذاكرةِ العمليةِ.",
         "فكلُّ نسخةٍ تحفظ حوارَها وحدَها، والمستخدمُ يُعادُ سؤالُه كلَّما تبدّلت النسخةُ.",
         "الإصلاحُ: SESSION_STORE=redis قبلَ تعدُّدِ العملياتِ (ADR 0011). ولا تجاوزَ بمتغيّرِ بيئةٍ.",
+      ].join(" "),
+    );
+  }
+
+  // Streams تحملُ أحداثَ التتبّعِ، لكنَّ غرفَ Socket.IO محلّيّةٌ: بلا إشاراتِ نسخٍ يصيرُ الكسرُ صامتاً.
+  if (!input.peerSignalEnabled) {
+    return new SingleInstanceInvariantError(
+      "MULTI_PROCESS_WITHOUT_PEER_SIGNAL",
+      input.topology,
+      input.sessionStore,
+      input.distribution,
+      [
+        "خرقُ شرطِ صحّةِ تعدُّدِ النسخِ (R-17 · ADR 0292):",
+        "الإعدادُ يُعلِن PROCESS_TOPOLOGY=multi-process وإشاراتُ النسخِ معطَّلة.",
+        "فرسالةُ محادثةٍ أو حدثُ رحلةٍ يولدُ في نسخةٍ لا يصلُ مقبسَ الطرفِ الآخرِ في نسخةٍ أخرى.",
+        "الإصلاحُ: GATEWAY_INTERNAL_URL قائمةٌ بعناوينِ كلِّ النسخِ (اثنانِ فأكثر) وINTERNAL_SIGNAL_SECRET (16 حرفاً فأكثر).",
       ].join(" "),
     );
   }

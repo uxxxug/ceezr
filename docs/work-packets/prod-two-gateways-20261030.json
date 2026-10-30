@@ -1,0 +1,39 @@
+{
+  "id": "prod-two-gateways-20261030",
+  "goal": "تجهيزُ نشرِ نسختَين من البوابةِ في إنتاجِ CasaOS: آليةُ توزيعٍ عابرةٌ للعمليةِ مُقرَّرةٌ (ADR 0292) بشرطِ إقلاعٍ يرفضُ multi-process بلا إشاراتِ نسخ، ومقطعُ compose وHAProxy لاصقٌ لـ/socket.io/، وفتحُ رحلةِ فوضى F5-06 في CI.",
+  "canonical_source": ["docs/adr/0292-multi-instance-gateway-distribution-is-decided.md"],
+  "implementation": [
+    "packages/shared/config/single-instance.ts",
+    "apps/gateway/src/realtime/peer-signal.ts",
+    "apps/gateway/src/index.ts",
+    "scripts/f5-06-invariant-refusal.ts",
+    "scripts/f5-06-chaos.ts",
+    "docker-compose.f5-06.yml",
+    ".github/workflows/ci.yml",
+    "deploy/casaos/compose.gateways.yml",
+    "deploy/casaos/haproxy.cfg",
+    "tests/unit/single-instance-invariant.test.ts",
+    "tests/unit/f5-06-invariant-refusal.test.ts"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [
+    "docs/SYSTEM_STATE.md",
+    "docs/adr/0292-multi-instance-gateway-distribution-is-decided.md",
+    "docs/adr/0050-single-instance-is-a-correctness-invariant-not-a-comment.md",
+    "docs/decisions/DEC-14-single-instance-deferral-20260909.md",
+    "deploy/casaos/README.md"
+  ],
+  "decision": "قرارُ المالكِ 2026-10-30: نسختانِ في الإنتاجِ بعدَ نسخةٍ احتياطيّة. DECIDED_EVENT_DISTRIBUTION = redis-streams-peer-signal. render.yaml وDECLARED_TOPOLOGY يبقيانِ نسخةً واحدةً (يصفانِ نشرَ Render).",
+  "tests": [
+    "tests/unit/single-instance-invariant.test.ts",
+    "tests/unit/f5-06-invariant-refusal.test.ts"
+  ],
+  "evidence": "docs/evidence/capacity/LOAD01M-20261030-MULTI/RESULT.md",
+  "constraints": [
+    "لا تجاوزَ بمتغيّرِ بيئةٍ لشرطِ الإقلاع",
+    "gatewayRequest=5 وIMMEDIATE_REDISPATCH_LIMIT=50 بلا تعديل",
+    "لا منفذَ جديدٌ على الخادم: الموزِّعُ على 127.0.0.1:8080 نفسِه"
+  ],
+  "limitations": "F5-06/SCL-008 لا يُغلَقُ قبلَ مرورِ رحلةِ الفوضى في CI. حدُّ المعدَّلِ في الذاكرةِ لكلِّ نسخة (SCL-003) أرخى بعددِ النسخ."
+}

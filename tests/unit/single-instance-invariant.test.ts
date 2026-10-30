@@ -55,6 +55,7 @@ describe("شرطُ صحّةِ النسخةِ الواحدةِ — الحكمُ �
         topology: "single-process",
         sessionStore: "memory",
         distribution: DECIDED_EVENT_DISTRIBUTION,
+        peerSignalEnabled: false,
       }),
     ).toBeNull();
   });
@@ -70,6 +71,7 @@ describe("شرطُ صحّةِ النسخةِ الواحدةِ — الحكمُ �
         topology: "single-process",
         sessionStore: "redis",
         distribution: DECIDED_EVENT_DISTRIBUTION,
+        peerSignalEnabled: false,
       }),
     ).toBeNull();
   });
@@ -79,6 +81,7 @@ describe("شرطُ صحّةِ النسخةِ الواحدةِ — الحكمُ �
       topology: "multi-process",
       sessionStore: "redis",
       distribution: "in-process",
+      peerSignalEnabled: false,
     });
     expect(violation).not.toBeNull();
     expect(violation?.code).toBe("SINGLE_INSTANCE_INVARIANT");
@@ -92,6 +95,7 @@ describe("شرطُ صحّةِ النسخةِ الواحدةِ — الحكمُ �
       topology: "multi-process",
       sessionStore: "memory",
       distribution: "in-process",
+      peerSignalEnabled: false,
     });
     expect(violation).not.toBeNull();
     expect(violation?.code).toBe("SINGLE_INSTANCE_INVARIANT");
@@ -107,6 +111,7 @@ describe("شرطُ صحّةِ النسخةِ الواحدةِ — الحكمُ �
         topology: "single-process",
         sessionStore: store,
         distribution: "in-process",
+        peerSignalEnabled: false,
       }),
     );
     expect(single).toEqual([null, null]);
@@ -116,6 +121,7 @@ describe("شرطُ صحّةِ النسخةِ الواحدةِ — الحكمُ �
         topology: "multi-process",
         sessionStore: store,
         distribution: "in-process",
+        peerSignalEnabled: false,
       }),
     );
     expect(multi.every((violation) => violation !== null)).toBe(true);
@@ -126,6 +132,7 @@ describe("شرطُ صحّةِ النسخةِ الواحدةِ — الحكمُ �
       topology: "multi-process",
       sessionStore: "redis",
       distribution: "in-process",
+      peerSignalEnabled: false,
     });
     const message = violation?.message ?? "";
     expect(message).toContain("R-17");
@@ -139,9 +146,54 @@ describe("شرطُ صحّةِ النسخةِ الواحدةِ — الحكمُ �
    * القرارُ ثابتٌ في الشيفرةِ لا متغيّرُ بيئةٍ: من جعله متغيّراً جعل شرطَ الصحّةِ
    * قابلاً للإطفاءِ من لوحةِ تحكّمٍ، وهو عينُ ما يُعالجه `R-17`.
    */
-  it("آليةُ التوزيعِ المُقرَّرةُ واحدةٌ ولا محوِّلَ اختِير", () => {
-    expect(EVENT_DISTRIBUTION_MECHANISMS).toEqual(["in-process"]);
-    expect(DECIDED_EVENT_DISTRIBUTION).toBe("in-process");
+  it("آليةُ التوزيعِ المُقرَّرةُ عابرةٌ للعمليةِ بـADR 0292 — ثابتٌ في الشيفرةِ", () => {
+    expect(EVENT_DISTRIBUTION_MECHANISMS).toEqual(["in-process", "redis-streams-peer-signal"]);
+    expect(DECIDED_EVENT_DISTRIBUTION).toBe("redis-streams-peer-signal");
+  });
+
+  /** ADR 0292 §٣ — الجدولُ الجديدُ: العابرةُ تسمحُ بشرطَين لا بواحد. */
+  it("multi-process + redis + آليةٌ عابرةٌ + إشاراتُ نسخٍ مفعَّلة ⇒ يسمح", () => {
+    expect(
+      singleInstanceInvariantViolation({
+        topology: "multi-process",
+        sessionStore: "redis",
+        distribution: "redis-streams-peer-signal",
+        peerSignalEnabled: true,
+      }),
+    ).toBeNull();
+  });
+
+  it("multi-process + آليةٌ عابرةٌ بلا إشاراتِ نسخٍ ⇒ يرفض MULTI_PROCESS_WITHOUT_PEER_SIGNAL", () => {
+    const violation = singleInstanceInvariantViolation({
+      topology: "multi-process",
+      sessionStore: "redis",
+      distribution: "redis-streams-peer-signal",
+      peerSignalEnabled: false,
+    });
+    expect(violation?.reason).toBe("MULTI_PROCESS_WITHOUT_PEER_SIGNAL");
+    expect(violation?.message).toContain("GATEWAY_INTERNAL_URL");
+    expect(violation?.message).toContain("ADR 0292");
+  });
+
+  it("multi-process + memory + آليةٌ عابرةٌ وإشاراتٌ مفعَّلة ⇒ يرفض — الجلساتُ أوّلاً", () => {
+    const violation = singleInstanceInvariantViolation({
+      topology: "multi-process",
+      sessionStore: "memory",
+      distribution: "redis-streams-peer-signal",
+      peerSignalEnabled: true,
+    });
+    expect(violation?.reason).toBe("MULTI_PROCESS_WITHOUT_SHARED_SESSION_STORE");
+  });
+
+  it("الإشاراتُ لا تُقرَأ مع single-process — نسخةٌ واحدةٌ مسموحةٌ بلا عناوين", () => {
+    expect(
+      singleInstanceInvariantViolation({
+        topology: "single-process",
+        sessionStore: "redis",
+        distribution: DECIDED_EVENT_DISTRIBUTION,
+        peerSignalEnabled: false,
+      }),
+    ).toBeNull();
   });
 
   it("مُدخلُ الحكمِ لا يحمل سرّاً — قيدُ نوعٍ لا اتفاقٌ", () => {
@@ -207,7 +259,21 @@ describe("نقطةُ إقلاعِ البوابةِ — سقوطٌ حقيقيٌّ
     };
   };
 
-  it("multi-process + redis ⇒ إقلاعٌ يفشل برمزٍ غيرِ صفريٍّ", async () => {
+  /**
+   * ADR 0292 — الحالةُ المسموحةُ الجديدةُ في نقطةِ الإقلاعِ الحقيقيّة: قائمةُ نسخٍ وسرُّ إشارة.
+   */
+  it("multi-process + redis + GATEWAY_INTERNAL_URL قائمةٌ + سرُّ إشارة ⇒ يعبرُ الحاجز", async () => {
+    const result = await bootGatewayUntilPastGuard({
+      PROCESS_TOPOLOGY: "multi-process",
+      SESSION_STORE: "redis",
+      GATEWAY_INTERNAL_URL: "http://gateway-1:8080,http://gateway-2:8080",
+      INTERNAL_SIGNAL_SECRET: "test-internal-signal-secret-0123",
+    });
+    expect(result.outcome).toBe("still-running");
+    expect(result.stderr).not.toContain("SINGLE_INSTANCE_INVARIANT");
+  }, 60_000);
+
+  it("multi-process + redis بلا قائمةِ نسخٍ ⇒ إقلاعٌ يفشل برمزٍ غيرِ صفريٍّ", async () => {
     const result = await bootGateway({
       PROCESS_TOPOLOGY: "multi-process",
       SESSION_STORE: "redis",

@@ -54,7 +54,6 @@ const DRIVER_CHAT = 450_010;
 const RIDER_CHAT = 460_010;
 
 const PICKUP = { latitude: 21.5433, longitude: 39.1728 };
-const DROPOFF = { latitude: 21.5612, longitude: 39.1889 };
 const DRIVER_AT = { latitude: 21.5471, longitude: 39.1751 };
 
 const sql = createSql({ connectionString: POSTGRES_URL });
@@ -71,7 +70,7 @@ function log(phase: string, message: string): void {
 
 /** نشرُ ويبهوكِ تلغرام إلى هدفٍ (بوّابةٌ مباشرةً أو HAProxy). */
 async function post(target: string, bot: string, update: unknown): Promise<Response> {
-  return fetch(`${target}/webhook/telegram/${bot}`, {
+  const res = await fetch(`${target}/webhook/telegram/${bot}`, {
     method: "POST",
     headers: {
       "content-type": "application/json",
@@ -79,9 +78,22 @@ async function post(target: string, bot: string, update: unknown): Promise<Respo
     },
     body: JSON.stringify(update),
   });
+  // ويبهوكٌ مرفوضٌ يُسمّى في موضعِه — لا مهلةَ «تسجيلٍ» صامتةً بعدَ عشرِ رسائلَ مرفوضة.
+  if (res.status !== 200) {
+    fail("webhook", `${bot} ← ${target}: ${res.status} ${(await res.text()).slice(0, 200)}`);
+  }
+  return res;
 }
 
+/**
+ * `update_id` شرطُ الاستيعابِ الدائمِ ومنعِ التكرار (ADR 0054) — تحديثٌ بلا معرّفٍ يُرفَض.
+ * عدّادٌ يبدأُ من الزمنِ كي لا يصطدمَ بتشغيلٍ سابقٍ على القاعدةِ نفسِها.
+ */
+let updateIdCounter = Math.floor(Date.now() / 1000) * 1000;
+const nextUpdateId = (): number => ++updateIdCounter;
+
 const message = (chatId: number, body: Record<string, unknown>) => ({
+  update_id: nextUpdateId(),
   message: { chat: { id: chatId }, from: { id: chatId, language_code: "ar" }, ...body },
 });
 const text = (chatId: number, value: string) => message(chatId, { text: value });
@@ -92,6 +104,7 @@ const location = (chatId: number, at: { latitude: number; longitude: number }) =
 const contact = (chatId: number, phone: string) =>
   message(chatId, { contact: { user_id: chatId, phone_number: phone } });
 const privateCallback = (chatId: number, data: string) => ({
+  update_id: nextUpdateId(),
   callback_query: {
     data,
     from: { id: chatId },
@@ -107,7 +120,40 @@ async function poll<T>(label: string, fn: () => Promise<T | null>, timeoutMs = 1
     if (value !== null && value !== undefined) return value;
     await Bun.sleep(250);
   }
+  await dumpIntake(label);
   fail("poll", `انقضتِ المهلةُ بانتظارِ «${label}»`);
+}
+
+/** تشخيصٌ عندَ انقضاءِ المهلة: حالُ طابورِ التحديثاتِ والكياناتِ — لا تخمينَ في CI. */
+async function dumpIntake(label: string): Promise<void> {
+  try {
+    const jobs = await sql<
+      {
+        bot: string;
+        update_id: string;
+        status: string;
+        attempts: number;
+        error_code: string | null;
+      }[]
+    >`select bot, update_id::text, status, attempts, error_code
+        from telegram_update_jobs order by created_at`;
+    const counts = await sql<{ riders: number; drivers: number; orders: number }[]>`
+      select (select count(*)::int from riders) as riders,
+             (select count(*)::int from drivers) as drivers,
+             (select count(*)::int from orders) as orders`;
+    console.error(`🔎 [F5-06] تشخيصُ «${label}»: ${JSON.stringify(counts[0])}`);
+    for (const job of jobs) console.error(`🔎 [F5-06] job ${JSON.stringify(job)}`);
+    if (label === "إنشاءُ الطلب") {
+      // النداءُ نفسُه الذي يُجريه البوتُ — يُسمّي رمزَ الرفضِ بدلَ «لا طلب».
+      const probe = await sql.unsafe<{ result: unknown }[]>(
+        "select request_ride_with_offer($1, $2, $3, $4, $5, null, null, null, null, null, null, null, null::jsonb, null::jsonb, 'open') as result",
+        [RIDER_CHAT, `f5-06-diag-${Date.now()}`, "transport", PICKUP.latitude, PICKUP.longitude],
+      );
+      console.error(`🔎 [F5-06] request_ride_with_offer: ${JSON.stringify(probe[0]?.result)}`);
+    }
+  } catch (error) {
+    console.error(`🔎 [F5-06] تعذّرَ التشخيص: ${String(error)}`);
+  }
 }
 
 async function readyStatus(target: string): Promise<{ status: number; body: unknown }> {
@@ -190,6 +236,9 @@ async function registerDriver(cityId: string): Promise<string> {
     return rows[0]?.id ?? null;
   });
   await sql`update drivers set verification_status = 'verified' where id = ${driverRows}`;
+  // PD-040: لا تجربةَ قبلَ التوثيق، ولا خدمةَ في المدينةِ بلا سائقٍ مشترِكٍ
+  // (`city_served_services`) — وبدونِها يُرفَضُ الطلبُ بـ`SERVICE_NOT_AVAILABLE_IN_CITY`.
+  await sql`select start_trial(${driverRows}::uuid, 'transport') as result`;
   await post(gw1, "driver", text(DRIVER_CHAT, "/available"));
   await post(gw1, "driver", location(DRIVER_CHAT, DRIVER_AT));
   log("تسجيلُ السائق", `عبرَ gateway-1 — ${driverRows}`);
@@ -203,11 +252,12 @@ async function riderRequestsRide(cityId: string): Promise<string> {
   const gw2 = gateway(1).url;
   await post(gw2, "rider", text(RIDER_CHAT, "/start"));
   await post(gw2, "rider", text(RIDER_CHAT, "راكبُ الفوضى"));
-  await post(gw2, "rider", contact(RIDER_CHAT, "+966500460010"));
   await post(gw2, "rider", privateCallback(RIDER_CHAT, `city:${cityId}`));
   await post(gw2, "rider", text(RIDER_CHAT, "/ride"));
   await post(gw2, "rider", location(RIDER_CHAT, PICKUP));
-  await post(gw2, "rider", location(RIDER_CHAT, DROPOFF));
+  // مسارُ الراكبِ الموثَّقُ في tests/integration/full-ride.test.ts: لا جهةَ اتصالٍ للراكب،
+  // والوجهةُ اختياريةٌ تُتخطّى بـ`/skip` — رسالةٌ خارجَ الحالةِ تُبقي المحادثةَ عالقة.
+  await post(gw2, "rider", text(RIDER_CHAT, "/skip"));
 
   const orderRows = await poll("إنشاءُ الطلب", async () => {
     const rows = await sql<
