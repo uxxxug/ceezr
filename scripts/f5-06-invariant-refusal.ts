@@ -17,7 +17,18 @@
  * وإجبارُ الرحلةِ على المرورِ يقتضي إمّا تعطيلَ الحاجزِ (ممنوعٌ نصًّا: «ولا تجاوزَ
  * بمتغيّرِ بيئةٍ») وإمّا إعلانَ طوبولوجيا واحدةٍ ثمَّ تشغيلَ ثلاثِ نسخٍ — وهو
  * **الكذبُ نفسُه** الذي جاءَ `R-17` يمنعُه. فيُقاسُ ما يُمكِنُ قياسُه صادقاً.
+ *
+ * ## بعدَ ADR 0292 (2026-10-30)
+ *
+ * قُرِّرت آليةٌ عابرةٌ للعمليةِ (`redis-streams-peer-signal`)، فانقلبَ المُنتظَرُ: الثلاثُ
+ * **يجبُ أن تُقلِعَ** ولا يظهرَ رمزُ الخرقِ في سجلِّ أيٍّ منها (`analyseBoot`). والحكمُ يُقرَأ
+ * من الثابتِ المُقرَّرِ لا من البيئة، فيعودُ قياسُ الرفضِ وحدَه لو عادَ القرارُ «in-process».
  */
+
+import {
+  DECIDED_EVENT_DISTRIBUTION,
+  distributionCrossesProcessBoundary,
+} from "../packages/shared/config/single-instance.ts";
 
 const DEFAULT_COMPOSE_FILE = "docker-compose.f5-06.yml";
 
@@ -89,6 +100,45 @@ export function analyseRefusal(observations: readonly ServiceObservation[]): Ref
   return findings;
 }
 
+export type BootFindingCode = "SERVICE_MISSING" | "EXITED_INSTEAD_OF_BOOTING" | "INVARIANT_REFUSED";
+
+export interface BootFinding {
+  readonly code: BootFindingCode;
+  readonly service: string;
+  readonly detail: string;
+}
+
+/**
+ * ADR 0292 — الوجهُ المقابلُ: آليةٌ عابرةٌ مُقرَّرةٌ ⇒ كلُّ بوّابةٍ قائمةٌ ولا رمزَ خرقٍ في سجلِّها.
+ * نقيٌّ كي يُختبَرَ بلا Docker.
+ */
+export function analyseBoot(observations: readonly ServiceObservation[]): BootFinding[] {
+  const findings: BootFinding[] = [];
+  for (const service of REFUSAL_SERVICES) {
+    const observation = observations.find((candidate) => candidate.service === service);
+    if (observation === undefined) {
+      findings.push({ code: "SERVICE_MISSING", service, detail: "الخدمةُ غائبةٌ عن الرصة" });
+      continue;
+    }
+    if (observation.logs.includes(INVARIANT_CODE)) {
+      findings.push({
+        code: "INVARIANT_REFUSED",
+        service,
+        detail: `رُفِضَ الإقلاعُ بـ${INVARIANT_CODE} والآليةُ المُقرَّرةُ عابرة — الضبطُ ناقصٌ (GATEWAY_INTERNAL_URL/INTERNAL_SIGNAL_SECRET)`,
+      });
+      continue;
+    }
+    if (observation.exitCode !== null) {
+      findings.push({
+        code: "EXITED_INSTEAD_OF_BOOTING",
+        service,
+        detail: `خرجَت برمزِ ${observation.exitCode} بدلَ أن تُقلِع`,
+      });
+    }
+  }
+  return findings;
+}
+
 async function run(command: readonly string[]): Promise<string> {
   const proc = Bun.spawn([...command], { stdout: "pipe", stderr: "pipe" });
   const [out] = await Promise.all([new Response(proc.stdout).text(), proc.exited]);
@@ -130,8 +180,33 @@ async function observe(composeFile: string): Promise<ServiceObservation[]> {
   return observations;
 }
 
+async function proveBoot(composeFile: string): Promise<void> {
+  // مهلةٌ تكفي لأن يقعَ الرفضُ لو وقع (الحاجزُ يسبقُ أوّلَ اتّصال)، ثمّ حكمٌ على لحظةٍ مستقرّة.
+  await Bun.sleep(20_000);
+  const observations = await observe(composeFile);
+  const findings = analyseBoot(observations);
+  for (const observation of observations) {
+    console.log(
+      `▶ [F5-06] ${observation.service}: ${observation.exitCode === null ? "قائمة" : `خرجت ${observation.exitCode}`}`,
+    );
+  }
+  if (findings.length > 0) {
+    console.error("\n❌ [F5-06] تعدُّدُ النسخِ لم يُقلِع كما يوجبه ADR 0292:");
+    for (const finding of findings)
+      console.error(`   • ${finding.service} — ${finding.code}: ${finding.detail}`);
+    process.exit(1);
+  }
+  console.log(
+    `\n✅ [F5-06] البوّاباتُ الثلاثُ أقلعَت بـPROCESS_TOPOLOGY=multi-process وآليةِ «${DECIDED_EVENT_DISTRIBUTION}» (ADR 0292). والرحلةُ في الخطوةِ التالية.`,
+  );
+}
+
 async function main(): Promise<void> {
   const composeFile = Bun.argv[2] ?? DEFAULT_COMPOSE_FILE;
+  if (distributionCrossesProcessBoundary(DECIDED_EVENT_DISTRIBUTION)) {
+    await proveBoot(composeFile);
+    return;
+  }
   const deadline = Date.now() + 120_000;
   let findings: RefusalFinding[] = [];
   let observations: ServiceObservation[] = [];

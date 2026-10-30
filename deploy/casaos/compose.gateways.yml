@@ -1,0 +1,42 @@
+# الغرض: مقطعُ خدماتِ البوابةِ في /opt/wasla/compose.yml لنسختَين خلفَ HAProxy (ADR 0292).
+# يحلُّ محلَّ الخدمةِ `gateway` الواحدة. الأسرارُ في ملفّاتِ البيئةِ على الخادمِ لا هنا:
+#   /etc/wasla/gateway.env (القائمُ) و/etc/wasla/signal.env (INTERNAL_SIGNAL_SECRET، 600).
+# `TAG` صورةُ البوابةِ المبنيّةُ من /opt/wasla/src.
+#
+# - العاملُ في gateway-1 وحدَها (RUN_WORKER_IN_GATEWAY)، والمصرِّفُ في الاثنتين (SKIP LOCKED).
+# - lb وحدَه منشورٌ على 127.0.0.1:8080 — المنفذُ نفسُه الذي كانت تنشرُه البوابةُ الواحدة.
+  gateway-1: &gateway
+    build: {context: /opt/wasla/src, dockerfile: docker/Dockerfile.gateway}
+    image: wasla/gateway:${TAG}
+    restart: unless-stopped
+    env_file: [/etc/wasla/gateway.env, /etc/wasla/signal.env]
+    environment:
+      PROCESS_TOPOLOGY: multi-process
+      RUN_WORKER_IN_GATEWAY: "true"
+      SERVICE_INSTANCE_ID: casaos-gw-1
+      GATEWAY_INTERNAL_URL: http://gateway-1:8080,http://gateway-2:8080
+    depends_on:
+      db: {condition: service_healthy}
+      redis-rest: {condition: service_started}
+    networks: [internal, egress]
+    mem_limit: 1536m
+    cpus: 1.5
+    stop_grace_period: 30s
+    healthcheck: {test: ["CMD-SHELL", "bun -e \"fetch('http://127.0.0.1:8080/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""], interval: 30s, timeout: 10s, retries: 3, start_period: 60s}
+  gateway-2:
+    <<: *gateway
+    environment:
+      PROCESS_TOPOLOGY: multi-process
+      RUN_WORKER_IN_GATEWAY: "false"
+      SERVICE_INSTANCE_ID: casaos-gw-2
+      GATEWAY_INTERNAL_URL: http://gateway-1:8080,http://gateway-2:8080
+  lb:
+    image: haproxy:3.2-alpine
+    restart: unless-stopped
+    volumes: ["/opt/wasla/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro"]
+    ports: ["127.0.0.1:8080:8080"]
+    depends_on: [gateway-1, gateway-2]
+    # `internal` شبكةٌ داخليّةٌ لا يُنشَرُ منها منفذ؛ `egress` لنشرِ 127.0.0.1:8080 وحدَه.
+    networks: [internal, egress]
+    mem_limit: 128m
+    cpus: 0.5

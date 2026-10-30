@@ -15,6 +15,7 @@ import {
 } from "../../packages/shared/config/single-instance.ts";
 import { rideIsUnlockable } from "../../scripts/f5-06-chaos.ts";
 import {
+  analyseBoot,
   analyseRefusal,
   INVARIANT_CODE,
   parseComposePs,
@@ -83,7 +84,7 @@ describe("برهانُ رفضِ الإقلاعِ متعدّدِ المثيلات
 });
 
 describe("بوّابةُ رحلةِ الفوضى تُقرأُ من قرارِ التوزيعِ لا من البيئةِ", () => {
-  test("لا تُفتَحُ الرحلةُ بآليةٍ داخلَ العمليةِ — وهي المُقرَّرةُ اليومَ", () => {
+  test("لا تُفتَحُ الرحلةُ بآليةٍ داخلَ العمليةِ", () => {
     expect(rideIsUnlockable("in-process")).toBe(false);
     expect(rideIsUnlockable(DECIDED_EVENT_DISTRIBUTION)).toBe(
       distributionCrossesProcessBoundary(DECIDED_EVENT_DISTRIBUTION),
@@ -100,11 +101,11 @@ describe("بوّابةُ رحلةِ الفوضى تُقرأُ من قرارِ ا
   });
 });
 
-describe("قرارُ المالكِ `DEC-14` مُنفَّذٌ آليّاً لا موصوفاً", () => {
-  test("آلياتُ التوزيعِ المعروفةُ واحدةٌ داخلَ العمليةِ — وإضافةُ ثانيةٍ تُسقِطُ هذا الاختبارَ فتوجبُ ADR ناسخاً", () => {
-    expect(EVENT_DISTRIBUTION_MECHANISMS).toEqual(["in-process"]);
-    expect(DECIDED_EVENT_DISTRIBUTION).toBe("in-process");
-    expect(rideIsUnlockable(DECIDED_EVENT_DISTRIBUTION)).toBe(false);
+describe("قرارُ المالكِ 2026-10-30 (ADR 0292) ينسخُ تأجيلَ `DEC-14` — مُنفَّذاً آليّاً", () => {
+  test("الآليةُ المُقرَّرةُ عابرةٌ للعمليةِ فتُفتَحُ رحلةُ الفوضى — وإضافةُ ثالثةٍ تُسقِطُ هذا فتوجبُ ADR ناسخاً", () => {
+    expect(EVENT_DISTRIBUTION_MECHANISMS).toEqual(["in-process", "redis-streams-peer-signal"]);
+    expect(DECIDED_EVENT_DISTRIBUTION).toBe("redis-streams-peer-signal");
+    expect(rideIsUnlockable(DECIDED_EVENT_DISTRIBUTION)).toBe(true);
   });
 
   test("`render.yaml` يُعلِنُ نسخةً واحدةً لكلِّ خدمةٍ تُعلِنُ `numInstances`", () => {
@@ -118,5 +119,37 @@ describe("قرارُ المالكِ `DEC-14` مُنفَّذٌ آليّاً لا 
     for (const service of declared) {
       expect(service.numInstances).toBe(1);
     }
+  });
+});
+
+describe("ADR 0292 — برهانُ الإقلاعِ متعدّدِ النسخِ (الوجهُ المقابلُ للرفض)", () => {
+  const running = (service: string, logs = "gateway.listening") => ({
+    service,
+    exitCode: null,
+    logs,
+  });
+
+  test("ثلاثٌ قائمةٌ بلا رمزِ خرقٍ ⇒ لا ملاحظة", () => {
+    expect(analyseBoot(["gateway-1", "gateway-2", "gateway-3"].map((s) => running(s)))).toEqual([]);
+  });
+
+  test("رمزُ الخرقِ في سجلِّ واحدةٍ يُسقِطُ البرهانَ ولو بقيَت قائمة", () => {
+    const findings = analyseBoot([
+      running("gateway-1"),
+      running("gateway-2", "SINGLE_INSTANCE_INVARIANT"),
+      running("gateway-3"),
+    ]);
+    expect(findings.map((finding) => finding.code)).toEqual(["INVARIANT_REFUSED"]);
+  });
+
+  test("خروجٌ أو غيابٌ ⇒ ملاحظةٌ لكلِّ خدمة", () => {
+    const findings = analyseBoot([
+      running("gateway-1"),
+      { service: "gateway-2", exitCode: 1, logs: "" },
+    ]);
+    expect(findings.map((finding) => `${finding.service}:${finding.code}`)).toEqual([
+      "gateway-2:EXITED_INSTEAD_OF_BOOTING",
+      "gateway-3:SERVICE_MISSING",
+    ]);
   });
 });

@@ -35,8 +35,16 @@ export interface PeerSignal {
   readonly send: (path: string, body: Record<string, unknown>) => void;
 }
 
+/**
+ * الحكمُ وحدَه: نسختانِ فأكثر وسرٌّ صالح. يُقرَأ في الإقلاعِ قبلَ تركيبِ شيءٍ لشرطِ تعدُّدِ
+ * النسخِ (ADR 0292 §٣) — وهو نفسُه ما يُفعِّلُ الإشارةَ هنا، فلا يفترقُ الحكمانِ.
+ */
+export function isPeerSignalEnabled(targets: readonly string[], secret: string | null): boolean {
+  return targets.length > 1 && secret !== null && secret.length >= 16;
+}
+
 export function createPeerSignal(deps: PeerSignalDeps): PeerSignal {
-  const enabled = deps.targets.length > 1 && deps.secret !== null && deps.secret.length >= 16;
+  const enabled = isPeerSignalEnabled(deps.targets, deps.secret);
   const guardedFetch = deps.fetch ?? createGuardedFetch("gateway-internal-peer-signal");
   return {
     enabled,

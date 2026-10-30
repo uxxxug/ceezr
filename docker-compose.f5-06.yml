@@ -78,8 +78,14 @@ services:
       # محجوزٌ لا يُخاطَبُ فعليًّا في هذه الرصةِ المعزولةِ).
       MINIAPP_URL: https://miniapp.invalid
       TELEGRAM_TRANSPORT: silent
+      # رحلةُ الفوضى تقودُ تدفّقَ البوتِ بالويبهوك (التسجيلُ والطلبُ نصّاً)، وهو سطحُ `legacy`
+      # (ADR 0213) — لا سطحُ miniapp الذي يُحيلُ إلى التطبيقِ المصغَّر.
+      BOT_SURFACE_MODE: legacy
       SESSION_STORE: redis
       PROCESS_TOPOLOGY: multi-process
+      # ADR 0292 §٣ — إشاراتُ النسخِ شرطُ إقلاعِ multi-process: كلُّ النسخِ في القائمةِ وسرٌّ مشترك.
+      GATEWAY_INTERNAL_URL: http://gateway-1:3000,http://gateway-2:3000,http://gateway-3:3000
+      INTERNAL_SIGNAL_SECRET: chaos-internal-signal-secret-32chars
       RUN_WORKER_IN_GATEWAY: "false"
       RUN_ADMIN_IN_GATEWAY: "false"
       TRANSLATION_PROVIDER: none

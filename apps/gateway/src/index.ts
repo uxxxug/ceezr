@@ -209,7 +209,7 @@ import type { HttpGapTiming } from "./realtime/http-bridge.ts";
 import { createHttpBridge, stampRequestEvents } from "./realtime/http-bridge.ts";
 import { isLiveLocationBroadcastPermitted } from "./realtime/live-tracking-policy.ts";
 import { createOffersChannel } from "./realtime/offers-channel.ts";
-import { createPeerSignal } from "./realtime/peer-signal.ts";
+import { createPeerSignal, isPeerSignalEnabled } from "./realtime/peer-signal.ts";
 import { createRideChannel } from "./realtime/ride-channel.ts";
 import { createRiderTripChannel } from "./realtime/rider-trip-channel.ts";
 import { createUpstashRedis, sanitizeUpstashError } from "./redis/upstash.ts";
@@ -287,6 +287,7 @@ const topologyViolation = singleInstanceInvariantViolation({
   topology: config.processTopology,
   sessionStore: config.sessionStore,
   distribution: DECIDED_EVENT_DISTRIBUTION,
+  peerSignalEnabled: isPeerSignalEnabled(config.gatewayInternalUrls, config.internalSignalSecret),
 });
 
 if (topologyViolation !== null) {
@@ -432,7 +433,7 @@ let chatChannel: ChatChannel | null = null;
  */
 const peerSignal = createPeerSignal({
   targets: config.gatewayInternalUrls,
-  secret: process.env.INTERNAL_SIGNAL_SECRET ?? null,
+  secret: config.internalSignalSecret,
   origin: crypto.randomUUID(),
   log,
 });
@@ -2206,7 +2207,7 @@ if (offersChannel !== null) {
     createInternalOffersSignalRoutes({
       isDriverConnected: offersChannel.isDriverConnected,
       notifyDriver: offersChannel.notifyDriver,
-      secret: process.env.INTERNAL_SIGNAL_SECRET ?? null,
+      secret: config.internalSignalSecret,
       log,
       origin: peerSignal.origin,
       chat: { publish: (signal) => chatChannel?.publish(signal) },
