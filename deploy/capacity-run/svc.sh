@@ -53,7 +53,7 @@ case "${1:-status}" in
         servers="$servers    server gw$i 127.0.0.1:$port check inter 2s fall 3 rise 1 maxconn 20000\n"
       done
       cfg="$RUN_DIR/evidence/haproxy.cfg"
-      printf "global\n    maxconn 60000\n    nbthread 1\ndefaults\n    mode http\n    timeout connect 5s\n    timeout client 120s\n    timeout server 120s\n    timeout tunnel 1h\n    option http-server-close\nfrontend fe\n    bind 127.0.0.1:54300\n    maxconn 60000\n    default_backend gws\nbackend gws\n    balance leastconn\n    option httpchk GET /health\n%b" "$servers" > "$cfg"
+      printf "global\n    maxconn 30000\n    nbthread 1\ndefaults\n    mode http\n    timeout connect 5s\n    timeout client 120s\n    timeout server 120s\n    timeout tunnel 1h\n    option http-server-close\nfrontend fe\n    bind 127.0.0.1:54300\n    maxconn 30000\n    default_backend gws\nbackend gws\n    balance leastconn\n    option httpchk GET /health\n%b" "$servers" > "$cfg"
       echo "{\"t\":\"$(date -Is)\",\"event\":\"gateway.instances\",\"n\":$N,\"internal_urls\":\"$urls\"}" >> "$RUN_DIR/evidence/gateway-starts.jsonl"
       for i in $(seq 1 "$N"); do
         worker=false; [ "$i" = 1 ] && worker=true
