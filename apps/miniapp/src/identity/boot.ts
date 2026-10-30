@@ -165,9 +165,14 @@ const defaultExchange = (initData: string, observe?: ApiObserver): Promise<Excha
  * بطاقةُ القروبِ تفتحُ التطبيقَ برابطِ `startapp` فتصلَ الشاشةُ إلى هدفِها من التبادلِ
  * الموثَّقِ لا من ضميمةٍ خامٍ. يُقرأُ مرةً بعدَ الإقلاعِ لا في كلِّ رسمٍ.
  */
-const bootStartParam: string | null = null;
+let bootStartParam: string | null = null;
 export function startParamFromBoot(): string | null {
   return bootStartParam;
+}
+
+/** للاختبارات وحدَها: يُعيدُ هدفَ الهبوطِ إلى غيابِه بين حالةٍ وأخرى. */
+export function resetBootStartParamForTests(): void {
+  bootStartParam = null;
 }
 
 export function establishSession(deps: BootDeps = {}): Promise<BootResult> {
@@ -309,6 +314,12 @@ async function establishSessionOnce(deps: BootDeps): Promise<BootResult> {
   /** إقامةُ جلسةٍ من ردِّ مبادلةٍ — مُقدَّمةً كانت أو عاديّة. */
   async function adopt(response: ExchangeResponse): Promise<BootResult> {
     setSession({ accessToken: response.accessToken, expiresAt: response.expiresAtMs });
+    // `ADR 0286`: هدفُ رابطِ `startapp` يُؤخذُ من التبادلِ الموثَّقِ الأخير وحدَه — وغيابُه
+    // فيه يمحو هدفًا سابقًا كي لا تهبطَ فتحةٌ عاديّةٌ على طلبِ بطاقةٍ قديمة.
+    bootStartParam =
+      typeof response.startParam === "string" && response.startParam.length > 0
+        ? response.startParam
+        : null;
     // ردٌّ بلا رمزِ تجديدٍ ردٌّ صحيحٌ في العقد: الجلسةُ تعيش في الذاكرةِ حتى
     // تنتهي، ولا يُختلَق رمزٌ ولا يُعَدُّ ذلك فشلاً. وحفظُ الرمزِ الجديدِ يستبدلُ القديم.
     if (typeof response.refreshToken === "string" && response.refreshToken.length > 0) {

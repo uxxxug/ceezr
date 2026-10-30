@@ -44,19 +44,24 @@ export function createMemoryRateLimiter(
 ): RateLimiter & { readonly size: () => number } {
   const windowMs = options.windowSeconds * 1000;
   const counters = new Map<string, { count: number; startedAtMs: number }>();
+  let lastSweepMs = nowMs();
 
   return {
     size: () => counters.size,
     hit: async (key: string): Promise<RateDecision> => {
       const now = nowMs();
-      // التنظيف مع كل نداء: العدّادات المنتهية لا تُترك تتكدّس بمفاتيح مهاجم
-      // يبدّل عنوانه كل طلب — وهو أوّل من يُتوقَّع منه ذلك.
-      for (const [existing, entry] of counters) {
-        if (now - entry.startedAtMs >= windowMs) counters.delete(existing);
+      // التنظيف مرّةً كلَّ نافذة لا مع كل نداء: العدّادات المنتهية لا تُترك تتكدّس
+      // بمفاتيح مهاجم يبدّل عنوانه كل طلب، والحجمُ محدودٌ بما وصل في نافذتَين —
+      // بلا مسحٍ خطّيٍّ للخريطة كلّها في كل طلب تحت الحِمل.
+      if (now - lastSweepMs >= windowMs) {
+        lastSweepMs = now;
+        for (const [existing, stale] of counters) {
+          if (now - stale.startedAtMs >= windowMs) counters.delete(existing);
+        }
       }
 
       const entry = counters.get(key);
-      if (entry === undefined) {
+      if (entry === undefined || now - entry.startedAtMs >= windowMs) {
         counters.set(key, { count: 1, startedAtMs: now });
         return {
           allowed: true,
