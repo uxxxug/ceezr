@@ -1,0 +1,8 @@
+# الغرض: مزامنةُ رابطِ النفقِ العامِّ مع MINIAPP_URL وwebhookَي البوتين (ADR 0293).
+[Unit]
+Description=WASLA tunnel URL sync (MINIAPP_URL + Telegram webhooks)
+After=wasla-public-tunnel.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/wasla/wasla-tunnel-sync.sh
