@@ -1,0 +1,37 @@
+{
+  "id": "multi-gateway-instances-20261030",
+  "goal": "قياسُ التوسّعِ الأفقيّ للبوابة (نسختان وثلاث خلف HAProxy) نحو 5,000 مستخدم متزامن في المدن الخمس، مع بثِّ الإشاراتِ الداخليّةِ (لوحة العروض، حدث رحلة الراكب، المحادثة) إلى كلِّ النسخ.",
+  "canonical_source": ["docs/SYSTEM_STATE.md"],
+  "implementation": [
+    "packages/infrastructure/notification/internal-signal-fanout.ts",
+    "packages/infrastructure/dispatch/offer-board-delivery.ts",
+    "packages/infrastructure/notification/rider-trip-app-delivery.ts",
+    "packages/shared/config/index.ts",
+    "packages/shared/wasla/egress-registry.ts",
+    "apps/workers/src/container.ts",
+    "apps/gateway/src/realtime/peer-signal.ts",
+    "apps/gateway/src/routes/internal-offers-signal.ts",
+    "apps/gateway/src/index.ts",
+    "deploy/capacity-run/svc.sh",
+    "deploy/capacity-run/b24-runner/seat-bin/host-sampler.py",
+    "scripts/measure-tti.ts",
+    "scripts/test-delivery-screens.ts",
+    "tests/support/config.ts",
+    "tests/unit/internal-signal-fanout.test.ts",
+    "tests/unit/offers-signal-routes.test.ts",
+    "docs/wasla/egress-boundary.md",
+    "docs/evidence/capacity/LOAD01M-20261030-MULTI/RESULT.md",
+    "docs/evidence/capacity/LOAD01M-20261030-MULTI/gates-raw.txt"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": ["docs/SYSTEM_STATE.md", "docs/wasla/egress-boundary.md"],
+  "decision": "الإنتاجُ يبقى نسخةً واحدة. بثُّ الإشاراتِ متوافقٌ رجعيًّا: عنوانٌ واحدٌ في GATEWAY_INTERNAL_URL يعطي السلوكَ السابقَ نفسَه. النشرُ متعدّدُ النسخِ يحتاج قرارًا يخلفُ ADR 0050 §8، وجلساتٍ لاصقةً لـSocket.IO، وتحديثَ ميزانيةِ الاتصالات.",
+  "tests": [
+    "tests/unit/internal-signal-fanout.test.ts",
+    "tests/unit/offers-signal-routes.test.ts"
+  ],
+  "evidence": "docs/evidence/capacity/LOAD01M-20261030-MULTI/RESULT.md: ستُّ موجاتٍ VALID (N=1/2/3 × 2,000/5,000 مستخدم).",
+  "constraints": ["gatewayRequest=5 وIMMEDIATE_REDISPATCH_LIMIT=50 لم يُعدَّلا لأن القياسَ لم يُثبِتْ فائدة", "لا تعديلَ لهجرةٍ مطبَّقة"],
+  "limitations": "المقعدُ يُشغِّلُ كلَّ النسخِ بـPROCESS_TOPOLOGY=single-process اختصارًا للقياسِ فقط. القيدُ الحاكمُ معالجُ المضيف (4 أنويةٍ مشتركة)."
+}
