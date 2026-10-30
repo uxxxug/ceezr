@@ -257,6 +257,17 @@ export const WASLA_EGRESS_REGISTRY: readonly EgressPeer[] = [
     removed: false,
   },
   {
+    id: "gateway-internal-peer-signal",
+    purpose:
+      "تعدُّدُ نسخِ البوّابة — إشارةُ «جديدٌ» في المحادثةِ وحدثُ رحلةِ الراكبِ إلى النسخِ الأخرى بمعرّفِ مصدرٍ — بابُ خدمةٍ لخدمةٍ بسرٍّ مشتركٍ",
+    peerClass: "INFRASTRUCTURE",
+    system: "NONE",
+    source: { kind: "env", envKeys: ["GATEWAY_INTERNAL_URL", "INTERNAL_SIGNAL_SECRET"] },
+    callSite: "apps/gateway/src/realtime/peer-signal.ts",
+    runtimeGate: { kind: "gated" },
+    removed: false,
+  },
+  {
     id: "upstash-redis-rest",
     purpose: "مخزنُ الجلساتِ ومنعُ التكرارِ عبرَ المثيلاتِ",
     peerClass: "INFRASTRUCTURE",

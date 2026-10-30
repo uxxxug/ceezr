@@ -836,6 +836,20 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
       owner: REPO_EXECUTOR,
     },
   },
+  {
+    // نسخةُ البوابةِ تبثُّ إشارةَ المحادثةِ إلى أخواتِها (تعدُّدُ النسخ) — سرٌّ مشتركٌ،
+    // 401 بلا سرٍّ و503 حينَ يُعطَّل، ومعرّفُ المصدرِ يمنعُ الصدى.
+    method: "POST",
+    path: "/internal/realtime/chat-signal",
+    file: "apps/gateway/src/routes/internal-offers-signal.ts",
+    exposure: "ويبهوكٌ موقَّعٌ",
+    limits: [],
+    exemption: {
+      reason:
+        "مسارُ خدمةٍ لخدمةٍ بسرٍّ مشتركٍ لا يعرفُهُ عميلٌ؛ الحاجزُ هوَ السرُّ (401 بلا سرٍّ) والسقفُ في الطالبِ (إشارةٌ واحدةٌ لكلِّ رسالةٍ مُرسَلةٍ مقيَّدةٍ بحدِّ المحادثة) — وحدُّ المعدَّلِ هنا يحجبُ أختًا صادقةً ولا يمنعُ شريرًا يعرفُ السرَّ أصلًا.",
+      owner: REPO_EXECUTOR,
+    },
+  },
 
   {
     method: "POST",
@@ -1676,11 +1690,13 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
  *   بجلسةٍ، والطلبُ مقيَّدٌ بصاحبِه في القاعدة.
  * 147 → 150 في 2026-10-18 (ADR 0287): `GET /v1/rides/:id/trip-events` و`POST …/ack` مُصادَقانِ
  *   بجلسةٍ، و`POST /internal/realtime/rider-trip-signal` خدمةٌ لخدمةٍ بسرٍّ مشتركٍ.
+ * 150 → 151 في 2026-10-30: `POST /internal/realtime/chat-signal` خدمةٌ لخدمةٍ بسرٍّ مشتركٍ (تعدُّدُ النسخ).
  */
-export const ROUTE_POLICY_COUNT = 150;
+export const ROUTE_POLICY_COUNT = 151;
 export const LIMITED_ROUTE_COUNT = 10;
-/** 4 → 5 في 2026-10-18 (ADR 0287): `/internal/realtime/rider-trip-signal` بسرٍّ مشتركٍ كأختِه. */
-export const EXEMPT_ROUTE_COUNT = 5;
+/** 4 → 5 في 2026-10-18 (ADR 0287): `/internal/realtime/rider-trip-signal` بسرٍّ مشتركٍ كأختِه.
+ *  5 → 6 في 2026-10-30: `/internal/realtime/chat-signal` بسرٍّ مشتركٍ كأختَيه. */
+export const EXEMPT_ROUTE_COUNT = 6;
 
 /** حدودُ مسارٍ بعينِه — يُعيدُ مصفوفةً فارغةً لِما لا حدَّ له. */
 export function limitsFor(method: string, path: string): readonly RateLimitPolicy[] {

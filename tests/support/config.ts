@@ -89,6 +89,7 @@ export function testConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     // يُطلَبْ (البطاقةُ البديلةُ هيَ المسارَ الافتراضيَّ هناك).
     internalSignalSecret: null,
     gatewayInternalUrl: null,
+    gatewayInternalUrls: [],
     /**
      * `SEC-21`: مفتاحُ تشفيرِ أسرارِ TOTP للبابِ الموازي — قيمةٌ اختباريّةٌ
      * ثابتةٌ (لا سرَّ حقيقيًّا: اختبارٌ محليٌّ لا يحمِلُ سرَّ إنتاجٍ)، ومن

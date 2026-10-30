@@ -36,6 +36,15 @@ export interface InternalOffersSignalDependencies {
     readonly isRiderConnected: (telegramUserId: string) => boolean;
     readonly notifyRider: (telegramUserId: string, orderId: string) => void;
   };
+  /**
+   * تعدُّدُ النسخ (2026-10-30) — معرّفُ هذه العمليّة: إشارةٌ تحملُ `origin` مساويًا له صدرت
+   * منها هي (`realtime/peer-signal.ts`) فتُتجاهَلُ كي لا يتكرّرَ البثّ.
+   */
+  readonly origin?: string;
+  /** إشارةُ «جديدٌ» في محادثةِ طلبٍ وردت من نسخةٍ أخرى؛ غيابُها = المسارُ غيرُ مُركَّب. */
+  readonly chat?: {
+    readonly publish: (signal: { readonly orderId: string; readonly lastSeq: number }) => void;
+  };
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -93,10 +102,45 @@ export function createInternalOffersSignalRoutes(deps: InternalOffersSignalDepen
       if (typeof orderId !== "string" || !UUID_RE.test(orderId)) {
         return c.json({ ok: false, error: "ORDER_ID_INVALID" }, 422);
       }
+      if (isOwnEcho(body)) return c.json({ ok: true, emitted: false });
       if (!rider.isRiderConnected(telegramUserId)) return c.json({ ok: true, emitted: false });
       rider.notifyRider(telegramUserId, orderId);
       return c.json({ ok: true, emitted: true });
     });
+  }
+
+  /**
+   * تعدُّدُ النسخ — إشارةُ محادثةٍ من نسخةٍ أخرى: تُبَثُّ في غرفةِ الطلبِ المحلّيّة. لا تحملُ نصًّا
+   * ولا مرسلًا (كقناةِ المحادثةِ نفسِها)، فالعميلُ يسترجعُ من القاعدةِ بعدها.
+   */
+  const chat = deps.chat;
+  if (chat !== undefined) {
+    app.post("/internal/realtime/chat-signal", async (c) => {
+      if (deps.secret === null || deps.secret.length < 16) {
+        return c.json({ ok: false, error: "INTERNAL_SIGNAL_NOT_CONFIGURED" }, 503);
+      }
+      const provided = c.req.header("x-internal-secret") ?? "";
+      if (provided.length !== deps.secret.length || !timingSafeEqual(provided, deps.secret)) {
+        deps.log?.("internal_chat_signal.rejected", {});
+        return c.json({ ok: false, error: "UNAUTHORIZED" }, 401);
+      }
+      const body = (await c.req.json().catch(() => null)) as Record<string, unknown> | null;
+      const orderId = body?.order_id;
+      const lastSeq = body?.last_seq;
+      if (typeof orderId !== "string" || !UUID_RE.test(orderId)) {
+        return c.json({ ok: false, error: "ORDER_ID_INVALID" }, 422);
+      }
+      if (typeof lastSeq !== "number" || !Number.isSafeInteger(lastSeq) || lastSeq < 0) {
+        return c.json({ ok: false, error: "LAST_SEQ_INVALID" }, 422);
+      }
+      if (isOwnEcho(body)) return c.json({ ok: true, emitted: false });
+      chat.publish({ orderId, lastSeq });
+      return c.json({ ok: true, emitted: true });
+    });
+  }
+
+  function isOwnEcho(body: Record<string, unknown> | null): boolean {
+    return deps.origin !== undefined && body?.origin === deps.origin;
   }
 
   return app;

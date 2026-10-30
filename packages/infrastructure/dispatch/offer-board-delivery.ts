@@ -28,6 +28,7 @@
 import type { OfferBoardDelivery } from "../../application/dispatch/deliver-offer-notification.ts";
 import { createGuardedFetch } from "../../shared/wasla/egress-gate.ts";
 import type { Sql } from "../db/client.ts";
+import { fanoutSignal, signalTargets } from "../notification/internal-signal-fanout.ts";
 
 /** مهلةُ نداءِ الإشارةِ: قصيرةٌ كي لا يُعلَّقَ الشوطُ على بوابةٍ بطيئةٍ. */
 const SIGNAL_TIMEOUT_MS = 2_000;
@@ -38,8 +39,11 @@ const TELEGRAM_CACHE_TTL_MS = 5 * 60 * 1_000;
 
 export interface OfferBoardDeliveryDeps {
   readonly sql: Sql;
-  /** غيابُهُ أو غيابُ السرِّ = مسارُ الإشارةِ معطَّلٌ (البطاقةُ كما كانَت). */
-  readonly gatewayInternalUrl: string | null;
+  /**
+   * غيابُهُ أو غيابُ السرِّ = مسارُ الإشارةِ معطَّلٌ (البطاقةُ كما كانَت). وقائمةٌ = نسخُ
+   * البوّابةِ كلُّها بعناوينِها المباشرةِ (`internal-signal-fanout.ts`).
+   */
+  readonly gatewayInternalUrl: string | readonly string[] | null;
   readonly secret: string | null;
   readonly log?: (message: string, meta: Record<string, unknown>) => void;
 }
@@ -50,8 +54,8 @@ export function createOfferBoardDelivery(deps: OfferBoardDeliveryDeps): OfferBoa
   const guardedFetch = createGuardedFetch("gateway-internal-offers-signal");
   const telegramById = new Map<string, { telegramId: string; at: number }>();
   const lastSignalAt = new Map<string, number>();
-  const signalEnabled =
-    deps.gatewayInternalUrl !== null && deps.secret !== null && deps.secret.length >= 16;
+  const targets = signalTargets(deps.gatewayInternalUrl);
+  const signalEnabled = targets.length > 0 && deps.secret !== null && deps.secret.length >= 16;
 
   async function telegramIdOf(driverId: string): Promise<string | null> {
     const cached = telegramById.get(driverId);
@@ -97,38 +101,18 @@ export function createOfferBoardDelivery(deps: OfferBoardDeliveryDeps): OfferBoa
       }
       const telegramId = await telegramIdOf(driverId);
       if (telegramId === null) return false;
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), SIGNAL_TIMEOUT_MS);
-      try {
-        const response = await guardedFetch(
-          `${deps.gatewayInternalUrl}/internal/realtime/offers-signal`,
-          {
-            method: "POST",
-            headers: {
-              "content-type": "application/json",
-              "x-internal-secret": deps.secret as string,
-            },
-            body: JSON.stringify({ telegram_user_id: telegramId }),
-            signal: controller.signal,
-          },
-        );
-        if (!response.ok) {
-          // رفضٌ معلَنٌ (401/422/503) = «لم تُبَثّ» لا فشلَ صفٍّ.
-          deps.log?.("offer_board_signal.rejected", { status: response.status });
-          return false;
-        }
-        const payload = (await response.json().catch(() => null)) as {
-          emitted?: boolean;
-        } | null;
-        const emitted = payload?.emitted === true;
-        if (emitted) lastSignalAt.set(driverId, now);
-        return emitted;
-      } catch {
-        // شبكةٌ أو مهلةٌ: «لم تُبَثّ» — البطاقةُ تنالُ فرصتها فورًا.
-        return false;
-      } finally {
-        clearTimeout(timer);
-      }
+      const emitted = await fanoutSignal({
+        fetch: guardedFetch,
+        targets,
+        path: "/internal/realtime/offers-signal",
+        secret: deps.secret as string,
+        body: { telegram_user_id: telegramId },
+        timeoutMs: SIGNAL_TIMEOUT_MS,
+        // رفضٌ معلَنٌ (401/422/503) = «لم تُبَثّ» لا فشلَ صفٍّ.
+        onRejected: (status) => deps.log?.("offer_board_signal.rejected", { status }),
+      });
+      if (emitted) lastSignalAt.set(driverId, now);
+      return emitted;
     },
   };
 }

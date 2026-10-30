@@ -204,3 +204,80 @@ describe("مسارُ الإشارةِ الداخليُّ — سرٌّ مشترك
     expect(signaled).toBe(0);
   });
 });
+
+describe("تعدُّدُ النسخ — إشاراتُ ما بينَ النسخ (2026-10-30)", () => {
+  const ORDER = "11111111-2222-4333-8444-555555555555";
+  const ORIGIN = "own-process-id";
+
+  function routes(published: Array<{ orderId: string; lastSeq: number }>, notified: string[]) {
+    return createInternalOffersSignalRoutes({
+      isDriverConnected: () => false,
+      notifyDriver: () => undefined,
+      secret: SECRET,
+      origin: ORIGIN,
+      chat: { publish: (signal) => published.push(signal) },
+      rider: {
+        isRiderConnected: () => true,
+        notifyRider: (telegramUserId) => notified.push(telegramUserId),
+      },
+    });
+  }
+
+  function post(app: ReturnType<typeof routes>, path: string, body: unknown, secret = SECRET) {
+    return app.request(path, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-internal-secret": secret },
+      body: JSON.stringify(body),
+    });
+  }
+
+  it("إشارةُ محادثةٍ من نسخةٍ أخرى تُبَثُّ في الغرفةِ المحلّيّة", async () => {
+    const published: Array<{ orderId: string; lastSeq: number }> = [];
+    const res = await post(routes(published, []), "/internal/realtime/chat-signal", {
+      order_id: ORDER,
+      last_seq: 7,
+      origin: "other-process",
+    });
+    expect(res.status).toBe(200);
+    expect(((await res.json()) as { emitted: boolean }).emitted).toBe(true);
+    expect(published).toEqual([{ orderId: ORDER, lastSeq: 7 }]);
+  });
+
+  it("صدى النسخةِ نفسِها يُتجاهَلُ في المحادثةِ وحدثِ الراكب", async () => {
+    const published: Array<{ orderId: string; lastSeq: number }> = [];
+    const notified: string[] = [];
+    const app = routes(published, notified);
+    const chat = await post(app, "/internal/realtime/chat-signal", {
+      order_id: ORDER,
+      last_seq: 3,
+      origin: ORIGIN,
+    });
+    expect(((await chat.json()) as { emitted: boolean }).emitted).toBe(false);
+    const rider = await post(app, "/internal/realtime/rider-trip-signal", {
+      telegram_user_id: "42",
+      order_id: ORDER,
+      origin: ORIGIN,
+    });
+    expect(((await rider.json()) as { emitted: boolean }).emitted).toBe(false);
+    expect(published).toHaveLength(0);
+    expect(notified).toHaveLength(0);
+  });
+
+  it("سرٌّ خاطئٌ = 401، وتسلسلٌ غيرُ صالحٍ = 422، ولا بثّ", async () => {
+    const published: Array<{ orderId: string; lastSeq: number }> = [];
+    const app = routes(published, []);
+    const bad = await post(
+      app,
+      "/internal/realtime/chat-signal",
+      { order_id: ORDER, last_seq: 1 },
+      "x".repeat(SECRET.length),
+    );
+    expect(bad.status).toBe(401);
+    const invalid = await post(app, "/internal/realtime/chat-signal", {
+      order_id: ORDER,
+      last_seq: -1,
+    });
+    expect(invalid.status).toBe(422);
+    expect(published).toHaveLength(0);
+  });
+});

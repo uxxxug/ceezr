@@ -138,6 +138,7 @@ function testConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     miniAppUrl: null,
     internalSignalSecret: null,
     gatewayInternalUrl: null,
+    gatewayInternalUrls: [],
     driverBotToken: TEST_BOT_TOKEN,
     riderBotToken: TEST_BOT_TOKEN,
     telegramWebhookSecret: "tti-test-secret",

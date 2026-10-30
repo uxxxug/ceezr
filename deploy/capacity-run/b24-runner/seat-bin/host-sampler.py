@@ -21,7 +21,7 @@ SEAT_CG = os.environ.get("CAP_SEAT_CG", "space.slice/space-workloads.service/wor
 FIELDS = ["user", "nice", "system", "idle", "iowait", "irq", "softirq", "steal"]
 SEAT_PAT = ("postgres", "redis-server", "shim.ts", "apps/gateway", "apps/workers", "telegram-mock",
             "miniapp-load", "capacity-run/load", "res-sampler", "host-sampler", "pg-activity", "psql",
-            "wave-full", "run-wave", "fresh-db", "/nsx", "speed-probe")
+            "wave-full", "run-wave", "fresh-db", "/nsx", "speed-probe", "haproxy -db -f")
 
 
 def rd(p):

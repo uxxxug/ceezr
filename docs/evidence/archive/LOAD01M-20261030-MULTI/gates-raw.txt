@@ -1,0 +1,21 @@
+EXIT=0
+== out-n2/raw/casaos-m5-1000-i82-M-1000
+verdict FAIL ['G4', 'P1', 'P2', 'P3', 'P7'] notverified {}
+G1=100.00% (6021/6021) | G2=0 | G3=0 + 0 | G4=VIOLATIONS✗ | G5=0 | G6=0.00% (0) | G7=0.00% | G8=0 | I1-identities=riders 6021/6021 · drivers 6021/6021 | GW-STABILITY=stable | EGRESS-CLASSIFIED=unknown +0 | CONC-peak=peak 1000 / target 1000 | P1=1682ms✗ | P2=1920ms✗ | P3=1679ms✗ | P4=22023ms | P5=33420ms | P6a=2226ms | P6b=2347ms | P6c=2298ms | P7=169s✗ | P8=0.00% | P9=0.00%
+
+VALIDITY VALID host_busy 80.5 steal 0.0 foreign 0.91
+== out-n2/raw/casaos-m5-2500-i83-M-2500
+verdict FAIL ['G1', 'G4', 'P1', 'P2', 'P3', 'P6a', 'P6b', 'P6c', 'P7'] notverified {'driver_onboarding_failed': 10445}
+G1=30.33% (4547/14992)✗ | G2=0 | G3=0 + 0 | G4=VIOLATIONS✗ | G5=0 | G6=0.00% (0) | G7=0.00% | G8=0 | I1-identities=riders 14992/14992 · drivers 14992/14992 | GW-STABILITY=stable | EGRESS-CLASSIFIED=unknown +0 | CONC-peak=peak 2500 / target 2500 | P1=3460ms✗ | P2=3528ms✗ | P3=3179ms✗ | P4=16692ms | P5=33919ms | P6a=4473ms✗ | P6b=4476ms✗ | P6c=3796ms✗ | P7=140s✗ | P8=0.00% | P9=0.00%
+
+VALIDITY VALID host_busy 78.6 steal 0.0 foreign 0.99
+== out-n3/raw/casaos-m5-1000-i84-M-1000
+verdict FAIL ['G4', 'P1', 'P2', 'P3', 'P4', 'P7'] notverified {}
+G1=100.00% (5116/5116) | G2=0 | G3=0 + 0 | G4=VIOLATIONS✗ | G5=0 | G6=0.00% (0) | G7=0.00% | G8=0 | I1-identities=riders 5116/5116 · drivers 5116/5116 | GW-STABILITY=stable | EGRESS-CLASSIFIED=unknown +0 | CONC-peak=peak 1000 / target 1000 | P1=1943ms✗ | P2=1772ms✗ | P3=1585ms✗ | P4=33715ms✗ | P5=40710ms | P6a=2062ms | P6b=1996ms | P6c=1895ms | P7=157s✗ | P8=0.00% | P9=0.00%
+
+VALIDITY VALID host_busy 82.0 steal 0.0 foreign 1.04
+== out-n3/raw/casaos-m5-2500-i85-M-2500
+verdict FAIL ['G1', 'G4', 'P1', 'P2', 'P3', 'P4', 'P6a', 'P6b', 'P6c', 'P7'] notverified {'driver_onboarding_failed': 503}
+G1=91.23% (5234/5737)✗ | G2=0 | G3=0 + 0 | G4=VIOLATIONS✗ | G5=0 | G6=0.00% (0) | G7=0.00% | G8=0 | I1-identities=riders 5737/5737 · drivers 5737/5737 | GW-STABILITY=stable | EGRESS-CLASSIFIED=unknown +0 | CONC-peak=peak 2500 / target 2500 | P1=4808ms✗ | P2=4636ms✗ | P3=4121ms✗ | P4=99195ms✗ | P5=117776ms | P6a=5419ms✗ | P6b=5331ms✗ | P6c=4712ms✗ | P7=189s✗ | P8=0.00% | P9=0.08%
+
+VALIDITY VALID host_busy 83.3 steal 0.0 foreign 1.04

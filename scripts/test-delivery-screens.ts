@@ -533,6 +533,7 @@ function testConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     miniappSessionSecret: TEST_SESSION_SECRET,
     internalSignalSecret: TEST_SESSION_SECRET,
     gatewayInternalUrl: null,
+    gatewayInternalUrls: [],
     adminBreakGlassTotpKey: "dGVzdC1icmVhay1nbGFzcy10b3RwLWtleS0zMi1ieXRlcy1sb25n",
     liveLocationFallbackEnabled: false,
     ...overrides,
