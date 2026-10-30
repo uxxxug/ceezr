@@ -273,6 +273,11 @@ export interface AppConfig {
    * (`GATEWAY_INTERNAL_URL`، مثلُ `http://127.0.0.1:54300`). معطَّلٌ بالغيابِ.
    */
   readonly gatewayInternalUrl: string | null;
+  /**
+   * تعدُّدُ النسخ (2026-10-30) — `GATEWAY_INTERNAL_URL` قد يحملُ عناوينَ مفصولةً بفواصل، عنوانًا
+   * مباشرًا لكلِّ نسخةِ بوّابة، فتُبَثُّ الإشارةُ إليها كلِّها. `gatewayInternalUrl` أوّلُها.
+   */
+  readonly gatewayInternalUrls: readonly string[];
 
   /**
    * `SEC-21` · `ADR 0176` — مفتاحُ تشفيرِ أسرارِ TOTP للبابِ الموازي
@@ -680,14 +685,19 @@ export function tryLoadConfig(
       ),
     );
   }
-  let gatewayInternalUrl: string | null = null;
+  const gatewayInternalUrls: string[] = [];
   if (!isBlank(source.GATEWAY_INTERNAL_URL)) {
-    try {
-      gatewayInternalUrl = new URL(source.GATEWAY_INTERNAL_URL as string).toString();
-    } catch {
-      return err(new InvalidEnvVarError("GATEWAY_INTERNAL_URL", "ليس رابطًا صالحًا"));
+    for (const raw of (source.GATEWAY_INTERNAL_URL as string).split(",")) {
+      const candidate = raw.trim();
+      if (candidate.length === 0) continue;
+      try {
+        gatewayInternalUrls.push(new URL(candidate).toString());
+      } catch {
+        return err(new InvalidEnvVarError("GATEWAY_INTERNAL_URL", "ليس رابطًا صالحًا"));
+      }
     }
   }
+  const gatewayInternalUrl: string | null = gatewayInternalUrls[0] ?? null;
   const miniappSessionSecret = isBlank(source.MINIAPP_SESSION_SECRET)
     ? null
     : (source.MINIAPP_SESSION_SECRET as string).trim();
@@ -1223,6 +1233,7 @@ export function tryLoadConfig(
     miniappSessionSecret,
     internalSignalSecret,
     gatewayInternalUrl,
+    gatewayInternalUrls,
     adminBreakGlassTotpKey,
     liveLocationFallbackEnabled: parseBooleanEnv(source.LIVE_LOCATION_FALLBACK_ENABLED, false),
     metricsExport,

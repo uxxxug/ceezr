@@ -838,7 +838,7 @@ export function buildWorkerContainer(
     // احتياطًا لغيرِ المتصلِ أو لمن لم يُقرَّ ضمنَ المهلةِ.
     app: createRiderTripAppDelivery({
       sql,
-      gatewayInternalUrl: config.gatewayInternalUrl,
+      gatewayInternalUrl: config.gatewayInternalUrls.length > 0 ? config.gatewayInternalUrls : null,
       secret: config.internalSignalSecret,
       log: (message, meta) => log.info(message, meta),
     }),
@@ -904,7 +904,8 @@ export function buildWorkerContainer(
       // البديلةُ لغيرِ المتصلِ: فصلُ «ضجيجِ العروضِ» عنِ الإشعاراتِ الحرجةِ.
       createOfferBoardDelivery({
         sql,
-        gatewayInternalUrl: config.gatewayInternalUrl,
+        gatewayInternalUrl:
+          config.gatewayInternalUrls.length > 0 ? config.gatewayInternalUrls : null,
         secret: config.internalSignalSecret,
         log: (message, meta) => log.info(message, meta),
       }),

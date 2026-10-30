@@ -37,15 +37,43 @@ case "${1:-status}" in
     echo "{\"t\":\"$(date -Is)\",\"event\":\"gateway.start\",\"code_dir\":\"${CODE_DIR:-$REPO}\",\"sha\":\"$(git -C "${CODE_DIR:-$REPO}" rev-parse HEAD)\",\"dirty\":$(git -C "${CODE_DIR:-$REPO}" status --porcelain | grep -c .)}" >> "$RUN_DIR/evidence/gateway-starts.jsonl"
     # GATEWAY_BUN_FLAGS (تشخيصٌ فقط، مثل `--cpu-prof --cpu-prof-dir=…`): يُسجَّلُ في gateway-starts ولا يُستعمَلُ في القبول.
     echo "{\"t\":\"$(date -Is)\",\"event\":\"gateway.flags\",\"flags\":\"${GATEWAY_BUN_FLAGS:-}\"}" >> "$RUN_DIR/evidence/gateway-starts.jsonl"
-    # shellcheck disable=SC2086
-    CODE_DIR=${CODE_DIR:-$REPO} start_bg gateway bun ${GATEWAY_BUN_FLAGS:-} --preload "$HERE/mocks/telegram-egress-guard.ts" apps/gateway/src/index.ts ;;
+    N=${GATEWAY_INSTANCES:-1}
+    if [ "$N" -le 1 ]; then
+      # shellcheck disable=SC2086
+      CODE_DIR=${CODE_DIR:-$REPO} start_bg gateway bun ${GATEWAY_BUN_FLAGS:-} --preload "$HERE/mocks/telegram-egress-guard.ts" apps/gateway/src/index.ts
+    else
+      # تجربةُ تعدُّدِ النسخ (قرارُ المالكِ 2026-10-30): N بوّاباتٍ على 54301.. خلفَ HAProxy على 54300.
+      # العاملُ المدمجُ في الأولى وحدَها، وإشارةُ القناةِ الآنيةِ تُبَثُّ إلى كلِّ نسخةٍ بعنوانِها
+      # المباشر (`GATEWAY_INTERNAL_URL` قائمةً). والمصرِّفُ يعملُ في كلِّ نسخة (SKIP LOCKED).
+      sudo -n ip netns exec ceezrsbx2 pkill -TERM -f "[h]aproxy -db -f" || true
+      for _ in $(seq 1 50); do $NSX bash -c 'ss -ltn | grep -q ":54300 "' || break; sleep 0.2; done
+      urls=""; servers=""
+      for i in $(seq 1 "$N"); do
+        port=$((54300 + i)); urls="${urls:+$urls,}http://127.0.0.1:$port"
+        servers="$servers    server gw$i 127.0.0.1:$port check inter 2s fall 3 rise 1 maxconn 20000\n"
+      done
+      cfg="$RUN_DIR/evidence/haproxy.cfg"
+      printf "global\n    maxconn 60000\n    nbthread 1\ndefaults\n    mode http\n    timeout connect 5s\n    timeout client 120s\n    timeout server 120s\n    timeout tunnel 1h\n    option http-server-close\nfrontend fe\n    bind 127.0.0.1:54300\n    maxconn 60000\n    default_backend gws\nbackend gws\n    balance leastconn\n    option httpchk GET /health\n%b" "$servers" > "$cfg"
+      echo "{\"t\":\"$(date -Is)\",\"event\":\"gateway.instances\",\"n\":$N,\"internal_urls\":\"$urls\"}" >> "$RUN_DIR/evidence/gateway-starts.jsonl"
+      for i in $(seq 1 "$N"); do
+        worker=false; [ "$i" = 1 ] && worker=true
+        name=gateway; [ "$i" -gt 1 ] && name=gateway-$i
+        # shellcheck disable=SC2086
+        CODE_DIR=${CODE_DIR:-$REPO} start_bg "$name" env PORT=$((54300 + i)) SERVICE_INSTANCE_ID="gw$i" \
+          RUN_WORKER_IN_GATEWAY=$worker GATEWAY_INTERNAL_URL="$urls" \
+          bun ${GATEWAY_BUN_FLAGS:-} --preload "$HERE/mocks/telegram-egress-guard.ts" apps/gateway/src/index.ts
+      done
+      start_bg haproxy haproxy -db -f "$cfg"
+    fi ;;
   kill-gateway) sudo -n ip netns exec ceezrsbx2 pkill -9 -f "[a]pps/gateway/src/index.ts" ;;
-  stop-gateway) sudo -n ip netns exec ceezrsbx2 pkill -TERM -f "[a]pps/gateway/src/index.ts" ;;
+  stop-gateway)
+    sudo -n ip netns exec ceezrsbx2 pkill -TERM -f "[h]aproxy -db -f" || true
+    sudo -n ip netns exec ceezrsbx2 pkill -TERM -f "[a]pps/gateway/src/index.ts" ;;
   stop-mock) sudo -n ip netns exec ceezrsbx2 pkill -TERM -f "[t]elegram-mock-server.ts" ;;
   stop-shim) sudo -n ip netns exec ceezrsbx2 pkill -TERM -f "[b]un run shim.ts" ;;
   status)
     for p in telegram-mock shim gateway; do pgrep -f "$( [ $p = gateway ] && echo [a]pps/gateway/src/index.ts || ([ $p = shim ] && echo [b]un\ run\ shim.ts || echo [t]elegram-mock-server.ts))" >/dev/null && echo "$p=up" || echo "$p=down"; done
     $NSX curl -s -m 2 -o /dev/null -w "ready=%{http_code}\n" http://127.0.0.1:54300/ready ;;
   stop-all)
-    sudo -n ip netns exec ceezrsbx2 pkill -TERM -f "[a]pps/gateway/src/index.ts|[t]elegram-mock-server.ts|[s]him.ts" ;;
+    sudo -n ip netns exec ceezrsbx2 pkill -TERM -f "[a]pps/gateway/src/index.ts|[t]elegram-mock-server.ts|[s]him.ts|[h]aproxy -db -f" ;;
 esac

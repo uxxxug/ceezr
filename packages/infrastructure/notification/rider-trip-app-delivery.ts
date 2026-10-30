@@ -19,6 +19,7 @@
 import type { RiderTripAppDelivery } from "../../application/dispatch/deliver-rider-trip-notice.ts";
 import { createGuardedFetch } from "../../shared/wasla/egress-gate.ts";
 import type { Sql } from "../db/client.ts";
+import { fanoutSignal, signalTargets } from "./internal-signal-fanout.ts";
 
 /** مهلةُ نداءِ الإشارةِ: قصيرةٌ كي لا يُعلَّقَ الشوطُ على بوابةٍ بطيئةٍ. */
 const SIGNAL_TIMEOUT_MS = 2_000;
@@ -26,15 +27,15 @@ const SIGNAL_TIMEOUT_MS = 2_000;
 export interface RiderTripAppDeliveryDeps {
   readonly sql: Sql;
   /** غيابُه أو غيابُ السرِّ = الإشارةُ معطَّلةٌ (تيليجرامُ كما كانَ). */
-  readonly gatewayInternalUrl: string | null;
+  readonly gatewayInternalUrl: string | readonly string[] | null;
   readonly secret: string | null;
   readonly log?: (message: string, meta: Record<string, unknown>) => void;
 }
 
 export function createRiderTripAppDelivery(deps: RiderTripAppDeliveryDeps): RiderTripAppDelivery {
   const guardedFetch = createGuardedFetch("gateway-internal-rider-trip-signal");
-  const signalEnabled =
-    deps.gatewayInternalUrl !== null && deps.secret !== null && deps.secret.length >= 16;
+  const targets = signalTargets(deps.gatewayInternalUrl);
+  const signalEnabled = targets.length > 0 && deps.secret !== null && deps.secret.length >= 16;
 
   return {
     findReceipt: async (deliveryId) => {
@@ -50,32 +51,15 @@ export function createRiderTripAppDelivery(deps: RiderTripAppDeliveryDeps): Ride
     },
     signalRider: async (telegramUserId, orderId) => {
       if (!signalEnabled) return false;
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), SIGNAL_TIMEOUT_MS);
-      try {
-        const response = await guardedFetch(
-          `${deps.gatewayInternalUrl}/internal/realtime/rider-trip-signal`,
-          {
-            method: "POST",
-            headers: {
-              "content-type": "application/json",
-              "x-internal-secret": deps.secret as string,
-            },
-            body: JSON.stringify({ telegram_user_id: telegramUserId, order_id: orderId }),
-            signal: controller.signal,
-          },
-        );
-        if (!response.ok) {
-          deps.log?.("rider_trip_signal.rejected", { status: response.status });
-          return false;
-        }
-        const payload = (await response.json().catch(() => null)) as { emitted?: boolean } | null;
-        return payload?.emitted === true;
-      } catch {
-        return false;
-      } finally {
-        clearTimeout(timer);
-      }
+      return fanoutSignal({
+        fetch: guardedFetch,
+        targets,
+        path: "/internal/realtime/rider-trip-signal",
+        secret: deps.secret as string,
+        body: { telegram_user_id: telegramUserId, order_id: orderId },
+        timeoutMs: SIGNAL_TIMEOUT_MS,
+        onRejected: (status) => deps.log?.("rider_trip_signal.rejected", { status }),
+      });
     },
   };
 }
