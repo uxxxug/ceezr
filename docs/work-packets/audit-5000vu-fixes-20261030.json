@@ -9,7 +9,9 @@
     "packages/shared/i18n/ar.json",
     "packages/shared/i18n/en.json",
     "packages/shared/i18n/ur.json",
-    "packages/shared/i18n/miniapp/ar.json"
+    "packages/shared/i18n/miniapp/ar.json",
+    "apps/miniapp/src/identity/boot.test.ts",
+    "tests/unit/rate-limit.test.ts"
   ],
   "state": ["docs/SYSTEM_STATE.md"],
   "roadmap": ["ROADMAP.md"],
