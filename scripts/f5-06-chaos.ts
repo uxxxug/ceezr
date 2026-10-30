@@ -71,7 +71,7 @@ function log(phase: string, message: string): void {
 
 /** نشرُ ويبهوكِ تلغرام إلى هدفٍ (بوّابةٌ مباشرةً أو HAProxy). */
 async function post(target: string, bot: string, update: unknown): Promise<Response> {
-  return fetch(`${target}/webhook/telegram/${bot}`, {
+  const res = await fetch(`${target}/webhook/telegram/${bot}`, {
     method: "POST",
     headers: {
       "content-type": "application/json",
@@ -79,9 +79,22 @@ async function post(target: string, bot: string, update: unknown): Promise<Respo
     },
     body: JSON.stringify(update),
   });
+  // ويبهوكٌ مرفوضٌ يُسمّى في موضعِه — لا مهلةَ «تسجيلٍ» صامتةً بعدَ عشرِ رسائلَ مرفوضة.
+  if (res.status !== 200) {
+    fail("webhook", `${bot} ← ${target}: ${res.status} ${(await res.text()).slice(0, 200)}`);
+  }
+  return res;
 }
 
+/**
+ * `update_id` شرطُ الاستيعابِ الدائمِ ومنعِ التكرار (ADR 0054) — تحديثٌ بلا معرّفٍ يُرفَض.
+ * عدّادٌ يبدأُ من الزمنِ كي لا يصطدمَ بتشغيلٍ سابقٍ على القاعدةِ نفسِها.
+ */
+let updateIdCounter = Math.floor(Date.now() / 1000) * 1000;
+const nextUpdateId = (): number => ++updateIdCounter;
+
 const message = (chatId: number, body: Record<string, unknown>) => ({
+  update_id: nextUpdateId(),
   message: { chat: { id: chatId }, from: { id: chatId, language_code: "ar" }, ...body },
 });
 const text = (chatId: number, value: string) => message(chatId, { text: value });
@@ -92,6 +105,7 @@ const location = (chatId: number, at: { latitude: number; longitude: number }) =
 const contact = (chatId: number, phone: string) =>
   message(chatId, { contact: { user_id: chatId, phone_number: phone } });
 const privateCallback = (chatId: number, data: string) => ({
+  update_id: nextUpdateId(),
   callback_query: {
     data,
     from: { id: chatId },
