@@ -114,20 +114,14 @@ export const COVERAGE_BARS: readonly CriticalPathBar[] = [
   },
   {
     /**
-     * أرضيّةٌ 100% على **ملفَّين مقيسَين من 23**، فهي أرضيّةٌ هشّةٌ بالبناءِ: أوّلُ
+     * أرضيّةٌ 100% على **ملفَّين مقيسَين** (كانا من 23 قبلَ حذفِ قوالبِ kyc/documents
+     * الفارغةِ في تنظيفِ 2026-10-30)، فهي أرضيّةٌ هشّةٌ بالبناءِ: أوّلُ
      * ملفٍّ يدخل القياسَ بتغطيةٍ دونَ التامِّ يُسقِط البناءَ. وذلك مقصودٌ ومُعلَنٌ:
      * السقوطُ حينَها **إشعارُ تحسُّنٍ** يُعاد فيه القياسُ ويُحدَّث المدخلُ، لا خطأً
      * يُداوى بتخفيضِ الأرضيّة.
      */
     criticalPath: "توثيقُ السائق",
-    roots: [
-      "packages/domain/kyc",
-      "packages/application/kyc",
-      "packages/infrastructure/kyc",
-      "packages/domain/documents",
-      "packages/application/documents",
-      "packages/infrastructure/documents",
-    ],
+    roots: ["packages/domain/kyc"],
     minLineCoverage: 100,
     maxUnmeasuredFiles: 21,
     reason: null,
@@ -202,11 +196,7 @@ export const COVERAGE_BARS: readonly CriticalPathBar[] = [
   },
   {
     criticalPath: "المهامُّ الدوريةُ والقفلُ الموزَّع",
-    roots: [
-      "packages/domain/scheduling",
-      "packages/application/scheduling",
-      "packages/infrastructure/scheduling",
-    ],
+    roots: ["packages/application/scheduling", "packages/infrastructure/scheduling"],
     minLineCoverage: 48,
     maxUnmeasuredFiles: 11,
     reason: null,
