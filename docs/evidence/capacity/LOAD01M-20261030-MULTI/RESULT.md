@@ -46,4 +46,4 @@ G2 (رحلة مزدوجة) = G3 = G5 = 0 في كل الموجات، والبوا
 
 ## الخام
 
-`gates-raw.txt` (بوابات كل موجة ومقياس صلاحيتها). مجلدات المقعد على الخادم: `/opt/wasla/cap/out-n2` و`/opt/wasla/cap/out-n3` و`/opt/wasla/cap/out-ladder` (N=1).
+`docs/evidence/archive/LOAD01M-20261030-MULTI/gates-raw.txt` (بوابات كل موجة ومقياس صلاحيتها). مجلدات المقعد على الخادم: `/opt/wasla/cap/out-n2` و`/opt/wasla/cap/out-n3` و`/opt/wasla/cap/out-ladder` (N=1).

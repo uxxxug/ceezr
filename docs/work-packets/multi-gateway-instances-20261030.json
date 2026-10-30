@@ -27,7 +27,7 @@
     "docs/SYSTEM_STATE.md",
     "docs/wasla/egress-boundary.md",
     "docs/evidence/capacity/LOAD01M-20261030-MULTI/RESULT.md",
-    "docs/evidence/capacity/LOAD01M-20261030-MULTI/gates-raw.txt"
+    "docs/evidence/archive/LOAD01M-20261030-MULTI/gates-raw.txt"
   ],
   "decision": "الإنتاجُ يبقى نسخةً واحدة. بثُّ الإشاراتِ متوافقٌ رجعيًّا: عنوانٌ واحدٌ في GATEWAY_INTERNAL_URL يعطي السلوكَ السابقَ نفسَه. النشرُ متعدّدُ النسخِ يحتاج قرارًا يخلفُ ADR 0050 §8، وجلساتٍ لاصقةً لـSocket.IO، وتحديثَ ميزانيةِ الاتصالات.",
   "tests": ["tests/unit/internal-signal-fanout.test.ts", "tests/unit/offers-signal-routes.test.ts"],
