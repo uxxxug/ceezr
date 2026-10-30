@@ -1,0 +1,23 @@
+{
+  "id": "load01m-casaos-20261030",
+  "goal": "LOAD-01M (5,000 مستخدم متزامن عبر خمس مدن) على خادمِ CasaOS المنشور: تشغيلُ سلّمِ m5 الرسميّ بالسلسلةِ نفسِها، ثمّ موجةُ أعطالٍ أثناءَ 5,000 مستخدم.",
+  "canonical_source": ["docs/roadmap/capacity/LOAD-01M.md"],
+  "implementation": ["deploy/capacity-run/b24-runner/seat-casaos-load01m.sh"],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [
+    "docs/roadmap/capacity/LOAD-01M.md",
+    "docs/evidence/capacity/LOAD01M-20261030-CASAOS/RESULT.md"
+  ],
+  "decision": "مقعدٌ بحاويةٍ معزولةِ الشبكة على خادمِ المالك، بأولويّةِ معالجٍ دنيا كي لا تتأثّرَ خدماتُه، وبلا تغييرٍ للثابتَين المحميَّين. موجةُ الأعطالِ ليست بوّابةَ LOAD-01M ولا تُعاد.",
+  "tests": [
+    "bash -n deploy/capacity-run/b24-runner/seat-casaos-load01m.sh",
+    "تشغيلٌ فعليٌّ على الخادم: 7 موجات سلّم + موجةُ أعطال (RESULT.md)"
+  ],
+  "evidence": "docs/evidence/capacity/LOAD01M-20261030-CASAOS/RESULT.md — الخامُ على الخادم /opt/wasla/cap/out-ladder و/opt/wasla/cap/out.",
+  "constraints": [
+    "gatewayRequest=5 وIMMEDIATE_REDISPATCH_LIMIT=50 محميّان",
+    "لا مساسَ بحاوياتِ المالك"
+  ],
+  "limitations": "الخادمُ غيرُ معزول (خدماتُ المالكِ تعمل) وقرصُه دوّار؛ المولّدُ لا يغطّي التوصيلَ والتفاوضَ وتصعيدَ القروبات."
+}
