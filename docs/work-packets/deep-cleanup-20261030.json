@@ -229,7 +229,8 @@
     "packages/infrastructure/scheduling/index.ts",
     "packages/infrastructure/tenancy/index.ts",
     "packages/infrastructure/transport/index.ts",
-    "packages/infrastructure/workflow/index.ts"
+    "packages/infrastructure/workflow/index.ts",
+    "scripts/lib/ui-surface-inventory.ts"
   ],
   "state": ["docs/SYSTEM_STATE.md"],
   "roadmap": ["ROADMAP.md"],
