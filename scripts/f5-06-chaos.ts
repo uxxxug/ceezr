@@ -54,7 +54,6 @@ const DRIVER_CHAT = 450_010;
 const RIDER_CHAT = 460_010;
 
 const PICKUP = { latitude: 21.5433, longitude: 39.1728 };
-const DROPOFF = { latitude: 21.5612, longitude: 39.1889 };
 const DRIVER_AT = { latitude: 21.5471, longitude: 39.1751 };
 
 const sql = createSql({ connectionString: POSTGRES_URL });
@@ -217,11 +216,12 @@ async function riderRequestsRide(cityId: string): Promise<string> {
   const gw2 = gateway(1).url;
   await post(gw2, "rider", text(RIDER_CHAT, "/start"));
   await post(gw2, "rider", text(RIDER_CHAT, "راكبُ الفوضى"));
-  await post(gw2, "rider", contact(RIDER_CHAT, "+966500460010"));
   await post(gw2, "rider", privateCallback(RIDER_CHAT, `city:${cityId}`));
   await post(gw2, "rider", text(RIDER_CHAT, "/ride"));
   await post(gw2, "rider", location(RIDER_CHAT, PICKUP));
-  await post(gw2, "rider", location(RIDER_CHAT, DROPOFF));
+  // مسارُ الراكبِ الموثَّقُ في tests/integration/full-ride.test.ts: لا جهةَ اتصالٍ للراكب،
+  // والوجهةُ اختياريةٌ تُتخطّى بـ`/skip` — رسالةٌ خارجَ الحالةِ تُبقي المحادثةَ عالقة.
+  await post(gw2, "rider", text(RIDER_CHAT, "/skip"));
 
   const orderRows = await poll("إنشاءُ الطلب", async () => {
     const rows = await sql<
