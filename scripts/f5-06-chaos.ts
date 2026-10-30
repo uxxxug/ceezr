@@ -120,7 +120,32 @@ async function poll<T>(label: string, fn: () => Promise<T | null>, timeoutMs = 1
     if (value !== null && value !== undefined) return value;
     await Bun.sleep(250);
   }
+  await dumpIntake(label);
   fail("poll", `انقضتِ المهلةُ بانتظارِ «${label}»`);
+}
+
+/** تشخيصٌ عندَ انقضاءِ المهلة: حالُ طابورِ التحديثاتِ والكياناتِ — لا تخمينَ في CI. */
+async function dumpIntake(label: string): Promise<void> {
+  try {
+    const jobs = await sql<
+      {
+        bot: string;
+        update_id: string;
+        status: string;
+        attempts: number;
+        error_code: string | null;
+      }[]
+    >`select bot, update_id::text, status, attempts, error_code
+        from telegram_update_jobs order by created_at`;
+    const counts = await sql<{ riders: number; drivers: number; orders: number }[]>`
+      select (select count(*)::int from riders) as riders,
+             (select count(*)::int from drivers) as drivers,
+             (select count(*)::int from orders) as orders`;
+    console.error(`🔎 [F5-06] تشخيصُ «${label}»: ${JSON.stringify(counts[0])}`);
+    for (const job of jobs) console.error(`🔎 [F5-06] job ${JSON.stringify(job)}`);
+  } catch (error) {
+    console.error(`🔎 [F5-06] تعذّرَ التشخيص: ${String(error)}`);
+  }
 }
 
 async function readyStatus(target: string): Promise<{ status: number; body: unknown }> {
