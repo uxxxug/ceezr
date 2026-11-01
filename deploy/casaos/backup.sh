@@ -12,6 +12,7 @@
 #   3) ملفّاتُ الإعداد: /etc/wasla/* القائمةُ منها، و/opt/wasla/{.env,compose.yml,haproxy.cfg}.
 #      فيها أسرار، فالمجلّدُ 700 والملفّاتُ 600 (umask 077) ولا تُطبَعُ قيمُها.
 # الاستعادةُ مُتمرَّنٌ عليها بـstorage-restore-drill.sh في حاوياتٍ معزولة.
+# وخارجَ الموقع: offsite-backup.sh (age ← Google Drive)، وتمرينُه offsite-restore-drill.sh.
 set -euo pipefail; umask 077
 D=/var/backups/wasla; install -d -m 700 "$D"
 TS=$(date -u +%Y%m%dT%H%M%SZ); F=$D/waslah-$TS.dump
@@ -43,3 +44,5 @@ tar -C / -czf "$D/config-$TS.tgz" "${cfg[@]}"
 find "$D" -name 'waslah-*.dump*' -mtime +14 -delete; find "$D" -name 'config-*.tgz' -mtime +14 -delete
 find "$D" -name 'storage-*' -mtime +14 -delete; find "$D" -name 'pre-migrate-*' -mtime +30 -delete
 echo "backup-ok $F $(stat -c %s "$F") bytes $storage_note"
+# نسخةٌ مشفّرةٌ خارجَ الموقع (ADR 0297) إن ضُبطت. فشلُها يُفشِلُ الخدمةَ بعدَ اكتمالِ النسخةِ المحلّيّة.
+if [ -f /etc/wasla/offsite.env ] && [ -x /opt/wasla/offsite-backup.sh ]; then /opt/wasla/offsite-backup.sh "$TS"; fi

@@ -1,0 +1,42 @@
+{
+  "id": "wr-27-offsite-backup-age-gdrive-20261101",
+  "goal": "§27 النشرُ والتحقّق: نسخةٌ خارجَ الموقعِ لـCasaOS مشفّرةٌ بـage إلى Google Drive المالك، مع تحقّقٍ بعدَ كلِّ رفعٍ واحتفاظٍ مؤرَّخٍ وتمرينِ استعادةٍ فعليٍّ من Drive، دونَ أن يغادرَ المفتاحُ الخاصُّ لابتوبَ المالك.",
+  "canonical_source": [
+    "docs/roadmap/execution/ORDER-20261012.md",
+    "docs/adr/0297-casaos-offsite-backup-age-google-drive.md"
+  ],
+  "implementation": [
+    "deploy/casaos/offsite-backup.sh",
+    "deploy/casaos/offsite-fetch.sh",
+    "deploy/casaos/offsite-restore-drill.sh",
+    "deploy/casaos/offsite-setup.sh",
+    "deploy/casaos/laptop/wasla-offsite-connect.sh",
+    "deploy/casaos/laptop/wasla-offsite-restore-test.sh",
+    "deploy/casaos/backup.sh",
+    "deploy/casaos/storage-restore-drill.sh"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [
+    "docs/roadmap/execution/STATUS.md",
+    "docs/adr/0297-casaos-offsite-backup-age-google-drive.md",
+    "deploy/casaos/OFFSITE-BACKUP.md",
+    "deploy/casaos/README.md",
+    "docs/evidence/production/WR-27-offsite-backup-simulation-20261101.md"
+  ],
+  "decision": "tar | age -r <المفتاح العامّ> على الخادم (لا مفتاحَ خاصّاً عليه)، ثمّ rclone بعميلِ OAuth خاصٍّ بالمالك ونطاق drive.file إلى WASLA-Backups/{daily,weekly,monthly}. التحقّق: ترويسة age قبلَ الرفع، وmd5 Drive، ثمّ sha256 بعدَ تنزيلٍ كامل. الاحتفاظ 14 يوماً / 8 أسابيع / 12 شهراً. التمرين: Drive ← الخادم ← اللابتوب (age -d) ← الخادم (حاوياتٌ معزولة ومقارنةٌ بالإنتاج).",
+  "tests": [
+    "bash -n لكلِّ السكربتات",
+    "محاكاةٌ على الخادم بمفتاحٍ مؤقّتٍ ومستودعٍ محلّيٍّ بدلَ Drive: offsite-ok ثمّ offsite-drill-PASS (88/88 جدولاً، 1167/1167 دالّة، 0 جدولٍ باختلافِ صفوف، 2/2 كائن، 12/12 ملفَّ إعداد)",
+    "سلبيّ: تلاعبٌ بالمشفّر ⇒ age يرفض؛ مفتاحٌ آخر ⇒ age يرفض؛ الملفُّ المرفوعُ ليس tar مقروءاً",
+    "bun run lint · check-state-sync · check-docs-hygiene"
+  ],
+  "evidence": "docs/evidence/production/WR-27-offsite-backup-simulation-20261101.md",
+  "constraints": [
+    "لا يُرفَعُ ملفٌّ غيرُ مشفّر",
+    "المفتاحُ الخاصُّ لا يدخلُ الخادمَ ولا Drive ولا المحادثة",
+    "النسخُ المحلّيّةُ بلا تغيير في محتواها واحتفاظِها",
+    "render.yaml بلا مساس"
+  ],
+  "limitations": "الربطُ الحقيقيُّ بـDrive واختبارُ الاستعادةِ منه يحتاجانِ المالك (عميل OAuth + المفتاحُ على لابتوبه). حتّى ذلك الحين: الرفعُ معطَّل (offsite-skip) والحكمُ BLOCKED لا PASS."
+}

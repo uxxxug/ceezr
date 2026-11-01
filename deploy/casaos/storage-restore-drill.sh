@@ -11,7 +11,7 @@
 # التنظيف: يحذفُ ما أنشأه هو وحدَه بالاسم (حاويتان، شبكة، مجلّد) — لا prune.
 # الأسرار: مفاتيحُ المخزنِ تُقرأُ من /etc/wasla/storage.env إلى env-file الحاويةِ ولا تُطبَع.
 set -euo pipefail; umask 077
-D=/var/backups/wasla
+D=${BACKUP_DIR:-/var/backups/wasla}
 TS=${1:-$(ls -1 "$D"/storage-db-*.dump 2>/dev/null | sed -nE 's#.*/storage-db-(.*)\.dump$#\1#p' | sort | tail -1)}
 [ -n "$TS" ] || { echo "drill-fail no_storage_backup"; exit 1; }
 SD=$D/storage-db-$TS.dump; SF=$D/storage-files-$TS.tar; SM=$D/storage-files-$TS.sha256
