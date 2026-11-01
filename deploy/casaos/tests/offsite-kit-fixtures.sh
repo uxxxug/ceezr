@@ -5,7 +5,7 @@
 # ينتمي إلى: deploy/casaos/tests · يستدعيه .github/workflows/offsite-kit-windows.yml
 # الاستعمال: bash offsite-kit-fixtures.sh OUTDIR   (يحتاجُ age وage-keygen وssh-keygen وtar وsha256sum)
 set -euo pipefail; umask 077
-O=${1:?OUTDIR}; rm -rf "$O"; mkdir -p "$O/drive/daily"
+O=${1:?OUTDIR}; rm -rf "$O"; mkdir -p "$O/drive/daily"; O=$(cd "$O" && pwd)
 TS=20261101T030000Z; NAME=wasla-$TS.tar.age
 age-keygen -o "$O/agekey" 2>/dev/null; PUB=$(age-keygen -y "$O/agekey")
 ssh-keygen -q -t ed25519 -N '' -C '' -f "$O/signing.key"; cut -d' ' -f1,2 "$O/signing.key.pub" > "$O/signer.pub"
