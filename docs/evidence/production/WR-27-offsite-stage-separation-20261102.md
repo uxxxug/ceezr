@@ -45,7 +45,7 @@
 | اختبارُ الطفرات: 8 تعديلاتٍ تكسرُ الفصل، كلٌّ على نسخةٍ منفصلة | sandbox Linux | **PASS 8/8 كُشفَت** | `mutation-results.txt` · `mutation-run.txt` |
 | `tests/offsite-selftest.sh` (التشفير والتوقيع والاستعادة والحالاتُ السلبيّة، postgis حقيقيّ `--network none`) | sandbox Linux بصلاحيّةِ root وdocker | **PASS 133/0** | `selftest.txt` |
 | `tests/offsite-kit-windows-test.sh` على الحقيبةِ المبنيّة (مجلّد `Ahmed Ali`) | sandbox Linux | **PASS 29/0** | `kit-test-linux.txt` |
-| الاختبارُ نفسُه على windows-latest Git Bash، وstages-linux | GitHub Actions | يُضافُ بعدَ CI (§٥) | `windows-kit-test.txt` · `stages-linux.txt` |
+| الاختبارُ نفسُه على windows-latest Git Bash، وstages-linux | GitHub Actions | **PASS** — Windows 30/0، stages-linux 86/0 | `windows-kit-test.txt` · `stages-linux.txt` |
 | `build-kit.sh` مرّتين | sandbox | sha256 واحد: `a0d94b57d3a89499ad0d41914a241a04a3bea7426e24ab03424cc53d5df3de7f` | — |
 
 **الاختباراتُ الإلزاميّة** (أسطرُ `test N` في `stages-test.txt`):
@@ -88,4 +88,8 @@
 
 ## ٥) CI
 
-يُستكمَلُ بعدَ تشغيلِ CI على PR.
+- التشغيلُ: [run 41359848472](https://github.com/uxxxug/ceezr/actions/runs/41359848472) على الالتزام `42efbb75` (PR #717).
+- `windows-git-bash` (windows-latest، MINGW64، HOME بمسافة `Ahmed Ali`): **PASS** 30/0 — `windows-kit-test.txt`.
+- `stages-linux` (ubuntu-latest): **PASS** 86/0 — `stages-linux.txt`.
+- `build-kit`: **PASS**.
+- ملاحظة: هذا runner سحابيّ، لا جهازُ المالكِ Windows 11 Pro؛ يبقى ذلك NOT TESTED.

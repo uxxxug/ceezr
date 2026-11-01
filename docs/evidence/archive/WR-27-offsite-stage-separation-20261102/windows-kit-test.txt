@@ -1,0 +1,35 @@
+# GitHub Actions run https://github.com/uxxxug/ceezr/actions/runs/41359848472 job windows-git-bash (windows-latest), commit 42efbb75
+# windows kit test 2026-11-01T23:00:14Z MINGW64_NT-10.0-26100 3.6.10-5a1665c8.x86_64
+# bash=5.3.15(2)-release ssh=/usr/bin/ssh (OpenSSH_10.5p1, OpenSSL 3.5.9 29 Sep 2026) keygen=/usr/bin/ssh-keygen age=v1.3.2 rclone=rclone v1.75.2
+# HOME=/d/a/_temp/Ahmed Ali
+PASS  HOME contains a space (like C:/Users/Ahmed Ali)
+PASS  kit: sha256sum -c SHA256SUMS (7 OK)
+PASS  kit: no CRLF after PowerShell Expand-Archive
+PASS  kit: bash -n on all scripts
+PASS  host_kit_ok with Git ssh-keygen
+PASS  host_kit_ok with native Windows ssh-keygen (OpenSSH_for_Windows_9.5p2, LibreSSL 3.8.2)
+PASS  connect: wrong suffix ⇒ stop, no ssh call, nothing pinned
+PASS  connect: full run rc=0 (host pin → signer → status → native rclone OAuth → --link via stdin)
+PASS  stage A: connect only linked (no upload call, no enable call, no --install)
+PASS  stage A: owner told nothing was uploaded and nightly is off
+PASS  known_hosts pinned under spaced HOME
+PASS  allowed_signers = server signing key
+PASS  rclone (native Windows) exchanged the code with the token endpoint
+PASS  server received rclone section via stdin (client_id, drive.file, refresh token)
+PASS  laptop temp rclone config removed
+PASS  no-input ssh calls use -n
+PASS  ssh got the spaced known_hosts path quoted (ssh splits unquoted values at spaces)
+PASS  client secret not in logs or ~/.wasla
+PASS  stage C refused before first upload (no enable call)
+PASS  stage B: wrong confirmation word ⇒ cancelled, no upload call
+PASS  stage B: UPLOAD (CRLF) ⇒ exactly one --first call (ssh -n), nightly not enabled
+PASS  stage C: ENABLE ⇒ --enable-nightly with the server-reported TS (CR stripped)
+PASS  stage B refused once enabled
+PASS  relink without RELINK ⇒ cancelled before OAuth, no --link
+PASS  disable (DISABLE) ⇒ --disable-nightly
+PASS  old server (no --status) ⇒ connect stops before OAuth, nothing sent
+PASS  restore-test: signature (Linux-signed) verified, sha256, native age -d, binary pipe intact ⇒ PASS
+PASS  restore-test: tampered ciphertext ⇒ FAIL before decrypt
+PASS  restore-test: edited known_hosts ⇒ refuse, no ssh
+PASS  no age secret in logs
+# windows kit test pass=30 fail=0

@@ -37,7 +37,9 @@
     "docs/evidence/archive/WR-27-offsite-stage-separation-20261102/mutation-results.txt",
     "docs/evidence/archive/WR-27-offsite-stage-separation-20261102/mutation-run.txt",
     "docs/evidence/archive/WR-27-offsite-stage-separation-20261102/selftest.txt",
-    "docs/evidence/archive/WR-27-offsite-stage-separation-20261102/stages-test.txt"
+    "docs/evidence/archive/WR-27-offsite-stage-separation-20261102/stages-test.txt",
+    "docs/evidence/archive/WR-27-offsite-stage-separation-20261102/windows-kit-test.txt",
+    "docs/evidence/archive/WR-27-offsite-stage-separation-20261102/stages-linux.txt"
   ],
   "decision": "ADR 0300: ثلاثةُ أوامرَ منفصلة (--link، offsite-backup.sh --first، --enable-nightly TS) و--disable-nightly و--status؛ offsite.env لا يكتبُه إلّا --enable-nightly بعدَ التحقّقِ من offsite-first-ok لهذا LINK_ID والطابعِ ووجودِ الملفّاتِ الثلاثةِ بحجمِها في Drive؛ ملفّاتُ الحالةِ تُقرأُ بمحلّلٍ صارمٍ لا بـsource؛ --install يُرفَض.",
   "tests": [
