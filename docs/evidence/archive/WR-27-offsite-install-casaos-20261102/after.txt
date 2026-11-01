@@ -1,0 +1,39 @@
+# after 2026-11-01T21:08:04Z
+/wasla-db-1 id=28ba93111c42 started=2026-10-29T16:28:47.502163711Z restarts=1 health=healthy cfg=postgis/postgis:17-3.5
+/wasla-gateway-1-1 id=425c1bea26f0 started=2026-11-01T15:37:43.748373986Z restarts=0 health=healthy cfg=wasla/gateway:78841453
+/wasla-gateway-2-1 id=674f4961134d started=2026-11-01T15:37:28.407164593Z restarts=0 health=healthy cfg=wasla/gateway:78841453
+
+/wasla-miniapp-1 id=498804bfab2c started=2026-11-01T13:51:16.663341511Z restarts=0 health=healthy cfg=nginx:1.29-alpine
+/wasla-redis-1 id=f1878bbb57fe started=2026-10-29T16:28:15.287266874Z restarts=0 health=healthy cfg=redis:7-alpine
+
+
+/wasla-storage-db-1 id=82a6f99d6d9d started=2026-10-30T14:24:06.264587052Z restarts=0 health=healthy cfg=postgres:17-alpine
+b55c38f18f102855ca2803ed65dce4371cb2388a681e491072089de8ab8fd937 /opt/wasla/compose.yml
+cf750372f4766af5595436a32e72adf451cb9bdfe6ef0e64f06a7a54a3ac7a46 /opt/wasla/.env
+62e77b65171666e15d986c0931effced5ae7e6104c7c4991eb7543df8c89d94c /opt/wasla/haproxy.cfg
+5451201df7f977373ef65686def10c206ad9b4ea7a969aa0b3eab3af70caeff2 /opt/wasla/miniapp-nginx.conf
+06bfa3dff2080d71f4bad4dd07b93aaf17fb16b8f8122835ff229551e872c862 /opt/wasla/shim-overlay/Dockerfile
+2413261e10f44b09d376d0165a65878f30f6a20e4229aa705fce17ebc2b26fa8 /etc/systemd/system/wasla-backup.service
+ef5741118cb4d02d7cd870fe27f0c965955247616f06c6da7a5ccacb26582cde /etc/systemd/system/wasla-backup.timer
+Mon 2026-11-02 03:34:20 UTC       6h Sun 2026-11-01 03:34:24 UTC    17h ago wasla-backup.timer             wasla-backup.service
+-rw------- root root backup-signing.key
+-rw-r--r-- root root backup-signing.key.pub
+-rw------- root root db.env
+-rw------- root root gateway.env
+-rw------- root root gateway.env.bak-pre-25932d35
+-rw------- root root gateway.env.bak-pretrial-20261030T123330Z
+-rw------- root root ingress.env
+-rw------- root root ingress.env.bak-pre-app-20261101T150731Z
+-rw------- root root public.env
+-rw------- root root public.env.bak-pre-app-20261101T150731Z
+-rw------- root root public.env.bak-pre-storage
+-rw------- 999 systemd-journal redis.conf
+-rw------- root root shim.env
+-rw------- root root signal.env
+-rw------- root root storage-client.env
+-rw------- root root storage.env
+9
+200 200 200 200 200 /wasla-lb-1 started=2026-11-01T12:59:19.716828516Z restarts=0 status=running
+/wasla-redis-rest-1 started=2026-10-29T23:19:04.509879878Z restarts=0 status=running
+/wasla-storage-1 started=2026-10-30T14:24:16.90149213Z restarts=0 status=running
+running wasla: 9

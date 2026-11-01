@@ -1,0 +1,59 @@
+rc=0 result=success
+Starting wasla-backup.service - WASLA nightly PostgreSQL backup...
+backup-ok /var/backups/wasla/waslah-20261101T210710Z.dump 2135313 bytes storage_files=2 storage_tar=309248
+wasla-backup.service: Deactivated successfully.
+Finished wasla-backup.service - WASLA nightly PostgreSQL backup.
+TS=20261101T210710Z
+600 6782 config-20261101T210710Z.tgz
+600 142719 storage-db-20261101T210710Z.dump
+600 99 storage-db-20261101T210710Z.dump.sha256
+600 403 storage-db-20261101T210710Z.rowstats
+600 308 storage-files-20261101T210710Z.sha256
+600 309248 storage-files-20261101T210710Z.tar
+600 101 storage-files-20261101T210710Z.tar.sha256
+600 1517 storage-roles-20261101T210710Z.sql
+600 2135313 waslah-20261101T210710Z.dump
+600 95 waslah-20261101T210710Z.dump.sha256
+600 3565 waslah-20261101T210710Z.rowstats
+bash: line 1: cd: /var/backups/wasla: Permission denied
+head: cannot open 'waslah-20261101T210710Z.rowstats' for reading: No such file or directory
+bash: line 1: waslah-20261101T210710Z.rowstats: No such file or directory
+tables= storage_tables=
+0
+signing key not in config tgz
+bash: line 1: storage-db-20261101T210710Z.rowstats: No such file or directory
+tar (child): config-20261101T210710Z.tgz: Cannot open: No such file or directory
+tar (child): Error is not recoverable: exiting now
+tar: Child returned status 2
+tar: Error is not recoverable: exiting now
+tar (child): config-20261101T210710Z.tgz: Cannot open: No such file or directory
+tar (child): Error is not recoverable: exiting now
+tar: Child returned status 2
+tar: Error is not recoverable: exiting now
+## checks 20261101T210710Z
+waslah-20261101T210710Z.dump: OK
+storage-db-20261101T210710Z.dump: OK
+storage-files-20261101T210710Z.tar: OK
+sha256-file-name: waslah-20261101T210710Z.dump
+rowstats tables=88 storage_tables=11
+pg_restore -l ok (image)
+## config tgz
+etc/wasla/db.env
+etc/wasla/gateway.env
+etc/wasla/shim.env
+etc/wasla/redis.conf
+etc/wasla/signal.env
+etc/wasla/public.env
+etc/wasla/ingress.env
+etc/wasla/storage.env
+etc/wasla/storage-client.env
+opt/wasla/.env
+opt/wasla/compose.yml
+opt/wasla/haproxy.cfg
+signing key not in config tgz
+## storage-restore-drill.sh 20261101T210710Z
+storage-db rowstats tables_expected=10 tables_restored=10 rows_expected=79 count_mismatch=0 content_mismatch=0 missing=0 extra=0 result=MATCH
+drill backup=20261101T210710Z files_manifest_equal=yes storage_rowstats=match object_rows=2 compared_live=2 equal_live=2 different_live=0 buckets=driver-documents:false:5242880
+drill-PASS
+drill rc=0
+0

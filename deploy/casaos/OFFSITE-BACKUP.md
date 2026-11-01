@@ -89,6 +89,28 @@ age يشفّرُ تشفيراً موثَّقاً، فأيُّ تلاعبٍ با�
 - مفتاحُ توقيعِ النسخِ لا يُطلَبُ ولا يُثبَّتُ إلّا بعدَ ذلك، عبرَ الاتصالِ الموثَّق.
 - **تغيّرُ مفتاحِ الخادم** (خادمٌ جديدٌ أو إعادةُ تثبيت) يحتاجُ حقيبةً جديدةً من المستودع، بمرجعٍ جديدٍ تحقّقَ منه المالكُ بالطريقةِ نفسِها. لا خيارَ لتجاوزِه من سطرِ الأوامر.
 
+## التثبيتُ على الخادم (المهندس، مرّةً واحدة، قبلَ ربطِ المالك)
+
+**الحالة:** ثُبِّتَ على CasaOS في 2026-11-01 من `main` عندَ `9b8c3b1b`، ولم يُضبَطْ: لا `offsite.env` ولا `rclone.conf`. فالنسخُ الليليُّ محلّيٌّ وحدَه، واستدعاءُ `offsite-backup.sh` مباشرةً يطبعُ `offsite-skip no_config`. الدليل: `docs/evidence/production/WR-27-offsite-install-casaos-20261102.md`.
+
+| الملفّ في `/opt/wasla/` | الصلاحيّة | دورُه |
+|---|---|---|
+| `backup.sh` | 700 root | النسخُ الليليّ (`wasla-backup.service`)، ويستدعي `offsite-backup.sh` فقط إن وُجدَ `offsite.env` |
+| `pg-snapshot-dump.sh` | 700 root | لقطةٌ متّسقةٌ ولقطةُ الصفوف `*.rowstats` |
+| `storage-restore-drill.sh` | 700 root | تمرينُ استعادةِ التخزينِ في حاوياتٍ معزولة |
+| `offsite-backup.sh` · `offsite-fetch.sh` · `offsite-restore-drill.sh` · `offsite-setup.sh` | 700 root | الرفعُ والتنزيلُ والتمرينُ والضبط |
+| `offsite-lib.sh` · `offsite-tool.py` | 600 root | مكتبةٌ تُستورَد، وأداةٌ يشغّلُها `python3` |
+| `OFFSITE-BACKUP.md` | 644 root | هذا الدليل |
+
+- **الأدوات:** `/opt/wasla/bin/age` (1.3.2) و`/opt/wasla/bin/rclone` (1.75.2)، و`python3` و`ssh-keygen` (OpenSSH 8.1 فأحدث) و`docker` و`logger` من النظام.
+- **لا يُثبَّتُ هنا:** `laptop/*` (حقيبةُ المالك)، و`tests/*`، و`shim-overlay/` و`miniapp-nginx.conf` (مطابقانِ للإنتاجِ ولا يمسّهما النسخ).
+- **الخطوات:**
+  1. نسخةُ تراجع: `tar` للملفّاتِ الحاليّة، و`SHA256SUMS.before` و`MODES.before`، و`ROLLBACK.sh` في `/opt/wasla/backups/pre-wr27-install-<TS>/`.
+  2. الملفّاتُ من `git show <SHA>:deploy/casaos/<f>` إلى مجلّدٍ مؤقّتٍ 700، ثمّ `sha256sum -c`، و`bash -n`، وتحليلُ `offsite-tool.py` دونَ `py_compile`، فلا يُكتَبُ `__pycache__`.
+  3. `install -o root -g root -m <الصلاحيّة>` لكلِّ ملفّ، ثمّ `sha256sum -c` في `/opt/wasla`.
+- **التحقّق:** `offsite-setup.sh --signing-key` يعملُ دونَ OAuth: ينشئُ `/etc/wasla/backup-signing.key` (600) أوّلَ مرّة، ويطبعُ المفتاحَ نفسَه بعدَها. ثمّ `systemctl start wasla-backup.service` و`storage-restore-drill.sh <TS>`، والحاوياتُ و`/ready` كما كانت.
+- **التراجع:** `sudo /opt/wasla/backups/pre-wr27-install-<TS>/ROLLBACK.sh`. يعيدُ الملفّاتِ السبعةَ السابقة، ويحذفُ `offsite-lib.sh` و`offsite-tool.py` و`pg-snapshot-dump.sh`. لا يمسُّ الحاويات، ولا يحذفُ مفتاحَ التوقيع.
+
 ## الإعدادُ لمرّةٍ واحدة (المالك)
 
 ### أ) عميلُ OAuth خاصٌّ في Google Cloud (نحو 5 دقائق، **بعدَ اعتمادِ هذه الخطوات**)
@@ -234,7 +256,7 @@ bash wasla-offsite-restore-test.sh monthly/wasla-<TS>.tar.age
      sudo cp -a /opt/wasla/src/apps/miniapp/dist/. /opt/wasla/miniapp/releases/<TAG>/
      sudo ln -sfn /opt/wasla/miniapp/releases/<TAG> /opt/wasla/miniapp/current
      ```
-   - السكربتات: `sudo install -m 700 /opt/wasla/src/deploy/casaos/*.sh /opt/wasla/src/deploy/casaos/offsite-tool.py /opt/wasla/`.
+   - السكربتات: كما في «التثبيتُ على الخادم» أعلاه، من `/opt/wasla/src/deploy/casaos/` (ومفتاحُ توقيعٍ جديدٌ يُنشأُ عندَ الربط).
 4. **قاعدةُ التطبيق:**
    - `sudo docker compose -f /opt/wasla/compose.yml up -d db`.
    - `sudo docker exec wasla-db-1 createdb -U postgres -T template0 waslah`. إن كانت موجودةً فتخطَّ هذا السطر.

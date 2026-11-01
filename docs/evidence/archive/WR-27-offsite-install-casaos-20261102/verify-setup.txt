@@ -1,0 +1,36 @@
+## before: offsite.env / rclone.conf / signing key
+absent /etc/wasla/offsite.env
+absent /etc/wasla/rclone.conf
+absent /etc/wasla/backup-signing.key
+absent /etc/wasla/backup-signing.key.pub
+## offsite-backup.sh (direct call, no config)
+offsite-skip no_config
+rc=0
+## offsite-fetch.sh --list (no config)
+fetch-fail no_config
+rc=1
+## offsite-setup.sh --signing-key (run 1)
+rc=0 out_lines=1 format=ok
+## run 2 (idempotent)
+same-key yes
+fingerprint 256 SHA256:Z/8ZRUIQet6LuLUO49sg0kpbhUufBo/HnyqkbfGzZIo no comment (ED25519)
+700 root:root /etc/wasla
+600 root:root /etc/wasla/backup-signing.key
+644 root:root /etc/wasla/backup-signing.key.pub
+private matches printed public
+## sign/verify round-trip in a temp dir (namespace wasla-offsite-backup)
+Good "wasla-offsite-backup" signature for wasla-backup with ED25519 key SHA256:Z/8ZRUIQet6LuLUO49sg0kpbhUufBo/HnyqkbfGzZIo
+## after: offsite.env / rclone.conf
+absent /etc/wasla/offsite.env
+absent /etc/wasla/rclone.conf
+no-pycache
+2026-11-01T21:06:28+00:00 moot wasla-offsite[3382043]: setup signing-key-created
+## rollback copy check (extract to temp, not applied)
+backup.sh: OK
+offsite-backup.sh: OK
+offsite-fetch.sh: OK
+offsite-restore-drill.sh: OK
+offsite-setup.sh: OK
+storage-restore-drill.sh: OK
+OFFSITE-BACKUP.md: OK
+ROLLBACK.sh syntax ok

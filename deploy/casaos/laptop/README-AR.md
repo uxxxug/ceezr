@@ -53,6 +53,7 @@ wasla-offsite-kit/
 - `~` هو `C:\Users\<اسمك>`، فملفُّ SSH هو `C:\Users\<اسمك>\.ssh\config`، والمفاتيحُ في `C:\Users\<اسمك>\.wasla\`.
 - صلاحيّاتُ 600 لا تُطبَّقُ على NTFS كما على Linux، فلا تشاركْ حسابَ Windows مع غيرك.
 - السكربتُ يحوّلُ مسارَ ملفِّ rclone المؤقّتِ بـ`cygpath -w` لأنّ rclone برنامجُ Windows أصليّ.
+- مجلّدُ المستخدمِ قد يحوي مسافة (`C:\Users\Ahmed Ali`)، والسكربتانِ يعالجانِها.
 - إن ظهرَ `$'\r': command not found` فالملفّاتُ حُوِّلت إلى CRLF. أعدْ فكَّ الحقيبةِ بأداةِ ZIP العاديّة، لا عبرَ `git clone` مع `autocrlf`.
 
 ## 3) SSH إلى الخادم
@@ -133,5 +134,6 @@ bash wasla-offsite-restore-test.sh monthly/wasla-<TS>.tar.age
 | Linux (Ubuntu، OpenSSH 10.2، age 1.3.2) لابتوباً عبرَ SSH حقيقيٍّ إلى الخادم، ببياناتٍ اصطناعيّة: تثبيتُ مفتاحِ الخادمِ بالتحقّقِ المستقلّ، ورفضُ الإدخالِ الخاطئ، ورفضُ مفتاحِ خادمٍ مختلف | PASS |
 | الخادم (CasaOS) لابتوباً محاكى، ومعه خادمُ OAuth وهميّ | PASS |
 | macOS | NOT TESTED (الأوامرُ محمولة: `shasum` بديلٌ تلقائيّ) |
-| Windows (Git Bash) | NOT TESTED على Windows حقيقيّ |
+| Windows (مشغّلُ `windows-latest`، نواةُ NT 10.0.26100؛ Git Bash، OpenSSH 10.6 من Git، وage 1.3.2 وrclone 1.75.2 أصليّان) على GitHub Actions، والحقيبةُ مفكوكةٌ بـExpand-Archive في مجلّدِ مستخدمٍ فيه مسافة: البصمة، والربطُ الكاملُ بـOAuth وهميّ، وrestore-test، والرفضُ عندَ العبث. الخادمُ مُحاكى | PASS (20/0) |
+| Windows: SSH حقيقيٌّ عبرَ cloudflared، وتثبيتُ `winget`، وشاشةُ Google في المتصفّح | NOT TESTED |
 | Google Drive حقيقيّ، وشاشةُ موافقةِ Google | NOT TESTED: يحتاجُ حسابَ المالكِ بعدَ الاعتماد |
