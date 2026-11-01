@@ -13,12 +13,15 @@ WASLA_HOST_ALIAS=wasla-casaos
 WASLA_HOST_PUB='ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIA+XFU4/ea3esCMvhZ3UjxKikrJdDWhWzJjLILtUhAZX'
 WASLA_HOST_FP='SHA256:xpIw6WmQ6gB/t7pDMYlzvkcfgSbe7/8LyNECMJd0D+U'
 KH=${WASLA_KNOWN_HOSTS:-$HOME/.wasla/known_hosts}
+case "$KH" in *'"'*) echo "مسارُ known_hosts فيه علامةُ تنصيص (\"): $KH. استعملْ WASLA_KNOWN_HOSTS بمسارٍ آخر."; exit 1;; esac
 # كلُّ اتصال: مفتاحُ ed25519 وحدَه، وملفُّنا وحدَه، ورفضُ أيِّ مفتاحٍ غيرِ مثبَّت.
+# المسارُ بينَ علامتَي تنصيصٍ داخلَ القيمة: ssh يقسمُ UserKnownHostsFile عندَ المسافات (C:/Users/Ahmed Ali/…).
 # shellcheck disable=SC2034  # يستعملُه السكربتانِ اللذان يستوردانِ الملفّ.
-SSH=(ssh -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$KH" -o GlobalKnownHostsFile=/dev/null
+SSH=(ssh -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=\"$KH\"" -o GlobalKnownHostsFile=/dev/null
   -o HostKeyAlias="$WASLA_HOST_ALIAS" -o HostKeyAlgorithms=ssh-ed25519 -o UpdateHostKeys=no)
 
-host_fp_of(){ ssh-keygen -lf <(printf '%s\n' "$1") 2>/dev/null | cut -d' ' -f2; }
+# من stdin لا من ‎<(…)‎: ssh-keygen الأصليُّ في Windows لا يرى مساراتِ /dev/fd.
+host_fp_of(){ printf '%s\n' "$1" | ssh-keygen -lf - 2>/dev/null | cut -d' ' -f2; }
 
 # الحقيبةُ نفسُها متّسقة: المفتاحُ المضمَّنُ يطابقُ بصمتَه المضمَّنة (يكشفُ تعديلاً جزئيّاً أو تلفاً).
 host_kit_ok(){ [ "$(host_fp_of "$WASLA_HOST_PUB")" = "$WASLA_HOST_FP" ] || {

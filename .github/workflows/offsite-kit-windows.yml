@@ -1,0 +1,75 @@
+# الغرض: اختبارٌ فعليٌّ لحقيبةِ اللابتوبِ (النسخةُ خارجَ الموقع، ADR 0298 · 0299) على Windows في Git Bash.
+#   تُبنى الحقيبةُ على Linux (كما تُسلَّمُ للمالك) وتُفَكُّ بـExpand-Archive في مجلّدِ مستخدمٍ فيه مسافة،
+#   وage وrclone برامجُ Windows أصليّةٌ بالإصدارَين المعتمدَين (تجزئاتُها مثبَّتة). الخادمُ وGoogle مُحاكَيان.
+# ينتمي إلى: deploy/casaos/tests/offsite-kit-windows-test.sh
+name: offsite-kit-windows
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - deploy/casaos/laptop/**
+      - deploy/casaos/OFFSITE-BACKUP.md
+      - deploy/casaos/tests/offsite-kit-*.sh
+      - deploy/casaos/tests/mock-oauth.py
+      - .github/workflows/offsite-kit-windows.yml
+permissions:
+  contents: read
+jobs:
+  build-kit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: age 1.3.2
+        run: |
+          curl -fsSL -o age.tgz https://github.com/FiloSottile/age/releases/download/v1.3.2/age-v1.3.2-linux-amd64.tar.gz
+          tar -xzf age.tgz && echo "$PWD/age" >> "$GITHUB_PATH"
+      - name: kit + fixtures
+        run: |
+          bash deploy/casaos/laptop/build-kit.sh out/wasla-offsite-laptop-kit.zip
+          sha256sum out/wasla-offsite-laptop-kit.zip | tee out/kit.sha256
+          bash deploy/casaos/tests/offsite-kit-fixtures.sh out/fx
+          cp deploy/casaos/tests/offsite-kit-windows-test.sh deploy/casaos/tests/mock-oauth.py out/
+      - uses: actions/upload-artifact@v7
+        with:
+          name: kit-windows-input
+          path: out/
+          retention-days: 3
+  windows-git-bash:
+    needs: build-kit
+    runs-on: windows-latest
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          name: kit-windows-input
+          path: in
+      - name: Expand-Archive into a user folder with a space
+        shell: pwsh
+        run: |
+          $d = Join-Path $env:RUNNER_TEMP "Ahmed Ali\Downloads"
+          New-Item -ItemType Directory -Force $d | Out-Null
+          Expand-Archive -Path in\wasla-offsite-laptop-kit.zip -DestinationPath $d
+          Get-ChildItem (Join-Path $d "wasla-offsite-kit") | Format-Table Name, Length
+      - name: age 1.3.2 + rclone 1.75.2 (native Windows, pinned sha256)
+        shell: pwsh
+        run: |
+          $t = Join-Path $env:RUNNER_TEMP "tools"; New-Item -ItemType Directory -Force $t | Out-Null
+          Invoke-WebRequest https://github.com/FiloSottile/age/releases/download/v1.3.2/age-v1.3.2-windows-amd64.zip -OutFile age.zip
+          Invoke-WebRequest https://downloads.rclone.org/v1.75.2/rclone-v1.75.2-windows-amd64.zip -OutFile rclone.zip
+          if ((Get-FileHash age.zip).Hash -ne "F48D8F8F9EBE903AB5027ED067652F2CC1DB94BC206976430133B905DCD8E8C7") { throw "age sha256" }
+          if ((Get-FileHash rclone.zip).Hash -ne "8A9DB2BAD1DC79A65B3348FD857069598E2AAB7CF4D118B77B1DF23055AFF818") { throw "rclone sha256" }
+          Expand-Archive age.zip -DestinationPath $t; Expand-Archive rclone.zip -DestinationPath $t
+          Add-Content $env:GITHUB_PATH (Join-Path $t "age")
+          Add-Content $env:GITHUB_PATH (Join-Path $t "rclone-v1.75.2-windows-amd64")
+      - name: kit test (Git Bash)
+        shell: bash
+        run: |
+          cat in/kit.sha256
+          export HOME="$(cygpath -u "$RUNNER_TEMP")/Ahmed Ali"
+          bash in/offsite-kit-windows-test.sh "$HOME/Downloads/wasla-offsite-kit" "$PWD/in/fx" "$(cygpath -w "$PWD/in/mock-oauth.py")" 2>&1 | tee windows-kit-test.txt
+          exit "${PIPESTATUS[0]}"
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-kit-test
+          path: windows-kit-test.txt
+          retention-days: 30

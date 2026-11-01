@@ -35,7 +35,7 @@ if [ -s "$ALLOWED" ] && ! grep -qF "$SIGPUB" "$ALLOWED"; then
   echo "إن كان التغييرُ مقصوداً (خادمٌ جديد) فاحذفْ الملفَّ وأعدِ التشغيل؛ وإلّا فتوقّفْ وتحقّق."; exit 1
 fi
 printf 'wasla-backup namespaces="wasla-offsite-backup" %s\n' "$SIGPUB" > "$ALLOWED"; chmod 600 "$ALLOWED"
-echo "ثُبِّتَ مفتاحُ توقيعِ الخادم: $(ssh-keygen -lf <(printf '%s\n' "$SIGPUB") | cut -d' ' -f2)"
+echo "ثُبِّتَ مفتاحُ توقيعِ الخادم: $(host_fp_of "$SIGPUB")"
 
 # 2) عميلُ OAuth وربطُ Drive.
 IFS= read -rp "Google OAuth Client ID: " CID
