@@ -17,7 +17,12 @@ COMPOSE=(docker compose -f /opt/wasla/compose.yml)
 LOG_TAG=wasla-tunnel-sync
 log(){ logger -t "$LOG_TAG" -- "$*"; echo "$*"; }
 
+# نطاقٌ ثابت (ADR 0295): إن ضُبطَ PUBLIC_BASE_URL في /etc/wasla/ingress.env فهو الرابطُ العامُّ
+# المعتمَد (نفقُ Cloudflare المسمّى)، ولا يُقرأُ النفقُ السريعُ إلّا احتياطاً حينَ يغيبُ.
+fixed=$(sed -nE 's/^PUBLIC_BASE_URL=(https:\/\/[A-Za-z0-9.-]+)\/?$/\1/p' /etc/wasla/ingress.env 2>/dev/null | tail -1 || true)
+if [ -n "$fixed" ]; then host=${fixed#https://}; else
 host=$(curl -fsS -m 5 http://127.0.0.1:20299/quicktunnel 2>/dev/null | sed -nE 's/.*"hostname":"([^"]+)".*/\1/p' || true)
+fi
 # منفذُ المقاييسِ خاصٌّ بهذا النفق (20299): 20241 الافتراضيُّ قد يحجزُه نفقٌ آخرُ على الخادم
 # (نفقُ SSH المؤقّت)، فيُقرأُ رابطُه خطأً ويُوجَّهُ الـwebhook إليه.
 [ -n "$host" ] || { log "no_tunnel_hostname"; exit 0; }

@@ -1,0 +1,32 @@
+{
+  "id": "wr-27-casaos-fixed-domain-20261101",
+  "goal": "§27 خطة النشر والتحقق: نطاقٌ ثابتٌ لإنتاجِ CasaOS (waslareev.dpdns.org) عبرَ نفقِ Cloudflare المسمّى بدلَ رابطِ النفقِ السريعِ المتغيّر، وبابٌ مستقلٌّ للوحةِ الإدارةِ لا يمرّرُ إلّا /admin (ADR 0295).",
+  "canonical_source": ["docs/adr/0295-casaos-fixed-domain-and-admin-front.md"],
+  "implementation": [
+    "deploy/casaos/haproxy.cfg",
+    "deploy/casaos/compose.gateways.yml",
+    "deploy/casaos/tunnel/wasla-tunnel-sync.sh"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [
+    "docs/roadmap/execution/STATUS.md",
+    "deploy/casaos/README.md",
+    "AGENTS.md",
+    "docs/adr/0295-casaos-fixed-domain-and-admin-front.md",
+    "docs/evidence/production/WR-27-casaos-fixed-domain-20261101.md"
+  ],
+  "decision": "قرارُ المالكِ 2026-11-01: نطاقُ waslareev.dpdns.org على Cloudflare، ونفقٌ مسمّى يديرُه تطبيقُ CasaOS cloudflared على شبكةِ المضيف، وapp/api ← http://192.168.0.135:8443 وadmin ← :8444. CasaOS هو مسارُ التشغيلِ المستهدف؛ render.yaml باقٍ ولا يُستعمَل.",
+  "tests": [
+    "من الإنترنت: app/ و api/ و /ready و /health = 200، و/admin و/metrics و/internal على 8443 = 403، والـwebhook بلا سرٍّ = 401، ومصافحةُ socket.io = 200",
+    "من المضيف: 8443 من عنوانِ الشبكةِ بلا Cf-Connecting-Ip = 403، ومعه = 200؛ و8444: / = 302، /admin/login = 200، /ready و/metrics و/admin/../ready = 404",
+    "getWebhookInfo للبوتَين على https://api.waslareev.dpdns.org بلا خطأ وpending=0، وزرُّ Mini App على النطاقِ الثابت"
+  ],
+  "evidence": "docs/evidence/production/WR-27-casaos-fixed-domain-20261101.md",
+  "constraints": [
+    "لا تغييرَ في إعداداتِ Cloudflare من الوكيل؛ المالكُ وحدَه يغيّرُ المسارات",
+    "لا أسرارَ في Git ولا في السجلّ",
+    "لا مساسَ بحاوياتِ المالكِ الأخرى ولا بـrender.yaml"
+  ],
+  "limitations": "العنوانُ 192.168.0.135 مكتوبٌ في الإعداد (يُوصى بحجزِه في الموجّه). لم يُقَس الحجبُ من جهازٍ آخرَ في الشبكةِ المحلّيّةِ مباشرةً (قيسَ من المضيفِ وحدَه). Cloudflare Access على admin من جهةِ المالك."
+}
