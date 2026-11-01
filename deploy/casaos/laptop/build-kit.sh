@@ -6,7 +6,7 @@
 set -euo pipefail; umask 022
 OUT=${1:?OUT.zip}; H=$(cd "$(dirname "$0")" && pwd); C=$(cd "$H/.." && pwd)
 command -v python3 >/dev/null || { echo "python3 مطلوب"; exit 1; }
-FILES=("$H/README-AR.md" "$C/OFFSITE-BACKUP.md" "$H/wasla-offsite-connect.sh" "$H/wasla-offsite-restore-test.sh" "$H/wasla-laptop-lib.sh")
+FILES=("$H/README-AR.md" "$C/OFFSITE-BACKUP.md" "$H/wasla-offsite-connect.sh" "$H/wasla-offsite-first-upload.sh" "$H/wasla-offsite-enable-nightly.sh" "$H/wasla-offsite-restore-test.sh" "$H/wasla-laptop-lib.sh")
 for f in "${FILES[@]}"; do
   [ -f "$f" ] || { echo "ناقص: $f"; exit 1; }
   if grep -nE 'AGE-SECRET-KEY-1|BEGIN [A-Z ]*PRIVATE KEY|"refresh_token" *: *"1//|ya29\.|GOCSPX-' "$f"; then echo "يشبهُ سرّاً: $f"; exit 1; fi

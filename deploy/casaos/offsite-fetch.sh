@@ -10,9 +10,10 @@
 set -euo pipefail; umask 077
 # shellcheck source=offsite-lib.sh
 . "$(cd "$(dirname "$0")" && pwd)/offsite-lib.sh"
-[ -f "$OFFSITE_ENV" ] || { echo "fetch-fail no_config" >&2; exit 1; }
-# shellcheck disable=SC1090
-. "$OFFSITE_ENV"
+# قراءةٌ فقط: إعدادُ الليليِّ إن فُعِّل، وإلّا إعدادُ الربط (كي يُختبَرَ أوّلُ رفعٍ يدويٍّ قبلَ التفعيل). لا يُنفَّذُ أيٌّ منهما.
+CFG=$OFFSITE_ENV; [ -f "$CFG" ] || CFG=$OFFSITE_PENDING
+[ -f "$CFG" ] && [ -f "$RCLONE_CONFIG_FILE" ] || { echo "fetch-fail no_config" >&2; exit 1; }
+offsite_cfg_load "$CFG" || { echo "fetch-fail config_rejected" >&2; exit 1; }
 RC=("$WASLA_BIN/rclone" --retries "${OFFSITE_RETRIES:-5}" -q); R="$RCLONE_REMOTE:$DRIVE_ROOT"
 case "${1:-}" in
   --list)

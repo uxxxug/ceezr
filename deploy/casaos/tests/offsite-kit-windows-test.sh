@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
-# الغرض: اختبارٌ فعليٌّ لحقيبةِ اللابتوب على Windows في Git Bash (ADR 0298 · ADR 0299)، كما يستعملُها المالك:
+# الغرض: اختبارٌ فعليٌّ لحقيبةِ اللابتوب على Windows في Git Bash (ADR 0298 · 0299 · 0300)، كما يستعملُها المالك:
 #   الحقيبةُ مفكوكةٌ من ZIP، ومجلّدُ المستخدمِ فيه مسافة، وage وrclone برامجُ Windows أصليّة، وssh وssh-keygen من Git.
 #   الخادمُ مُحاكى: ssh بديلٌ يجيبُ كما يجيبُ الخادم (ويبتلعُ stdin كالحقيقيِّ دونَ -n)، وOAuth وهميّ (mock-oauth.py).
+#   المراحلُ الثلاث (ADR 0300): الخادمُ البديلُ يحفظُ المرحلةَ في ملفّ (unlinked→linked→first-ok→enabled) كما يُبلِغُ عنها
+#   offsite-setup.sh --status، ويرفضُ ما يرفضُه الحقيقيّ. منطقُ الخادمِ نفسُه مختبَرٌ في offsite-stages-test.sh على Linux.
 #   لا Google ولا خادمَ حقيقيّ ولا cloudflared: هذه NOT TESTED هنا.
 # ينتمي إلى: deploy/casaos/tests · يستدعيه .github/workflows/offsite-kit-windows.yml
 # الاستعمال (Git Bash): bash offsite-kit-windows-test.sh KIT_DIR FIXTURES_DIR MOCK_OAUTH_PY
@@ -38,7 +40,19 @@ shift; cmd="$*"; IN=$OUT/ssh-stdin; if [ $n = 1 ]; then : > "$IN"; else cat > "$
 case "$cmd" in
   true) exit 0;;
   *"offsite-setup.sh --signing-key") cat "$FX/signer.pub";;
-  *"offsite-setup.sh --install "*) cp "$IN" "$OUT/received.conf"; echo "setup-ok (fake server)";;
+  *"offsite-setup.sh --status")
+    [ -n "${FAKE_OLD_SERVER:-}" ] && { echo "الاستعمال: offsite-setup.sh --signing-key | --install age1…"; exit 2; }
+    st=$(cat "$OUT/stage" 2>/dev/null || echo unlinked); ft=none; [ "$st" = first-ok ] || [ "$st" = enabled ] && ft=$(cat "$FX/ts")
+    printf 'stage=%s\r\nlinked=%s\r\nfirst_upload=%s\r\nnightly=%s\r\n' "$st" "$([ "$st" = unlinked ] && echo no || echo yes)" "$ft" "$([ "$st" = enabled ] && echo on || echo off)";;
+  *"offsite-setup.sh --link age1"*) cp "$IN" "$OUT/received.conf"; [ "$(cat "$OUT/stage" 2>/dev/null)" = enabled ] || echo linked > "$OUT/stage"
+    echo "link-ok (fake server) uploads=0";;
+  *"offsite-backup.sh --first")
+    case "$(cat "$OUT/stage" 2>/dev/null)" in linked|first-ok) echo first-ok > "$OUT/stage"; echo "first-ok ts=$(cat "$FX/ts") files=3 nightly=off";;
+      *) echo "first-FAIL"; exit 1;; esac;;
+  *"offsite-setup.sh --enable-nightly "*)
+    [ "$(cat "$OUT/stage" 2>/dev/null)" = first-ok ] && [ "${cmd##* }" = "$(cat "$FX/ts")" ] || { echo "enable-FAIL"; exit 1; }
+    echo enabled > "$OUT/stage"; echo "enable-ok (fake server)";;
+  *"offsite-setup.sh --disable-nightly") echo first-ok > "$OUT/stage"; echo "disable-ok";;
   *"offsite-fetch.sh latest") cat "$FX/latest";;
   *"offsite-fetch.sh get "*) cat "$FX/drive/${cmd##* }";;
   *"offsite-restore-drill.sh --manifest-b64 "*)
@@ -57,7 +71,7 @@ FP=$(. ./wasla-laptop-lib.sh; echo "$WASLA_HOST_FP")
 [ $rc = 1 ] && [ ! -s "$OUT/ssh-calls" ] && [ ! -e "$HOME/.wasla/known_hosts" ] && [ ! -e "$HOME/.wasla/allowed_signers" ] &&
   ok "connect: wrong suffix ⇒ stop, no ssh call, nothing pinned" || bad "connect wrong suffix" "rc=$rc $(tail -2 "$OUT/connect-bad.txt")"
 
-# 5) ربطٌ كامل: لاحقةٌ صحيحة ⇒ مفتاحُ التوقيع ⇒ OAuth (وهميّ) عبرَ rclone الأصليّ ⇒ --install عبرَ stdin
+# 5) ربطٌ كامل (المرحلة أ): لاحقةٌ صحيحة ⇒ مفتاحُ التوقيع ⇒ --status ⇒ OAuth (وهميّ) عبرَ rclone الأصليّ ⇒ --link عبرَ stdin
 PY=$(command -v python || command -v python3); ML=$OUT/mock.log; : > "$ML"
 MLW=$ML; command -v cygpath >/dev/null && MLW=$(cygpath -w "$ML")
 "$PY" "$MOCK" 18080 ok "$MLW" & MOCK_PID=$!; sleep 2
@@ -68,7 +82,10 @@ WASLA_TEST_OAUTH_BASE=http://127.0.0.1:18080 bash ./wasla-offsite-connect.sh < "
 U=; for _ in $(seq 120); do U=$(grep -o 'http://127.0.0.1:53682/auth?state=[A-Za-z0-9_-]*' "$OUT/connect.txt" | head -1); [ -n "$U" ] && break; sleep 0.5; done
 [ -n "$U" ] && curl -s --noproxy '*' -L -o /dev/null "$U"
 wait "$CON"; rc=$?; rm -f "$OUT/in.txt"
-[ $rc = 0 ] && grep -q 'setup-ok (fake server)' "$OUT/connect.txt" && ok "connect: full run rc=0 (host pin → signer → native rclone OAuth → install via stdin)" || bad "connect full" "rc=$rc url=${U:+yes} $(tail -4 "$OUT/connect.txt")"
+[ $rc = 0 ] && grep -q 'link-ok (fake server)' "$OUT/connect.txt" && ok "connect: full run rc=0 (host pin → signer → status → native rclone OAuth → --link via stdin)" || bad "connect full" "rc=$rc url=${U:+yes} $(tail -4 "$OUT/connect.txt")"
+grep -q -- '--link age1' "$OUT/ssh-calls" && ! grep -qE 'offsite-backup|--enable-nightly|--install' "$OUT/ssh-calls" && [ "$(cat "$OUT/stage")" = linked ] &&
+  ok "stage A: connect only linked (no upload call, no enable call, no --install)" || bad "stage A calls" "$(tr '\n' ';' < "$OUT/ssh-calls")"
+grep -q 'لم يُرفَعْ أيُّ ملفّ' "$OUT/connect.txt" && ok "stage A: owner told nothing was uploaded and nightly is off" || bad "stage A message"
 [ "$(cat "$HOME/.wasla/known_hosts" 2>/dev/null)" = "$(. ./wasla-laptop-lib.sh; echo "$WASLA_HOST_ALIAS $WASLA_HOST_PUB")" ] && ok "known_hosts pinned under spaced HOME" || bad "known_hosts"
 grep -qF "$(cat "$FX/signer.pub")" "$HOME/.wasla/allowed_signers" 2>/dev/null && ok "allowed_signers = server signing key" || bad "allowed_signers"
 grep -q 'grant=authorization_code' "$ML" && ok "rclone (native Windows) exchanged the code with the token endpoint" || bad "code exchange" "$(cat "$ML")"
@@ -80,6 +97,32 @@ grep -E '^ssh .*(true|--signing-key)$' "$OUT/ssh-calls" | grep -vq -- ' -n ' && 
 grep -qxF "UserKnownHostsFile=\"$HOME/.wasla/known_hosts\"" "$OUT/ssh-opts" && ok "ssh got the spaced known_hosts path quoted (ssh splits unquoted values at spaces)" || bad "ssh opts" "$(grep -i known "$OUT/ssh-opts" | head -2)"
 grep -rqF "$CSEC" "$OUT"/connect*.txt "$HOME/.wasla" 2>/dev/null && bad "client secret leaked to logs/.wasla" || ok "client secret not in logs or ~/.wasla"
 kill "$MOCK_PID" 2>/dev/null
+
+# 5ب) المراحلُ ب وج من الحقيبة (مجلّدٌ فيه مسافة، ومدخلاتٌ قد تنتهي بـCRLF)
+: > "$OUT/ssh-calls"; bash ./wasla-offsite-enable-nightly.sh < /dev/null > "$OUT/enable-early.txt" 2>&1; rc=$?
+[ $rc = 1 ] && grep -q 'لا يمكنُ التفعيل' "$OUT/enable-early.txt" && ! grep -q -- '--enable-nightly' "$OUT/ssh-calls" &&
+  ok "stage C refused before first upload (no enable call)" || bad "enable early" "rc=$rc $(tail -2 "$OUT/enable-early.txt")"
+: > "$OUT/ssh-calls"; printf 'upload\n' | bash ./wasla-offsite-first-upload.sh > "$OUT/first-cancel.txt" 2>&1; rc=$?
+[ $rc = 1 ] && ! grep -q 'offsite-backup' "$OUT/ssh-calls" && [ "$(cat "$OUT/stage")" = linked ] &&
+  ok "stage B: wrong confirmation word ⇒ cancelled, no upload call" || bad "first cancel" "rc=$rc"
+: > "$OUT/ssh-calls"; printf 'UPLOAD\r\n' | bash ./wasla-offsite-first-upload.sh > "$OUT/first.txt" 2>&1; rc=$?
+[ $rc = 0 ] && grep -q 'first-ok' "$OUT/first.txt" && [ "$(grep -c 'offsite-backup.sh --first' "$OUT/ssh-calls")" = 1 ] &&
+  grep -E 'offsite-backup.sh --first$' "$OUT/ssh-calls" | grep -q -- ' -n ' && ! grep -q -- '--enable-nightly' "$OUT/ssh-calls" && [ "$(cat "$OUT/stage")" = first-ok ] &&
+  ok "stage B: UPLOAD (CRLF) ⇒ exactly one --first call (ssh -n), nightly not enabled" || bad "first" "rc=$rc $(tail -2 "$OUT/first.txt")"
+: > "$OUT/ssh-calls"; printf 'ENABLE\r\n' | bash ./wasla-offsite-enable-nightly.sh > "$OUT/enable.txt" 2>&1; rc=$?
+[ $rc = 0 ] && grep -q 'enable-ok' "$OUT/enable.txt" && grep -qE -- "--enable-nightly $(cat "$FX/ts")\$" "$OUT/ssh-calls" && [ "$(cat "$OUT/stage")" = enabled ] &&
+  ok "stage C: ENABLE ⇒ --enable-nightly with the server-reported TS (CR stripped)" || bad "enable" "rc=$rc $(tail -2 "$OUT/enable.txt") $(tr '\n' ';' < "$OUT/ssh-calls")"
+: > "$OUT/ssh-calls"; printf 'UPLOAD\n' | bash ./wasla-offsite-first-upload.sh > "$OUT/first-enabled.txt" 2>&1; rc=$?
+[ $rc = 1 ] && ! grep -q 'offsite-backup' "$OUT/ssh-calls" && ok "stage B refused once enabled" || bad "first when enabled" "rc=$rc"
+: > "$OUT/ssh-calls"; printf 'no\n' | bash ./wasla-offsite-connect.sh > "$OUT/relink-cancel.txt" 2>&1; rc=$?
+[ $rc = 1 ] && grep -q 'أُلغي' "$OUT/relink-cancel.txt" && ! grep -q -- '--link' "$OUT/ssh-calls" && ! grep -q 'Client ID' "$OUT/relink-cancel.txt" &&
+  ok "relink without RELINK ⇒ cancelled before OAuth, no --link" || bad "relink cancel" "rc=$rc $(tail -2 "$OUT/relink-cancel.txt")"
+printf 'DISABLE\n' | bash ./wasla-offsite-enable-nightly.sh --disable > "$OUT/disable.txt" 2>&1; rc=$?
+[ $rc = 0 ] && grep -q 'disable-ok' "$OUT/disable.txt" && ok "disable (DISABLE) ⇒ --disable-nightly" || bad "disable" "rc=$rc"
+: > "$OUT/ssh-calls"; FAKE_OLD_SERVER=1 bash ./wasla-offsite-connect.sh < /dev/null > "$OUT/old-server.txt" 2>&1; rc=$?
+[ $rc = 1 ] && grep -q 'ADR 0300' "$OUT/old-server.txt" && ! grep -qE -- '--link|--install' "$OUT/ssh-calls" && ! grep -q 'Client ID' "$OUT/old-server.txt" &&
+  ok "old server (no --status) ⇒ connect stops before OAuth, nothing sent" || bad "old server" "rc=$rc $(tail -2 "$OUT/old-server.txt")"
+export FAKE_OLD_SERVER=; echo enabled > "$OUT/stage"
 
 # 6) اختبارُ الاستعادة: تحقّقُ التوقيعِ وsha256 وفكُّ age الأصليّ، والأنبوبُ الثنائيّ إلى «الخادم»
 export WASLA_LOG_DIR=$OUT; bash ./wasla-offsite-restore-test.sh > "$OUT/rt.txt" 2>&1; rc=$?

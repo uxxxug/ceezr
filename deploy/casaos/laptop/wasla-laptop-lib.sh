@@ -57,3 +57,16 @@ TXT
   mkdir -p "$(dirname "$KH")"; chmod 700 "$(dirname "$KH")"
   printf '%s %s\n' "$WASLA_HOST_ALIAS" "$WASLA_HOST_PUB" > "$KH"; chmod 600 "$KH"
   echo "تطابق. ثُبِّتَ مفتاحُ الخادم: $WASLA_HOST_FP"; }
+
+# مراحلُ ADR 0300 — remote_stage ⇒ يضبطُ STAGE وFIRST_TS من «offsite-setup.sh --status» (قراءةٌ فقط، بلا أسرار).
+#   يفشلُ إن كان الخادمُ بنسخةٍ أقدمَ لا تعرفُ المراحل — فلا يُرسَلُ إليه شيء.
+# shellcheck disable=SC2034  # STAGE وFIRST_TS يقرؤهما السكربتُ المستدعي
+remote_stage(){ local out
+  out=$("${SSH[@]}" -n "$HOST" "$RP/offsite-setup.sh --status" 2>/dev/null | tr -d '\r') || out=""
+  STAGE=$(printf '%s\n' "$out" | sed -n 's/^stage=//p'); FIRST_TS=$(printf '%s\n' "$out" | sed -n 's/^first_upload=//p')
+  case "$STAGE" in unlinked|linked|first-ok|enabled) ;; *)
+    echo "تعذّرَ قراءةُ حالةِ النسخِ من الخادم. إمّا أنّ الاتصالَ فشل، أو أنّ سكربتاتِ الخادمِ أقدمُ من ADR 0300 (تحتاجُ تثبيتَ النسخةِ الجديدة). لم يُرسَلْ شيء."
+    return 1;; esac; }
+# confirm WORD MSG ⇒ لا يمضي إلّا إن كتبَ المالكُ الكلمةَ بالحروفِ اللاتينيّةِ نفسِها (ASCII ليعملَ في Git Bash).
+confirm(){ local ans; echo "$2"; IFS= read -rp "اكتبْ $1 للمتابعة (أيُّ شيءٍ آخرَ يُلغي): " ans || ans=""
+  ans=${ans%$'\r'}; [ "$ans" = "$1" ] || { echo "أُلغي. لم يتغيّرْ شيء."; return 1; }; }

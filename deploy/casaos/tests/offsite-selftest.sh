@@ -50,7 +50,7 @@ cat > "$T/fakebin/ssh" <<'EOF'
 # كـssh الحقيقيّ: دونَ -n يقرأُ stdin كلَّه (فيبتلعُ ما بعدَه من مدخلاتِ المالك)؛ مع -n لا يقرأُ شيئاً.
 n=0; while [ $# -gt 0 ]; do case "$1" in -n) n=1; shift;; -o) shift 2;; -*) shift;; *) break;; esac; done
 shift; [ $n = 1 ] && exec bash -c "$*" < /dev/null
-i=$(mktemp); cat > "$i"; bash -c "$*" < "$i"; r=$?; rm -f "$i"; exit $r
+i=$(mktemp); cat > "$i"; [ -n "${SSH_STDIN_COPY:-}" ] && cp "$i" "$SSH_STDIN_COPY"; bash -c "$*" < "$i"; r=$?; rm -f "$i"; exit $r
 EOF
 chmod 755 "$T/fakebin/ssh"
 
@@ -225,21 +225,25 @@ check "restore-test: host key not pinned ⇒ refuses" 1 $rc "$L/rt-nohost" 'مف
 [ ! -s "$T/ssh-calls" ] && ok "host-key negatives made no ssh call" || bad "host-key negatives ssh calls" "$(cat "$T/ssh-calls")"
 HKFP=$(sed -n "s/^WASLA_HOST_FP='\(.*\)'$/\1/p" "$H/laptop/wasla-laptop-lib.sh")
 mkfifo "$T/in"
-WASLA_TEST_OAUTH_BASE=http://127.0.0.1:18080 WASLA_OFFSITE_TEST_ENDPOINTS=1 \
+WASLA_TEST_OAUTH_BASE=http://127.0.0.1:18080 WASLA_OFFSITE_TEST_ENDPOINTS=1 SSH_STDIN_COPY="$T/link-section" \
   bash "$H/laptop/wasla-offsite-connect.sh" < "$T/in" > "$L/connect" 2>&1 & CON=$!
 exec 7> "$T/in"; printf '%s\n1-test.apps.googleusercontent.com\n%s\n' "${HKFP: -8}" "$CSEC" >&7; exec 7>&-
 for _ in $(seq 60); do U=$(grep -o 'http://127.0.0.1:53682/auth?state=[A-Za-z0-9_-]*' "$L/connect" | head -1); [ -n "$U" ] && break; sleep 0.5; done
 [ -n "${U:-}" ] && curl -s --noproxy '*' -L -o /dev/null "$U"
 wait "$CON"; rc=$?
-check "connect: OAuth via temp config + reconnect, then install fails cleanly when Drive is unreachable" 1 $rc "$L/connect" 'setup-FAIL'
+check "connect: OAuth via temp config + reconnect, then link fails cleanly when Drive is unreachable (ADR 0300)" 1 $rc "$L/connect" 'link-FAIL'
 grep -q 'grant=authorization_code' "$L/mock.log" && ok "connect: authorization code exchanged with (mock) token endpoint" || bad "connect: code exchange" "$(cat "$L/mock.log")"
 [ -s "$T/laptop/.wasla/allowed_signers" ] && grep -q '^wasla-backup namespaces="wasla-offsite-backup" ssh-ed25519 ' "$T/laptop/.wasla/allowed_signers" &&
   ok "connect: server signing key pinned in laptop allowed_signers" || bad "connect: allowed_signers"
 [ "$(stat -c %a "$T/laptop/.wasla/known_hosts" 2>/dev/null)" = 600 ] && grep -q '^wasla-casaos ssh-ed25519 ' "$T/laptop/.wasla/known_hosts" &&
   grep -q 'تطابق. ثُبِّتَ مفتاحُ الخادم' "$L/connect" && ok "connect: host key verified by owner suffix, pinned in ~/.wasla/known_hosts (600) before signer" || bad "connect: known_hosts"
 [ "$(stat -c %a "$WASLA_ETC/backup-signing.key")" = 600 ] && ok "server signing key mode 600" || bad "signing key mode"
-[ "$(stat -c %a "$WASLA_ETC/rclone.conf" 2>/dev/null)" = 600 ] && grep -q MOCK-REFRESH "$WASLA_ETC/rclone.conf" && ok "install wrote rclone.conf (600) from stdin section" || bad "install rclone.conf"
-[ ! -e "$WASLA_ETC/offsite.env" ] && ok "install left no offsite.env after Drive failure (nightly stays offsite-skip)" || bad "offsite.env written on failure"
+[ ! -e "$WASLA_ETC/rclone.conf" ] && [ ! -e "$WASLA_ETC/offsite-pending.env" ] && [ -z "$(find "$WASLA_ETC" -name '.rclone-link-*')" ] &&
+  ok "failed link (account check) saved no rclone.conf, no link record, no candidate" || bad "failed link side effects" "$(ls -A "$WASLA_ETC")"
+[ ! -e "$WASLA_ETC/offsite.env" ] && ok "failed link left no offsite.env (nightly stays offsite-skip)" || bad "offsite.env written on failure"
+# لحالاتِ تحديثِ الرمزِ التالية: القسمُ نفسُه الذي استلمَه الخادمُ عبرَ stdin، بالمتحقِّقِ نفسِه.
+python3 "$H/offsite-tool.py" rclone-section "$WASLA_ETC/rclone.conf" --allow-test-endpoints < "$T/link-section" && rm -f "$T/link-section"
+[ "$(stat -c %a "$WASLA_ETC/rclone.conf" 2>/dev/null)" = 600 ] && grep -q MOCK-REFRESH "$WASLA_ETC/rclone.conf" && ok "received section validated into rclone.conf (600)" || bad "section → rclone.conf"
 [ -z "$(find "$T/ltmp" -mindepth 1)" ] && ok "connect: laptop temp config removed" || bad "connect: laptop temp left"
 # تحديثُ الرمز: انتهاءُ access_token ⇒ rclone يحدّثُه من token_url ويحفظُه، والملفُّ يبقى 600.
 expire(){ python3 - "$WASLA_ETC/rclone.conf" <<'PY'

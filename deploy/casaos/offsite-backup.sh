@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 # الغرض: نسخةٌ خارجَ الموقعِ مشفّرةٌ بـage وموقَّعةُ المصدر إلى Google Drive (ADR 0297 · ADR 0298 · WR-27).
 # ينتمي إلى: deploy/casaos — يُثبَّتُ في /opt/wasla/offsite-backup.sh (700، root)، ويستدعيه backup.sh
-#   في آخرِه إن وُجدَ /etc/wasla/offsite.env. ويمكنُ تشغيلُه يدويّاً: offsite-backup.sh [TS].
+#   في آخرِه بـ«--nightly TS» — ولا يرفعُ في هذا الوضعِ إلّا إن وُجدَ /etc/wasla/offsite.env (المرحلة ج، ADR 0300).
+#   offsite-backup.sh [--nightly] [TS]  ⇒ الرفعُ الليليّ: بلا offsite.env ⇒ offsite-skip no_config ولا شيءَ آخر.
+#   offsite-backup.sh --first [TS]      ⇒ المرحلة ب: أوّلُ رفعٍ يدويٍّ واحدٍ بإعدادِ الربط (offsite-pending.env)،
+#       يرفضُ إن كان الليليُّ مفعَّلاً، ويرفعُ إلى daily/ فقط (3 ملفّات؛ لا weekly/monthly ولا حذفَ بعيد)، وعند نجاحِه
+#       وحدَه يكتبُ سجلَّ offsite-first-ok. **لا يكتبُ offsite.env أبداً**؛ التفعيلُ أمرٌ منفصل (offsite-setup.sh --enable-nightly).
 #
 # ما يحدث:
 #   1) يجمعُ نسخةَ الطابعِ TS (قاعدةُ التطبيقِ وrowstats، والمخزنُ إن وُجد، والإعداد) مع MANIFEST.sha256،
@@ -20,10 +24,20 @@
 set -euo pipefail; umask 077
 # shellcheck source=offsite-lib.sh
 . "$(cd "$(dirname "$0")" && pwd)/offsite-lib.sh"
-[ -f "$OFFSITE_ENV" ] || { echo "offsite-skip no_config"; exit 0; }
-# shellcheck disable=SC1090
-. "$OFFSITE_ENV"
-: "${AGE_RECIPIENT:?}" "${RCLONE_REMOTE:?}" "${DRIVE_ROOT:?}"
+MODE=nightly
+case "${1:-}" in --first) MODE=first; shift;; --nightly) shift;; esac
+[ $# -le 1 ] || { echo "الاستعمال: offsite-backup.sh [--nightly|--first] [TS]" >&2; exit 2; }
+if [ "$MODE" = nightly ]; then
+  [ -f "$OFFSITE_ENV" ] || { echo "offsite-skip no_config"; exit 0; }
+  offsite_lock || exit 1
+  offsite_cfg_load "$OFFSITE_ENV" || { olog "offsite-fail stage=config_rejected"; exit 1; }
+else
+  offsite_lock || exit 1
+  [ ! -f "$OFFSITE_ENV" ] || { echo "first-FAIL nightly_already_enabled (الرفعُ الليليُّ مفعَّل؛ لا حاجةَ لأوّلِ رفع)"; exit 1; }
+  [ -f "$RCLONE_CONFIG_FILE" ] && [ -f "$OFFSITE_PENDING" ] || { echo "first-FAIL not_linked (اربطْ Drive أوّلاً)"; exit 1; }
+  offsite_cfg_load "$OFFSITE_PENDING" && [ -n "$LINK_ID" ] || { echo "first-FAIL link_record_invalid"; exit 1; }
+  rm -f "$OFFSITE_FIRST_OK"   # لا يبقى سجلٌّ قديمٌ إن فشلَ هذا التشغيل
+fi
 D=$BACKUP_DIR; O=$D/offsite; install -d -m 700 "$O"
 RC=("$WASLA_BIN/rclone" --retries "${OFFSITE_RETRIES:-5}" --low-level-retries "${OFFSITE_LL_RETRIES:-10}" -q)
 R="$RCLONE_REMOTE:$DRIVE_ROOT"
@@ -31,7 +45,7 @@ ST=init; STAGE=""; UPLOADED=()
 on_exit(){
   rc=$?
   if [ "$rc" != 0 ]; then
-    olog "offsite-fail stage=$ST rc=$rc"
+    olog "offsite-fail stage=$ST mode=$MODE rc=$rc"
     for u in "${UPLOADED[@]}"; do "${RC[@]}" --retries 1 deletefile "$u" >/dev/null 2>&1 || true; done
     rm -f "$O"/*.part
   fi
@@ -86,8 +100,22 @@ put(){ # put LOCAL REMOTE_PATH
 }
 put "$OUT" "$R/daily/$NAME"; put "$MAN" "$R/daily/wasla-$TS.manifest"; put "$MAN.sig" "$R/daily/wasla-$TS.manifest.sig"
 
-ST=tiers
 tiers=daily
+if [ "$MODE" = first ]; then
+  # المرحلة ب: ملفّاتُ daily الثلاثةُ تحقّقت ⇒ سجلُّ أوّلِ رفعٍ مربوطٌ بهذا الربط. لا طبقاتٍ ولا حذفَ بعيد.
+  ST=record
+  printf 'FO_LINK_ID=%s\nFO_TS=%s\nFO_NAME=%s\nFO_BYTES=%s\nFO_SHA256=%s\nFO_RECIPIENT=%s\nFO_REMOTE=%s\nFO_ROOT=%s\nFO_AT=%s\n' \
+    "$LINK_ID" "$TS" "$NAME" "$size" "$sha" "$AGE_RECIPIENT" "$RCLONE_REMOTE" "$DRIVE_ROOT" "$(date -u +%Y%m%dT%H%M%SZ)" |
+    write_state "$OFFSITE_FIRST_OK"
+  UPLOADED=()
+  for old in $(ls -1t "$O"/wasla-*.tar.age | tail -n +4); do rm -f "$old" "${old%.tar.age}.manifest" "${old%.tar.age}.manifest.sig"; done
+  ST="done"
+  olog "offsite-first-ok name=$NAME bytes=$size sha256=${sha:0:16} signed=yes drive_md5=ok drive_sha256=ok tiers=daily nightly=off"
+  echo "first-ok ts=$TS name=$NAME bytes=$size files=3 nightly=off"
+  echo "للتفعيل لاحقاً (خطوةٌ منفصلة): offsite-setup.sh --enable-nightly $TS"
+  exit 0
+fi
+ST=tiers
 cp_tier(){ for x in "$NAME" "wasla-$TS.manifest" "wasla-$TS.manifest.sig"; do
   rc_q copyto "$R/daily/$x" "$R/$1/$x"; UPLOADED+=("$R/$1/$x"); done; }
 dow=$(TZ=Asia/Riyadh date +%u); dom=$(TZ=Asia/Riyadh date +%d)

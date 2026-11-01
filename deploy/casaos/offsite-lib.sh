@@ -8,7 +8,14 @@ WASLA_ETC=${WASLA_ETC:-/etc/wasla}
 WASLA_OPT=${WASLA_OPT:-/opt/wasla}
 WASLA_BIN=${WASLA_BIN:-$WASLA_OPT/bin}
 BACKUP_DIR=${BACKUP_DIR:-/var/backups/wasla}
+# مراحلُ ADR 0300 الثلاث — ملفٌّ لكلِّ مرحلة، ولا يُستنتَجُ أيٌّ منها من غيرِه:
+#   أ) الربط:   $RCLONE_CONFIG_FILE (الرمز) + $OFFSITE_PENDING (المستلمُ والمجلّدُ ومعرّفُ الربط). لا رفعَ ولا تفعيل.
+#   ب) أوّلُ رفع: $OFFSITE_FIRST_OK — سجلُّ رفعٍ يدويٍّ واحدٍ تحقّقَ (md5 + sha256)، مربوطٌ بمعرّفِ الربط.
+#   ج) التفعيل: $OFFSITE_ENV — **وجودُه وحدَه** يجعلُ backup.sh يرفعُ ليلاً، ولا يكتبُه إلّا offsite-setup.sh --enable-nightly.
 OFFSITE_ENV=${OFFSITE_ENV:-$WASLA_ETC/offsite.env}
+OFFSITE_PENDING=${OFFSITE_PENDING:-$WASLA_ETC/offsite-pending.env}
+OFFSITE_FIRST_OK=${OFFSITE_FIRST_OK:-$WASLA_ETC/offsite-first-ok}
+OFFSITE_LOCK=${OFFSITE_LOCK:-$WASLA_ETC/.offsite.lock}
 RCLONE_CONFIG_FILE=${RCLONE_CONFIG_FILE:-$WASLA_ETC/rclone.conf}
 SIGNING_KEY=${SIGNING_KEY:-$WASLA_ETC/backup-signing.key}
 PROD_DB_CONTAINER=${PROD_DB_CONTAINER:-wasla-db-1}
@@ -58,3 +65,34 @@ wait_pg(){ local _; for _ in $(seq 180); do
 
 # rowstats_of CONTAINER DB ⇒ إحصاءُ قاعدةٍ ساكنة (المستعادة) على stdout.
 rowstats_of(){ { rowstats_sql; } | docker exec -i "$1" psql -U postgres -d "$2" -AtqX -v ON_ERROR_STOP=1; }
+
+# kv_load FILE KEY… ⇒ يقرأُ ملفَّ حالةٍ KEY=VALUE **دونَ تنفيذه** (لا source): ملفٌّ عاديٌّ لا رابط، مالكُه المستخدمُ الحاليُّ
+#   وصلاحيّتُه 600، وكلُّ سطرٍ مفتاحٌ مسموحٌ مرّةً واحدةً بقيمةٍ من محارفَ آمنة. ثمّ يُسنِدُ القيمَ إلى المتغيّراتِ نفسِها.
+#   أيُّ مخالفة ⇒ 1 ولا يُسنَدُ شيء. (كان offsite.env يُنفَّذُ بـsource، فسطرٌ فيه $(…) كان يُنفَّذُ root.)
+kv_load(){ local f=$1 line k v allowed seen=" "; shift; allowed=" $* "
+  local -a ks=() vs=()
+  [ -f "$f" ] && [ ! -L "$f" ] || { echo "state-reject not_regular ${f##*/}" >&2; return 1; }
+  [ "$(stat -c '%u %a' "$f")" = "$(id -u) 600" ] || { echo "state-reject owner_or_mode ${f##*/}" >&2; return 1; }
+  while IFS= read -r line || [ -n "$line" ]; do
+    [[ "$line" =~ ^([A-Z][A-Z0-9_]*)=([A-Za-z0-9._/:+-]*)$ ]] || { echo "state-reject bad_line ${f##*/}" >&2; return 1; }
+    k=${BASH_REMATCH[1]}; v=${BASH_REMATCH[2]}
+    [[ "$allowed" == *" $k "* ]] || { echo "state-reject unknown_key ${f##*/}" >&2; return 1; }
+    [[ "$seen" == *" $k "* ]] && { echo "state-reject duplicate_key ${f##*/}" >&2; return 1; }
+    seen+="$k "; ks+=("$k"); vs+=("$v")
+  done < "$f"
+  local i; for i in "${!ks[@]}"; do printf -v "${ks[$i]}" '%s' "${vs[$i]}"; done; }
+
+# offsite_cfg_load FILE ⇒ إعدادُ الرفع (offsite.env أو offsite-pending.env): المستلمُ والوجهةُ صالحان.
+offsite_cfg_load(){ AGE_RECIPIENT=""; RCLONE_REMOTE=""; DRIVE_ROOT=""; LINK_ID=""; LINKED_AT=""
+  kv_load "$1" AGE_RECIPIENT RCLONE_REMOTE DRIVE_ROOT LINK_ID LINKED_AT || return 1
+  [[ "$AGE_RECIPIENT" =~ ^age1[02-9ac-hj-np-z]{58}$ ]] && [[ "$RCLONE_REMOTE" =~ ^[A-Za-z0-9_-]+$ ]] &&
+    [[ "$DRIVE_ROOT" =~ ^[A-Za-z0-9._/-]+$ ]] && [[ "$DRIVE_ROOT" != *..* ]] &&
+    { [ -z "$LINK_ID" ] || [[ "$LINK_ID" =~ ^[0-9a-f]{32}$ ]]; } || { echo "state-reject bad_value ${1##*/}" >&2; return 1; }; }
+
+# write_state FILE ⇒ يكتبُ stdin إلى FILE ذرّيّاً (مؤقّتٌ 600 في المجلّدِ نفسِه، fsync، ثمّ mv). لا ملفَّ نصفَ مكتوب.
+write_state(){ local f=$1 tmp; tmp=$(mktemp "$(dirname "$f")/.state-XXXXXX") || return 1
+  chmod 600 "$tmp" && cat > "$tmp" && sync "$tmp" 2>/dev/null; mv -f "$tmp" "$f" || { rm -f "$tmp"; return 1; }; }
+
+# offsite_lock ⇒ قفلٌ واحدٌ لكلِّ عمليّاتِ المراحل (الربطُ وأوّلُ رفعٍ والتفعيلُ والرفعُ الليليّ) على الواصف 9.
+offsite_lock(){ exec 9> "$OFFSITE_LOCK" && flock -n 9 || { echo "offsite-busy عمليّةٌ أخرى للنسخِ خارجَ الموقعِ جارية" >&2; return 1; }; }
+

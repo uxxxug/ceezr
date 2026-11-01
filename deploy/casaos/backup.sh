@@ -49,5 +49,5 @@ tar -C "$CONFIG_ROOT" -czf "$D/config-$TS.tgz" "${cfg[@]}"
 find "$D" -name 'waslah-*.dump*' -mtime +14 -delete; find "$D" -name 'waslah-*.rowstats' -mtime +14 -delete; find "$D" -name 'config-*.tgz' -mtime +14 -delete
 find "$D" -name 'storage-*' -mtime +14 -delete; find "$D" -name 'pre-migrate-*' -mtime +30 -delete
 echo "backup-ok $F $(stat -c %s "$F") bytes $storage_note"
-# نسخةٌ مشفّرةٌ خارجَ الموقع (ADR 0297) إن ضُبطت. فشلُها يُفشِلُ الخدمةَ بعدَ اكتمالِ النسخةِ المحلّيّة.
-if [ -f "$OFFSITE_ENV" ] && [ -x "$H/offsite-backup.sh" ]; then "$H/offsite-backup.sh" "$TS"; fi
+# نسخةٌ مشفّرةٌ خارجَ الموقع (ADR 0297) إن فُعِّلت صراحةً (offsite.env، ADR 0300 المرحلة ج). فشلُها يُفشِلُ الخدمةَ بعدَ اكتمالِ النسخةِ المحلّيّة.
+if [ -f "$OFFSITE_ENV" ] && [ -x "$H/offsite-backup.sh" ]; then "$H/offsite-backup.sh" --nightly "$TS"; fi

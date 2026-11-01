@@ -1,0 +1,55 @@
+## M1-link-writes-offsite-env rc=1 # offsite stages test pass=50 fail=37
+FAIL  test 1: offsite.env after link -- 
+FAIL  stage after link -- enabled
+FAIL  test 4: backup.sh after link stays local-only -- unexpected /offsite-ok|offsite-fail|offsite-skip/
+FAIL  test 4 calls -- copyto wasla-gdrive:WASLA-Backups/daily/wasla-20261101T225155Z.tar.age;md5sum wasla-gdrive:WASLA-Backups/daily/wasla-20261101T225155Z.tar.age;cat wasla-gdrive:WASLA-Backups/daily/wasla-20261101T225155Z.tar.age;copyto wasla-gdrive:WASLA-Backups/daily/wasla-20261101T225155Z.manifest;md5sum wasla-gdrive:WASLA-Backups/daily/wasla-20261101T225155Z.manifest;cat wasla-gdrive:WASLA-Backups/daily/wasla-20261101T225155Z.manifest;copyto wasla-gdrive:WASLA-Backups/daily/wasla-20261101T225155Z.manifest.sig;md5sum wasla-gdrive:WASLA-Backups/daily/wasla-20261101T225155Z.manifest.sig;cat wasla-gdrive:WASLA-Backups/daily/wasla-20261101T225155Z.manifest.sig;lsf wasla-gdrive:WASLA-Backups/weekly;copyto wasla-gdrive:WASLA-Backups/daily/wasla-20261101T225155Z.tar.age wasla-gdrive:WASLA-Backups/weekly/wasla-20261101T225155Z.tar.age;copyto wasla-gdrive:WASLA-Backups/daily/wasla-20261101T225155Z.manifest wasla-gdrive:WASLA-Backups/weekly/wasla-20261101T225155Z.manifest;copyto wasla-gdrive:WASLA-Backups/daily/wasla-20261101T225155Z.manifest.sig wasla-gdrive:WASLA-Backups/weekly/wasla-20261101T225155Z.manifest.sig;lsf wasla-gdrive:WASLA-Backups/monthly;copyto wasla-gdrive:WASLA-Backups/daily/wasla-20261101T225155Z.tar.age wasla-gdrive:WASLA-Backups/monthly/wasla-20261101T225155Z.tar.age;copyto wasla-gdrive:WASLA-Backups/daily/wasla-20261101T225155Z.manifest wasla-gdrive:WASLA-Backups/monthly/wasla-20261101T225155Z.manifest;copyto wasla-gdrive:WASLA-Backups/daily/wasla-20261101T225155Z.manifest.sig wasla-gdrive:WASLA-Backups/monthly/wasla-20261101T225155Z.manifest.sig;delete wasla-gdrive:WASLA-Backups/daily;delete wasla-gdrive:WASLA-Backups/weekly;delete wasla-gdrive:WASLA-Backups/monthly;lsf wasla-gdrive:WASLA-Backups/daily;lsf wasla-gdrive:WASLA-Backups/weekly;lsf wasla-gdrive:WASLA-Backups/monthly;
+FAIL  test 9 linked -- offsite.env b0c485ba68f738ba
+FAIL  offsite.env after refused enable -- 
+## M2-link-mkdir-instead-of-about rc=1 # offsite stages test pass=80 fail=6
+FAIL  test 3 -- /tmp/wasla-stages-IzJVXK/srv/fake-drive
+FAIL  test 2 -- mkdir wasla-gdrive:WASLA-Backups;
+FAIL  test 10 -- mkdir wasla-gdrive:WASLA-Backups; linked
+FAIL  link with failing account check ⇒ link-FAIL, rc=1 -- rc=0 want=1: nightly=off انتهى الربط: لم يُرفَعْ أيُّ ملفّ، والرفعُ الليليُّ غيرُ مفعَّل. الخطوةُ التالية (حين تقرّر): bash wasla-offsite-first-upload.sh 
+FAIL  failed link side effects -- offsite.env absent
+FAIL  relink enabled side effects -- 
+## M3-backup-uploads-when-linked rc=1 # offsite stages test pass=52 fail=35
+FAIL  test 4 calls -- copyto wasla-gdrive:WASLA-Backups/daily/wasla-20261101T225236Z.tar.age;md5sum wasla-gdrive:WASLA-Backups/daily/wasla-20261101T225236Z.tar.age;cat wasla-gdrive:WASLA-Backups/daily/wasla-20261101T225236Z.tar.age;copyto wasla-gdrive:WASLA-Backups/daily/wasla-20261101T225236Z.manifest;md5sum wasla-gdrive:WASLA-Backups/daily/wasla-20261101T225236Z.manifest;cat wasla-gdrive:WASLA-Backups/daily/wasla-20261101T225236Z.manifest;copyto wasla-gdrive:WASLA-Backups/daily/wasla-20261101T225236Z.manifest.sig;md5sum wasla-gdrive:WASLA-Backups/daily/wasla-20261101T225236Z.manifest.sig;cat wasla-gdrive:WASLA-Backups/daily/wasla-20261101T225236Z.manifest.sig;
+FAIL  test 9 linked -- offsite.env absent
+FAIL  test 7: enable refused after link but before first upload -- rc=0 want=1: linked=yes first_upload=20261101T225238Z nightly=on 
+FAIL  offsite.env after refused enable -- 
+FAIL  kit enable refused at stage=linked (no prompt, no server call) -- rc=0 want=1: الرفعُ الليليُّ مفعَّلٌ مسبقاً. 
+FAIL  relink cancel side effects -- 
+## M4-first-enables-nightly rc=1 # offsite stages test pass=73 fail=13
+FAIL  test 5 enable -- enabled
+FAIL  test 8 (before enable): backup.sh after first upload still local-only -- unexpected /offsite-ok|offsite-fail/
+FAIL  nightly called rclone before enable -- copyto wasla-gdrive:WASLA-Backups/daily/wasla-20261101T225306Z.tar.age;md5sum wasla-gdrive:WASLA-Backups/daily/wasla-20261101T225306Z.tar.age;cat wasla-gdrive:WASLA-Backups/daily/wasla-20261101T225306Z.tar.age;copyto wasla-gdrive:WASLA-Backups/daily/wasla-20261101T225306Z.manifest;md5sum wasla-gdrive:WASLA-Backups/daily/wasla-20261101T225306Z.manifest;cat wasla-gdrive:WASLA-Backups/daily/wasla-20261101T225306Z.manifest;copyto wasla-gdrive:WASLA-Backups/daily/wasla-20261101T225306Z.manifest.sig;md5sum wasla-gdrive:WASLA-Backups/daily/wasla-20261101T225306Z.manifest.sig;cat wasla-gdrive:WASLA-Backups/daily/wasla-20261101T225306Z.manifest.sig;lsf wasla-gdrive:WASLA-Backups/weekly;copyto wasla-gdrive:WASLA-Backups/daily/wasla-20261101T225306Z.tar.age wasla-gdrive:WASLA-Backups/weekly/wasla-20261101T225306Z.tar.age;copyto wasla-gdrive:WASLA-Backups/daily/wasla-20261101T225306Z.manifest wasla-gdrive:WASLA-Backups/weekly/wasla-20261101T225306Z.manifest;copyto wasla-gdrive:WASLA-Backups/daily/wasla-20261101T225306Z.manifest.sig wasla-gdrive:WASLA-Backups/weekly/wasla-20261101T225306Z.manifest.sig;lsf wasla-gdrive:WASLA-Backups/monthly;copyto wasla-gdrive:WASLA-Backups/daily/wasla-20261101T225306Z.tar.age wasla-gdrive:WASLA-Backups/monthly/wasla-20261101T225306Z.tar.age;copyto wasla-gdrive:WASLA-Backups/daily/wasla-20261101T225306Z.manifest wasla-gdrive:WASLA-Backups/monthly/wasla-20261101T225306Z.manifest;copyto wasla-gdrive:WASLA-Backups/daily/wasla-20261101T225306Z.manifest.sig wasla-gdrive:WASLA-Backups/monthly/wasla-20261101T225306Z.manifest.sig;delete wasla-gdrive:WASLA-Backups/daily;delete wasla-gdrive:WASLA-Backups/weekly;delete wasla-gdrive:WASLA-Backups/monthly;lsf wasla-gdrive:WASLA-Backups/daily;lsf wasla-gdrive:WASLA-Backups/weekly;lsf wasla-gdrive:WASLA-Backups/monthly;
+FAIL  kit enable: lowercase/other word ⇒ cancelled -- rc=0 want=1: الرفعُ الليليُّ مفعَّلٌ مسبقاً. 
+FAIL  offsite.env after refusals -- 
+FAIL  test 9 first-ok -- 
+## M5-enable-ignores-ts rc=1 # offsite stages test pass=78 fail=8
+FAIL  test 7: enable refused with a TS that is not the verified first upload -- rc=0 want=1: linked=yes first_upload=20261101T225319Z nightly=on 
+FAIL  kit enable: lowercase/other word ⇒ cancelled -- rc=0 want=1: الرفعُ الليليُّ مفعَّلٌ مسبقاً. 
+FAIL  offsite.env after refusals -- 
+FAIL  test 9 first-ok -- 
+FAIL  kit enable (ENABLE) after verified first upload rc=0 -- missing /enable-ok/: الرفعُ الليليُّ مفعَّلٌ مسبقاً. 
+FAIL  enable ssh -- ssh -o StrictHostKeyChecking=yes -o UserKnownHostsFile="/tmp/wasla-stages-4fFeWK/Owner Home/.wasla/known_hosts" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlias=wasla-casaos -o HostKeyAlgorithms=ssh-ed25519 -o UpdateHostKeys=no -n wasla /tmp/wasla-stages-4fFeWK/srv/opt-wasla/offsite-setup.sh --status;
+## M6-cfg-sourced rc=1 # offsite stages test pass=79 fail=7
+FAIL  inject cmdsubst -- rc=0 pwned=yes offsite-ok name=wasla-20261101T225339Z.tar.age bytes=215288 sha256=9f8997813cd9f71a signed=yes drive_md5=ok drive_sha256=ok tiers=daily remote_counts: daily=2 weekly=1 monthly=1 
+FAIL  inject cmdsubst-value -- rc=1 pwned=yes state-reject bad_value offsite.env
+FAIL  inject semicolon -- rc=0 pwned=yes offsite-ok name=wasla-20261101T225339Z.tar.age bytes=215288 sha256=e1c5ced608ff99e6 signed=yes drive_md5=ok drive_sha256=ok tiers=daily remote_counts: daily=2 weekly=1 monthly=1 
+FAIL  inject unknown-key -- rc=127 pwned= /tmp/wasla-stages-w1aS9k/srv/opt-wasla/offsite-backup.sh: line 41: install: command not found
+FAIL  inject duplicate -- rc=1 pwned= 2026/11/01 22:53:55 CRITICAL: Failed to create file system for destination "other:WASLA-Backups/daily/": didn't find section in config file ("other")
+FAIL  inject mode644 -- rc=0 pwned= offsite-ok name=wasla-20261101T225339Z.tar.age bytes=215288 sha256=984b23bf736db4cb signed=yes drive_md5=ok drive_sha256=ok tiers=daily remote_counts: daily=2 weekly=1 monthly=1 
+## M7-enable-skips-size-check rc=1 # offsite stages test pass=77 fail=9
+FAIL  test 7: enable refused when ciphertext size on Drive differs from the signed size -- rc=0 want=1: linked=yes first_upload=20261101T225402Z nightly=on 
+FAIL  kit enable: lowercase/other word ⇒ cancelled -- rc=0 want=1: الرفعُ الليليُّ مفعَّلٌ مسبقاً. 
+FAIL  offsite.env after refusals -- 
+FAIL  test 9 first-ok -- 
+FAIL  kit enable (ENABLE) after verified first upload rc=0 -- missing /enable-ok/: الرفعُ الليليُّ مفعَّلٌ مسبقاً. 
+FAIL  enable ssh -- ssh -o StrictHostKeyChecking=yes -o UserKnownHostsFile="/tmp/wasla-stages-IXiVw4/Owner Home/.wasla/known_hosts" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlias=wasla-casaos -o HostKeyAlgorithms=ssh-ed25519 -o UpdateHostKeys=no -n wasla /tmp/wasla-stages-IXiVw4/srv/opt-wasla/offsite-setup.sh --status;
+## M8-kit-first-no-confirm rc=1 # offsite stages test pass=82 fail=5
+FAIL  kit first-upload without typing UPLOAD ⇒ cancelled -- rc=0 want=1: للتفعيل لاحقاً (خطوةٌ منفصلة): offsite-setup.sh --enable-nightly 20261101T225422Z تحقّقْ الآن من فكِّ النسخة (اختياريٌّ ومستحسَن): bash wasla-offsite-restore-test.sh ثمّ، حين تقرّر، فعّلِ الرفعَ الليليّ: ba
+FAIL  first cancel side effects -- 
+FAIL  test 6 side effects (copyto:manifest.sig) -- linked files=1
+FAIL  test 6 side effects (md5sum:tar.age) -- linked files=1
+FAIL  unsigned upload left files -- 

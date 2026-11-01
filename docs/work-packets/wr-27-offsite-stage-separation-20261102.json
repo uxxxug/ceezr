@@ -1,0 +1,60 @@
+{
+  "id": "wr-27-offsite-stage-separation-20261102",
+  "goal": "§27 النشرُ والتحقّق: فصلُ النسخِ خارجَ الموقعِ إلى ثلاثِ مراحلَ حقيقيّةٍ في الكود — الربطُ وحدَه (OAuth وحفظُ rclone.conf والتحقّقُ بقراءةٍ فقط)، ثمّ أوّلُ رفعٍ يدويٍّ لنسخةٍ واحدة، ثمّ تفعيلُ الرفعِ الليليّ بموافقةٍ منفصلةٍ لا يُقبَلُ إلّا بعدَ نجاحِ أوّلِ رفعٍ لهذا الربط — والافتراضيُّ دائماً غيرُ مفعَّل، مع اختباراتٍ تثبتُ ذلك. دونَ اتّصالٍ بـCasaOS ودونَ Drive حقيقيّ.",
+  "canonical_source": [
+    "docs/roadmap/execution/ORDER-20261012.md",
+    "docs/adr/0297-casaos-offsite-backup-age-google-drive.md",
+    "docs/adr/0298-casaos-offsite-backup-hardening.md",
+    "docs/adr/0300-casaos-offsite-stage-separation.md"
+  ],
+  "implementation": [
+    "deploy/casaos/offsite-lib.sh",
+    "deploy/casaos/offsite-setup.sh",
+    "deploy/casaos/offsite-backup.sh",
+    "deploy/casaos/offsite-fetch.sh",
+    "deploy/casaos/backup.sh",
+    "deploy/casaos/laptop/wasla-laptop-lib.sh",
+    "deploy/casaos/laptop/wasla-offsite-connect.sh",
+    "deploy/casaos/laptop/wasla-offsite-first-upload.sh",
+    "deploy/casaos/laptop/wasla-offsite-enable-nightly.sh",
+    "deploy/casaos/laptop/build-kit.sh",
+    "deploy/casaos/tests/offsite-stages-test.sh",
+    "deploy/casaos/tests/offsite-selftest.sh",
+    "deploy/casaos/tests/offsite-kit-fixtures.sh",
+    "deploy/casaos/tests/offsite-kit-windows-test.sh",
+    ".github/workflows/offsite-kit-windows.yml"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [
+    "docs/roadmap/execution/STATUS.md",
+    "docs/adr/0300-casaos-offsite-stage-separation.md",
+    "deploy/casaos/OFFSITE-BACKUP.md",
+    "deploy/casaos/laptop/README-AR.md",
+    "docs/evidence/production/WR-27-offsite-stage-separation-20261102.md",
+    "docs/evidence/archive/WR-27-offsite-stage-separation-20261102/SHA256SUMS",
+    "docs/evidence/archive/WR-27-offsite-stage-separation-20261102/kit-test-linux.txt",
+    "docs/evidence/archive/WR-27-offsite-stage-separation-20261102/mutation-results.txt",
+    "docs/evidence/archive/WR-27-offsite-stage-separation-20261102/mutation-run.txt",
+    "docs/evidence/archive/WR-27-offsite-stage-separation-20261102/selftest.txt",
+    "docs/evidence/archive/WR-27-offsite-stage-separation-20261102/stages-test.txt"
+  ],
+  "decision": "ADR 0300: ثلاثةُ أوامرَ منفصلة (--link، offsite-backup.sh --first، --enable-nightly TS) و--disable-nightly و--status؛ offsite.env لا يكتبُه إلّا --enable-nightly بعدَ التحقّقِ من offsite-first-ok لهذا LINK_ID والطابعِ ووجودِ الملفّاتِ الثلاثةِ بحجمِها في Drive؛ ملفّاتُ الحالةِ تُقرأُ بمحلّلٍ صارمٍ لا بـsource؛ --install يُرفَض.",
+  "tests": [
+    "offsite-stages-test.sh (الاختباراتُ الإلزاميّة 1–12 وحقنُ الإعدادِ وإعادةُ التشغيلِ المحاكاة وعيّنةُ /proc): pass=86 fail=0",
+    "طفراتٌ 8 تكسرُ الفصل: كلُّها كُشفَت (8/8)",
+    "offsite-selftest.sh: pass=133 fail=0",
+    "offsite-kit-windows-test.sh على الحقيبةِ المبنيّة محلّيّاً: pass=29 fail=0؛ وعلى windows-latest Git Bash في CI",
+    "build-kit.sh: بناءانِ بـsha256 واحد",
+    "shellcheck -S warning · bun run lint · check-state-sync · check-docs-hygiene · check-docs-budget · check-execution-roadmap · check-roadmap · check-adr-numbering"
+  ],
+  "evidence": "docs/evidence/production/WR-27-offsite-stage-separation-20261102.md",
+  "constraints": [
+    "لا اتّصالَ بخادمِ CasaOS ولا تغييرَ عليه",
+    "لا Drive ولا OAuth حقيقيّ، ولا رفعَ خارجيّ، ولا تفعيل",
+    "لا مساسَ بالحاويات أو DNS أو النفق أو المنافذ أو مفاتيحِ SSH",
+    "لا تغييرَ لاحتفاظِ النسخِ المحلّيّة",
+    "render.yaml بلا مساس"
+  ],
+  "limitations": "Google Drive وOAuth الحقيقيّان، وSSH حقيقيٌّ عبرَ cloudflared من Windows، وWindows 11 Pro المكتبيّ، وmacOS، وإعادةُ تشغيلِ systemd حقيقيّة: NOT TESTED. التثبيتُ على CasaOS ينتظرُ موافقةَ المالك."
+}

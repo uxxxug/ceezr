@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+export PATH=$HOME/.bun/bin:$HOME/bin:$PATH
+R=~/workspace/ceezr/deploy/casaos
+mut(){ local n=$1 f=$2 py=$3 d=/tmp/mut/$1; rm -rf "$d"; mkdir -p "$d"; cp -a "$R" "$d/casaos"
+  python3 -c "import sys;p=sys.argv[1];s=open(p).read();o,n=sys.argv[2],sys.argv[3];assert o in s,('nomatch',p);open(p,'w').write(s.replace(o,n,1))" "$d/casaos/$f" "$py" "$4"
+  timeout 400 bash "$d/casaos/tests/offsite-stages-test.sh" "$d/out" > "$d/run.txt" 2>&1; echo "## $n rc=$? $(tail -1 "$d/run.txt")"; grep '^FAIL' "$d/run.txt" | head -6; }
+mut M1-link-writes-offsite-env offsite-setup.sh 'rm -f "$OFFSITE_FIRST_OK"   # ربطٌ' 'cp "$OFFSITE_PENDING" "$OFFSITE_ENV"; rm -f "$OFFSITE_FIRST_OK"   # ربطٌ'
+mut M2-link-mkdir-instead-of-about offsite-setup.sh 'about --json wasla-gdrive:' 'mkdir wasla-gdrive:WASLA-Backups'
+mut M3-backup-uploads-when-linked backup.sh 'if [ -f "$OFFSITE_ENV" ] && [ -x "$H/offsite-backup.sh" ]; then "$H/offsite-backup.sh" --nightly "$TS"; fi' 'if [ -f "$OFFSITE_PENDING" ] && [ ! -f "$OFFSITE_ENV" ]; then "$H/offsite-backup.sh" --first "$TS" || true; fi; if [ -f "$OFFSITE_ENV" ]; then "$H/offsite-backup.sh" --nightly "$TS"; fi'
+mut M4-first-enables-nightly offsite-backup.sh '    write_state "$OFFSITE_FIRST_OK"' '    write_state "$OFFSITE_FIRST_OK"; cp "$OFFSITE_PENDING" "$OFFSITE_ENV"'
+mut M5-enable-ignores-ts offsite-setup.sh '[ "$FO_TS" = "$WANT" ] ||' 'true ||'
+mut M6-cfg-sourced offsite-lib.sh 'kv_load "$1" AGE_RECIPIENT RCLONE_REMOTE DRIVE_ROOT LINK_ID LINKED_AT || return 1' '. "$1" 2>/dev/null; true'
+mut M7-enable-skips-size-check offsite-setup.sh 'grep -qxF "$FO_NAME $FO_BYTES"' 'grep -q .'
+mut M8-kit-first-no-confirm laptop/wasla-offsite-first-upload.sh 'confirm UPLOAD' 'true UPLOAD'
