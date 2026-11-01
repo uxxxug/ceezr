@@ -71,9 +71,41 @@ export class HttpObjectExistenceChecker implements ObjectExistenceChecker {
       return err<ObjectExistenceFailure>("CHECKER_UNAVAILABLE");
     }
 
-    // 200 = موجودٌ. 404 = غيرُ موجودٍ. غيرُهما = عطلٌ يُعامَلُ ك«ليسَ مِلْكَكَ».
+    // 200 = موجودٌ. 404 = غيرُ موجودٍ (Supabase المستضاف).
     if (response.status === 200) return ok(true);
     if (response.status === 404) return ok(false);
+    // WR-21 (CasaOS، قياسٌ حيٌّ 2026-11-01): `supabase/storage-api` يردُّ HEAD لكائنٍ غائبٍ بـ400
+    // بلا جسم — والرمزُ نفسُه لمفتاحٍ خاطئٍ أو دلوٍ غائب. فلا يُستنتَجُ الغيابُ من HEAD وحدَه:
+    // يُسألُ GET لبايتٍ واحدٍ فيُقرأُ رمزُ الخطأ. `NoSuchKey` وحدَه غيابٌ؛ وكلُّ ما سواه
+    // (`NoSuchBucket`، جسمٌ غيرُ مفهوم، شبكة) يبقى `CHECKER_UNAVAILABLE` ⇒ رفضٌ لا قبول.
+    if (response.status === 400) return this.#probeWithGet(target);
     return err<ObjectExistenceFailure>("CHECKER_UNAVAILABLE");
+  }
+
+  async #probeWithGet(target: string): Promise<Result<boolean, ObjectExistenceFailure>> {
+    let response: Response;
+    try {
+      response = await this.#transport(target, {
+        method: "GET",
+        headers: { authorization: `Bearer ${this.#config.secretKey}`, range: "bytes=0-0" },
+        signal: AbortSignal.timeout(this.#timeoutMs),
+      });
+    } catch {
+      return err<ObjectExistenceFailure>("CHECKER_UNAVAILABLE");
+    }
+    if (response.status === 200 || response.status === 206) {
+      await response.body?.cancel().catch(() => undefined);
+      return ok(true);
+    }
+    if (response.status === 404) return ok(false);
+    if (response.status !== 400) return err<ObjectExistenceFailure>("CHECKER_UNAVAILABLE");
+    let code: unknown;
+    try {
+      const body = (await response.json()) as { readonly code?: unknown };
+      code = body?.code;
+    } catch {
+      return err<ObjectExistenceFailure>("CHECKER_UNAVAILABLE");
+    }
+    return code === "NoSuchKey" ? ok(false) : err<ObjectExistenceFailure>("CHECKER_UNAVAILABLE");
   }
 }

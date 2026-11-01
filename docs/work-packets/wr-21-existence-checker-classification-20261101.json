@@ -1,0 +1,33 @@
+{
+  "id": "wr-21-existence-checker-classification-20261101",
+  "goal": "§21 أهليّةُ السائق ورفعُ المستندات: على CasaOS يردُّ storage-api على HEAD لكائنٍ غائبٍ بـ400 لا 404، فيصنّفُه HttpObjectExistenceChecker CHECKER_UNAVAILABLE ويُجابُ السائقُ OBJECT_PATH_NOT_MINE بدل OBJECT_NOT_FOUND. المطلوبُ تمييزٌ موثوقٌ بينَ الغيابِ وتعذُّرِ الفحصِ دونَ إضعافِ قاعدةِ «التعذُّرُ رفضٌ لا قبول». ومعه: خطُّ أساسِ الاستلامِ على CasaOS (WR-27) وضمُّ ingress.env إلى النسخِ الليليّ.",
+  "canonical_source": [
+    "docs/roadmap/execution/ORDER-20261012.md",
+    "docs/adr/0294-casaos-self-hosted-object-storage.md"
+  ],
+  "implementation": [
+    "packages/infrastructure/storage/object-existence-checker.ts",
+    "tests/unit/http-object-existence-checker.test.ts",
+    "deploy/casaos/backup.sh"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [
+    "docs/roadmap/execution/STATUS.md",
+    "docs/evidence/production/WR-27-handover-baseline-20261101.md",
+    "docs/evidence/production/WR-27-public-base-app-switch-20261101.md"
+  ],
+  "decision": "HEAD 200 ⇒ موجود، HEAD 404 ⇒ غائب (Supabase المستضاف). HEAD 400 ⇒ GET بـRange bytes=0-0: 200/206 ⇒ موجود، 404 ⇒ غائب، 400 بجسمٍ code=NoSuchKey ⇒ غائب، وكلُّ ما سواه (NoSuchBucket لمفتاحٍ خاطئٍ أو دلوٍ غائب، جسمٌ غيرُ مفهوم، شبكة، 5xx، 401/403) ⇒ CHECKER_UNAVAILABLE. لا مسارَ يقبلُ كائنًا غائبًا.",
+  "tests": [
+    "bun test tests/unit/http-object-existence-checker.test.ts — 8/8 (2 تسقطُ على الشيفرةِ السابقة)",
+    "bun test tests/unit/object-existence-check.test.ts — 4/4",
+    "bun run typecheck · bun run lint"
+  ],
+  "evidence": "قياسٌ حيٌّ على storage-api في CasaOS عبرَ lb:8090 (2026-11-01): HEAD غائب = 400؛ GET غائب = 400 {code:NoSuchKey}؛ HEAD موجود = 200؛ مفتاحٌ فارغٌ أو خاطئ = 400 {code:NoSuchBucket}. فـHEAD وحدَه لا يميّز.",
+  "constraints": [
+    "حدودُ الوثيقةِ (5 MiB والأنواعُ الثلاثة) بلا تعديل",
+    "تعذُّرُ الفحصِ يبقى رفضًا",
+    "render.yaml بلا مساس"
+  ],
+  "limitations": "نداءٌ ثانٍ (GET لبايتٍ واحد) في حالةِ الغيابِ على المخزنِ الذاتيّ وحدَها. ولم يُرفَعْ من تيليجرامَ حقيقيٍّ بعد."
+}
