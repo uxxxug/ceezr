@@ -10,6 +10,7 @@ if [ "$MODE" = down ]; then
   docker ps -a --format '{{.Names}}' | grep -E '^(wasla-selftest-e2e)' | xargs -r docker rm -f >/dev/null; rm -rf "$D"; echo down-ok; exit 0; fi
 PUB=$3; mkdir -p "$D"/{etc,backups,drive,root/etc/wasla,root/opt/wasla}; chmod 700 "$D"
 ENVS="WASLA_ETC=$D/etc BACKUP_DIR=$D/backups CONFIG_ROOT=$D/root PROD_DB_CONTAINER=$PROD STORAGE_CONTAINER=none STORAGE_DB_CONTAINER=none DRILL_PREFIX=wasla-selftest-e2e-drill OFFSITE_LOG_TAG=wasla-offsite-selftest"
+# shellcheck disable=SC2086,SC2163  # تقسيمٌ مقصودٌ إلى أزواجِ NAME=VALUE
 export $ENVS
 . "$H/offsite-lib.sh"
 printf 'POSTGRES_PASSWORD=%s\n' "$(head -c 18 /dev/urandom | base64 | tr -dc A-Za-z0-9)" > "$D/prod.env"

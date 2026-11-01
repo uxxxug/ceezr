@@ -303,6 +303,7 @@ forge(){ # forge TS PLAINFILE|- [raw]  ⇒ يكتبُ إلى D1 نصّاً مش�
 mkset(){ local ts=$1 d=$T/set-$1; rm -rf "$d"; mkdir -p "$d"
   for f in waslah-TS1.dump waslah-TS1.rowstats config-TS1.tgz; do cp "$T/backups/${f/TS1/$TS1}" "$d/${f/TS1/$ts}"; done
   (cd "$d" && sha256sum "waslah-$ts.dump" > "waslah-$ts.dump.sha256"); echo "$d"; }
+# shellcheck disable=SC2046,SC2010  # أسماءُ ملفّاتِ اختبارٍ ثابتةٌ بلا مسافات
 seal(){ local d=$1; (cd "$d" && rm -f MANIFEST.sha256 && sha256sum $(ls | grep -v '^MANIFEST') > "$T/MANIFEST.tmp" && mv "$T/MANIFEST.tmp" MANIFEST.sha256 && tar -cf "$T/plain.tar" *); }
 i=10
 nf(){ i=$((i+1)); printf '20000102T0000%02dZ' "$i"; }

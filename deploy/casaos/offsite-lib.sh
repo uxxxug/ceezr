@@ -1,4 +1,4 @@
-# shellcheck shell=bash
+# shellcheck shell=bash disable=SC2034  # ثوابتُ تستعملُها السكربتاتُ التي تستوردُ هذه المكتبة
 # الغرض: ثوابتُ ودوالُّ مشتركةٌ لسكربتاتِ النسخةِ خارجَ الموقع (ADR 0297 · ADR 0298). يُستورَدُ ولا يُشغَّل.
 # ينتمي إلى: deploy/casaos — يُثبَّتُ في /opt/wasla/offsite-lib.sh (600، root) بجانبِ السكربتات.
 # كلُّ مسارٍ قابلٌ للتجاوزِ بمتغيّرِ بيئةٍ كي تعملَ الاختباراتُ (tests/offsite-selftest.sh) في مجلّدٍ مؤقّت
@@ -52,7 +52,7 @@ SQL
 }
 
 # wait_pg CONTAINER ⇒ ينتظرُ حتّى ينتهيَ تهيئةُ صورةِ postgres (خادمُها المؤقّتُ يجيبُ pg_isready ثمّ يُطفأ).
-wait_pg(){ local i; for i in $(seq 180); do
+wait_pg(){ local _; for _ in $(seq 180); do
     if docker logs "$1" 2>&1 | grep -qE 'init process complete|Skipping initialization' &&
        docker exec "$1" pg_isready -U postgres >/dev/null 2>&1; then return 0; fi; sleep 1; done; return 1; }
 

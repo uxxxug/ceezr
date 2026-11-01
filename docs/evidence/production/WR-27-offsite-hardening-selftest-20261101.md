@@ -14,7 +14,7 @@
 
 `ssh wasla` ← `sudo bash offsite-selftest.sh OUT`، بقاعدةِ إنتاجٍ **وهميّة** (حاويةُ postgis بالصورةِ نفسِها، 4 جداول، مخطّطان، وامتداد postgis)، ومستودعٍ محلّيٍّ بدلَ Drive، ولابتوبٍ محاكى.
 
-**النتيجة: `# selftest pass=126 fail=0`** (2026-11-01T17:18Z، rclone v1.75.2 · age v1.3.2 · Python 3.14.4 · OpenSSH 10.2p1).
+**النتيجة: `# selftest pass=126 fail=0`** (2026-11-01T17:25Z، على الشيفرةِ الملتزَمةِ نفسِها بعدَ shellcheck، rclone v1.75.2 · age v1.3.2 · Python 3.14.4 · OpenSSH 10.2p1).
 
 | المجموعة | الحالات |
 |---|---|
@@ -45,7 +45,7 @@
 <details><summary>offsite-selftest.sh</summary>
 
 ```
-# offsite selftest 2026-11-01T17:18:08Z host=moot rclone=v1.75.2 age=v1.3.2 python=3.14.4 ssh=OpenSSH_10.2p1
+# offsite selftest 2026-11-01T17:25:40Z host=moot rclone=v1.75.2 age=v1.3.2 python=3.14.4 ssh=OpenSSH_10.2p1
 PASS  tool check-tar accepts good
 PASS  tool check-tar accepts good-rowstats
 PASS  tool check-tar accepts good-storage
@@ -239,7 +239,13 @@ leftover containers: 0
 
 ثمّ `offsite-laptop-e2e-server.sh down` ← `down-ok`.
 
-## 4) ما لم يُختبَر
+## 4) فحوصٌ ثابتة
+
+- `shellcheck -S warning` (v0.10.0) على كلِّ سكربتاتِ النسخِ والحقيبةِ والاختبارات: صفرُ ملاحظات. والتعديلاتُ التي أزالتها لا تغيّرُ سلوكاً: توجيهاتُ `disable` معلَّلة، و`ST="done"`، ومتغيّرُ حلقةٍ غيرُ مستعمَل.
+- `bash -n` لكلِّ سكربت، و`python3 -m py_compile` لـ`offsite-tool.py` و`mock-oauth.py`.
+- حقيبةُ اللابتوب: `build-kit.sh` مرّتين بـsha256 واحد (`6e11f5d3ce22046fd0f399f1eee16e6148c4804090797b2a69407d8ac0fe750d`). وداخلَها `sha256sum -c SHA256SUMS` = OK ×4، و`bash -n`، ولا ما يشبهُ سرّاً.
+
+## 5) ما لم يُختبَر
 
 | البند | الحالة | السبب |
 |---|---|---|

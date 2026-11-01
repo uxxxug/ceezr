@@ -112,5 +112,5 @@ ST=report
 counts=$(for t in daily weekly monthly; do printf '%s=%s ' "$t" "$(rc_q lsf "$R/$t" --files-only --include 'wasla-*.tar.age' | wc -l)"; done)
 printf '{"ts":"%s","name":"%s","bytes":%s,"sha256":"%s","tiers":"%s","signed":true,"at":"%s"}\n' \
   "$TS" "$NAME" "$size" "$sha" "$tiers" "$(date -u +%FT%TZ)" > "$O/last-ok.json"
-ST=done
+ST="done"
 olog "offsite-ok name=$NAME bytes=$size sha256=${sha:0:16} signed=yes drive_md5=ok drive_sha256=ok tiers=$tiers remote_counts: $counts"
