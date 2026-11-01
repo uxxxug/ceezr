@@ -10,29 +10,42 @@
 #   لا تُلمَسُ حاوياتُ الإنتاجِ إلّا قراءةً (`docker exec … node -e fetch` على 127.0.0.1).
 # التنظيف: يحذفُ ما أنشأه هو وحدَه بالاسم (حاويتان، شبكة، مجلّد) — لا prune.
 # الأسرار: مفاتيحُ المخزنِ تُقرأُ من /etc/wasla/storage.env إلى env-file الحاويةِ ولا تُطبَع.
+# ADR 0298: (أ) إن وُجدَ storage-db-TS.rowstats (من لقطةِ النسخِ نفسِها) فقاعدةُ المخزنِ المستعادةُ تُطابَقُ به
+#   مطابقةً تامّة، وغيابُه ⇒ INCONCLUSIVE (خروج 3). (ب) أرشيفُ البايتاتِ يُفحَصُ قبلَ فكِّه (ملفّاتٌ ومجلّداتٌ
+#   تحتَ ./ فقط). (ج) STORAGE_LIVE_COMPARE=info يجعلُ مقارنةَ الكائناتِ بالإنتاجِ الحيِّ معلوماتيّة — يستعملُه
+#   offsite-restore-drill.sh لأنّ الإنتاجَ يتغيّرُ بعدَ النسخ؛ والحكمُ عندئذٍ لبيانِ sha256 وrowstats.
 set -euo pipefail; umask 077
-D=${BACKUP_DIR:-/var/backups/wasla}
+# shellcheck source=offsite-lib.sh
+. "$(cd "$(dirname "$0")" && pwd)/offsite-lib.sh"
+D=$BACKUP_DIR
 TS=${1:-$(ls -1 "$D"/storage-db-*.dump 2>/dev/null | sed -nE 's#.*/storage-db-(.*)\.dump$#\1#p' | sort | tail -1)}
 [ -n "$TS" ] || { echo "drill-fail no_storage_backup"; exit 1; }
 SD=$D/storage-db-$TS.dump; SF=$D/storage-files-$TS.tar; SM=$D/storage-files-$TS.sha256
-for f in "$SD" "$SF"; do sha256sum -c --quiet "$f.sha256"; done
+for f in "$SD" "$SF"; do sha_ok "$f" || { echo "drill-FAIL sha256 ${f##*/}"; exit 1; }; done
+"${OFFSITE_TOOL[@]}" check-storage-tar "$SF" >/dev/null || { echo "drill-FAIL storage_archive_rejected"; exit 1; }
 
-ID=drill-$(date -u +%Y%m%dT%H%M%SZ | tr 'A-Z' 'a-z'); NET=wasla-$ID; VOL=wasla-$ID-files
+ID=${STORAGE_DRILL_PREFIX:-drill}-$(date -u +%Y%m%dT%H%M%SZ | tr 'A-Z' 'a-z'); NET=wasla-$ID; VOL=wasla-$ID-files
 DB=wasla-$ID-db; API=wasla-$ID-storage; TMP=$(mktemp -d); trap cleanup EXIT
 cleanup(){ docker rm -f "$API" "$DB" >/dev/null 2>&1 || true; docker network rm "$NET" >/dev/null 2>&1 || true
   docker volume rm "$VOL" >/dev/null 2>&1 || true; rm -rf "$TMP"; }
 PW=$(head -c 24 /dev/urandom | base64 | tr -dc 'A-Za-z0-9')
-grep -vE '^(POSTGRES_PASSWORD|DATABASE_URL)=' /etc/wasla/storage.env > "$TMP/env"
+grep -vE '^(POSTGRES_PASSWORD|DATABASE_URL)=' "$WASLA_ETC/storage.env" > "$TMP/env"
 printf 'POSTGRES_PASSWORD=%s\nDATABASE_URL=postgres://postgres:%s@%s:5432/storage\n' "$PW" "$PW" "$DB" >> "$TMP/env"
 IMG=$(docker inspect -f '{{.Config.Image}}' wasla-storage-1)
 
 docker network create --internal "$NET" >/dev/null
 docker volume create "$VOL" >/dev/null
 docker run -d --name "$DB" --network "$NET" --env-file "$TMP/env" -e POSTGRES_DB=storage postgres:17-alpine >/dev/null
-for _ in $(seq 60); do docker exec "$DB" pg_isready -U postgres -d storage >/dev/null 2>&1 && break; sleep 1; done; sleep 2
+wait_pg "$DB" || { echo "drill-FAIL db_start"; exit 1; }
 # الأدوارُ أوّلاً (`postgres` قائمٌ فيُتجاهَلُ خطؤه وحدَه)، ثمّ القاعدةُ بمُلّاكِها.
 grep -vE '^(CREATE|ALTER) ROLE postgres( |;)' "$D/storage-roles-$TS.sql" | docker exec -i "$DB" psql -q -U postgres -d storage -v ON_ERROR_STOP=1 >/dev/null
 docker exec -i "$DB" pg_restore -U postgres -d storage --exit-on-error < "$SD"
+rs=absent
+if [ -f "$D/storage-db-$TS.rowstats" ]; then
+  rowstats_of "$DB" storage > "$TMP/restored.rowstats"
+  if "${OFFSITE_TOOL[@]}" compare-rowstats "$D/storage-db-$TS.rowstats" "$TMP/restored.rowstats" > "$TMP/rs.out"; then rs=match; else rs=MISMATCH; fi
+  sed 's/^/storage-db /' "$TMP/rs.out"
+fi
 # البايتات: يُفَكُّ الأرشيفُ داخلَ صورةِ المخزنِ نفسِها في المجلّدِ الجديد.
 docker run --rm -i --network none -v "$VOL:/var/lib/storage" --entrypoint sh "$IMG" -c 'tar -C /var/lib/storage -xf -' < "$SF"
 docker run --rm --network none -v "$VOL:/var/lib/storage:ro" --entrypoint sh "$IMG" \
@@ -58,6 +71,10 @@ while IFS= read -r obj; do
 done < "$TMP/objects"
 rows=$(docker exec "$DB" psql -U postgres -d storage -Atc "select count(*) from storage.objects")
 buckets=$(docker exec "$DB" psql -U postgres -d storage -Atc "select string_agg(id||':'||public::text||':'||coalesce(file_size_limit::text,'-'), ',') from storage.buckets")
-echo "drill backup=$TS files_manifest_equal=$files_ok object_rows=$rows compared=$total equal=$same different=$diff buckets=$buckets"
-[ "$files_ok" = yes ] && [ "$diff" = 0 ] && [ "$same" = "$total" ] || { echo "drill-FAIL"; exit 1; }
+echo "drill backup=$TS files_manifest_equal=$files_ok storage_rowstats=$rs object_rows=$rows compared_live=$total equal_live=$same different_live=$diff buckets=$buckets"
+[ "$files_ok" = yes ] && [ "$rs" != MISMATCH ] || { echo "drill-FAIL"; exit 1; }
+if [ "${STORAGE_LIVE_COMPARE:-strict}" != info ]; then
+  [ "$diff" = 0 ] && [ "$same" = "$total" ] || { echo "drill-FAIL live_objects_differ"; exit 1; }
+elif [ "$diff" != 0 ]; then echo "  (اختلافُ الكائناتِ عن الحيِّ معلوماتيٌّ هنا: تغيّرَ الإنتاجُ بعدَ النسخ)"; fi
+[ "$rs" = absent ] && { echo "drill-INCONCLUSIVE storage_rowstats_absent"; exit 3; }
 echo "drill-PASS"

@@ -1,0 +1,54 @@
+{
+  "id": "wr-27-offsite-hardening-20261101",
+  "goal": "§27 النشرُ والتحقّق: متابعةُ PR #713. معيارُ استعادةٍ لا يقبلُ اختلافاً غيرَ مفسَّر (لقطةُ صفوفٍ في النسخةِ نفسِها)، وفحصُ الأرشيفِ قبلَ الاستخراج، وإثباتُ مصدرِ النسخةِ بتوقيعِ الخادم، وأسرارُ OAuth خارجَ وسائطِ العمليّات، وتصحيحُ دليلِ OAuth، وحقيبةُ لابتوبٍ حتميّة. كلُّه دونَ رفعٍ إلى حسابٍ خارجيٍّ ودونَ تثبيتٍ على CasaOS.",
+  "canonical_source": [
+    "docs/roadmap/execution/ORDER-20261012.md",
+    "docs/adr/0298-casaos-offsite-backup-hardening.md"
+  ],
+  "implementation": [
+    "deploy/casaos/offsite-lib.sh",
+    "deploy/casaos/offsite-tool.py",
+    "deploy/casaos/pg-snapshot-dump.sh",
+    "deploy/casaos/backup.sh",
+    "deploy/casaos/offsite-backup.sh",
+    "deploy/casaos/offsite-fetch.sh",
+    "deploy/casaos/offsite-setup.sh",
+    "deploy/casaos/offsite-restore-drill.sh",
+    "deploy/casaos/storage-restore-drill.sh",
+    "deploy/casaos/laptop/wasla-offsite-connect.sh",
+    "deploy/casaos/laptop/wasla-offsite-restore-test.sh",
+    "deploy/casaos/laptop/build-kit.sh",
+    "deploy/casaos/tests/offsite-selftest.sh",
+    "deploy/casaos/tests/offsite-prod-readonly-sim.sh",
+    "deploy/casaos/tests/offsite-laptop-e2e-server.sh",
+    "deploy/casaos/tests/mock-oauth.py"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [
+    "docs/roadmap/execution/STATUS.md",
+    "docs/adr/0298-casaos-offsite-backup-hardening.md",
+    "docs/adr/0297-casaos-offsite-backup-age-google-drive.md",
+    "deploy/casaos/OFFSITE-BACKUP.md",
+    "deploy/casaos/README.md",
+    "deploy/casaos/laptop/README-AR.md",
+    "docs/evidence/production/WR-27-offsite-hardening-selftest-20261101.md"
+  ],
+  "decision": "pg_dump --snapshot مع rowstats (العدد وmd5 المحتوى لكلِّ جدول) من المعاملةِ نفسِها، ومعيارُ PASS تطابقٌ تامٌّ مع اللقطة (اختلافٌ ⇒ FAIL، غيابُ rowstats ⇒ INCONCLUSIVE). اللابتوب: توقيعٌ ثمّ تنزيلٌ كاملٌ وsha256 وفكٌّ تجريبيٌّ قبلَ الإرسال؛ الخادم: توقيعٌ ثانٍ ثمّ فحصُ الأرشيفِ قبلَ الاستخراج (قائمةٌ مسموحة، لا مسارات/روابط/زوائد) ثمّ MANIFEST = القيمةُ الموقَّعة. بيانٌ خارجيٌّ يوقّعُه الخادمُ بـssh-keygen -Y sign (ed25519، النطاق wasla-offsite-backup) ويُثبَّتُ عامُّه على اللابتوب. OAuth: printf إلى ملفٍّ مؤقّتٍ 600 ثمّ rclone config reconnect ثمّ stdin عبرَ SSH؛ لا أسرارَ في argv. الرمزُ يبقى في rclone.conf (600) قيداً موثَّقاً.",
+  "tests": [
+    "offsite-selftest.sh على الخادم: pass=126 fail=0 (سلبيّاتُ الأرشيفِ والبيانِ والتوقيعِ والمفتاحِ والبترِ والعبثِ والمحتوى، OAuth مفقود/منتهٍ/مُبطَل، Drive غيرُ متاحٍ والحصّة، عيّناتُ argv/environ، بلا بقايا)",
+    "offsite-prod-readonly-sim.sh: offsite-drill-PASS، rowstats 87/87 (4422 صفّاً) و10/10 (79)، 2/2 كائن، 12/12 إعداد، 0 حاوية متبقّية",
+    "offsite-laptop-e2e-server.sh مع لابتوبِ Linux عبرَ SSH حقيقيّ: PASS، ومفتاحٌ خاطئ FAIL، وموقِّعٌ آخر FAIL، وتغيّرٌ بعدَ النسخ PASS مع drift-info",
+    "build-kit.sh: بناءانِ متتاليانِ بـsha256 واحد، وsha256sum -c وbash -n داخلَ الحقيبة",
+    "bun run lint · check-state-sync · check-docs-hygiene · check-execution-roadmap · check-roadmap · check-adr-numbering"
+  ],
+  "evidence": "docs/evidence/production/WR-27-offsite-hardening-selftest-20261101.md",
+  "constraints": [
+    "لا رفعَ لأيِّ نسخةٍ أو بياناتٍ إلى حسابٍ خارجيّ",
+    "لا تثبيتَ على CasaOS ولا تفعيلَ لـDrive في هذه المرحلة",
+    "مفتاحُ فكِّ التشفيرِ لا يدخلُ الخادم",
+    "مدّةُ الاحتفاظِ المحلّيِّ ومكانُه وصلاحيّاتُه بلا تغيير",
+    "render.yaml بلا مساس"
+  ],
+  "limitations": "Google Drive الحقيقيّ وموافقةُ OAuth الفعليّة وmacOS وWindows (Git Bash) NOT TESTED. الرمزُ يبقى نصّاً في /etc/wasla/rclone.conf (600 root) لأنّ rclone لا يقبلُه إلّا من ملفٍّ أو argv أو env. التثبيتُ على CasaOS والربطُ الحقيقيُّ ينتظرانِ المراجعةَ واعتمادَ المالك."
+}
