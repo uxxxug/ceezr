@@ -39,7 +39,7 @@ sudo docker compose -f /opt/wasla/compose.yml up -d --remove-orphans
 
 - نفقٌ سريعٌ (`tunnel/wasla-public-tunnel.service`) إلى `127.0.0.1:8443`، وهي الواجهةُ العامّةُ `public_front` في `haproxy.cfg`. لا منفذَ خارجيٌّ ولا DNS.
 - الواجهةُ العامّةُ ترفضُ ما لا يحملُ `Cf-Connecting-Ip`، وتحجبُ `/internal` و`/metrics` و`/admin`، وتُمرِّرُ إلى البوّابةِ القائمةَ البيضاءَ فقط. وما عداها يذهبُ إلى `miniapp` (`miniapp-nginx.conf`).
-- Mini App تُبنى بـ`VITE_WASLAH_API_BASE=` (الأصلُ نفسُه) في `/opt/wasla/miniapp/releases/<sha>`، والرابطُ `current` يشيرُ إلى الإصدارِ المنشور.
+- Mini App تُبنى بـ`VITE_WASLAH_API_BASE=` (الأصلُ نفسُه) في `/opt/wasla/miniapp/releases/<sha>`، والرابطُ `current` يشيرُ إلى الإصدارِ المنشور. **وبعدَ تبديلِ `current` أعِدْ `docker restart wasla-miniapp-1`**: ربطُ المجلّدِ يحلُّ الرابطَ الرمزيَّ عندَ الإقلاع، فتبقى الحاويةُ تخدمُ الإصدارَ القديمَ حتّى تُعاد (مقيس 2026-11-01).
 - `wasla-tunnel-sync.timer` (60ث) ينسخُ رابطَ النفقِ إلى `/etc/wasla/public.env` (`MINIAPP_URL`)، ويُعيدُ `gateway-1` ثمّ `gateway-2`، ويضبطُ webhook البوتين.
 - تثبيت: انسخ ملفّاتِ `tunnel/*.service` و`*.timer` إلى `/etc/systemd/system/`، والسكربتَ إلى `/usr/local/sbin/`، ثمّ نفّذ `systemctl enable --now wasla-public-tunnel wasla-tunnel-sync.timer`.
 
