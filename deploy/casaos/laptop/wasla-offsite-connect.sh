@@ -1,26 +1,52 @@
 #!/usr/bin/env bash
-# الغرض: يُشغَّلُ مرّةً واحدةً على لابتوبِ المالك (ADR 0297) — يُنشئُ مفتاحَ age (إن غاب)، ويربطُ Google Drive
-#   بعميلِ OAuth خاصٍّ بالمالك، ويضبطُ الخادمَ ويرفعُ أوّلَ نسخةٍ مشفّرة.
-# المتطلّبات: age وrclone وssh مع مُضيفٍ اسمُه `wasla` في ~/.ssh/config (انظر deploy/casaos/OFFSITE-BACKUP.md).
-# ما يخرجُ من اللابتوب: المفتاحُ العامُّ وclient_id/secret ورمزُ Drive، عبرَ SSH المشفّرِ إلى الخادمِ وحدَه.
-# ما لا يخرجُ أبداً: المفتاحُ الخاصُّ لـage (يبقى في $KEY).
+# الغرض: يُشغَّلُ مرّةً واحدةً على لابتوبِ المالك (ADR 0297 · ADR 0298) — مفتاحُ age (إن غاب)، وتثبيتُ مفتاحِ
+#   توقيعِ الخادم، وربطُ Google Drive بعميلِ OAuth خاصٍّ بالمالك، ثمّ ضبطُ الخادمِ وأوّلُ نسخةٍ مشفّرة.
+# المتطلّبات: bash وage وrclone وssh وssh-keygen، ومُضيفٌ اسمُه `wasla` في ~/.ssh/config. يعملُ على Linux وmacOS
+#   وWindows (Git Bash). انظر README-AR.md في الحقيبة.
+# الأسرار (ADR 0298 §3): client_secret يُقرأُ دونَ صدى، ويُكتَبُ بأمرٍ داخليٍّ (printf) في ملفٍّ مؤقّتٍ 600 داخلَ
+#   مجلّدٍ 700، ثمّ `rclone config reconnect` يكتبُ الرمزَ في الملفِّ نفسِه؛ ويُرسَلُ الملفُّ إلى الخادمِ عبرَ **stdin**
+#   لـSSH. لا يظهرُ سرٌّ في وسائطِ أيِّ عمليّة. يُحذَفُ المؤقّتُ عندَ الخروج. المفتاحُ الخاصُّ لـage لا يغادرُ اللابتوب.
 set -euo pipefail; umask 077
 KEY=${WASLA_AGE_KEY:-$HOME/.wasla/wasla-backup.agekey}; HOST=${WASLA_SSH_HOST:-wasla}
-for c in age age-keygen rclone ssh base64; do command -v "$c" >/dev/null || { echo "ينقصُ الأمر: $c"; exit 1; }; done
+ALLOWED=${WASLA_ALLOWED_SIGNERS:-$HOME/.wasla/allowed_signers}; RP=${WASLA_REMOTE_PREFIX:-sudo /opt/wasla}
+for c in age age-keygen rclone ssh ssh-keygen; do command -v "$c" >/dev/null || { echo "ينقصُ الأمر: $c"; exit 1; }; done
+mkdir -p "$(dirname "$KEY")" "$(dirname "$ALLOWED")"; chmod 700 "$(dirname "$KEY")"
 if [ ! -f "$KEY" ]; then
-  mkdir -p "$(dirname "$KEY")"; chmod 700 "$(dirname "$KEY")"; age-keygen -o "$KEY" 2>/dev/null; chmod 600 "$KEY"
+  age-keygen -o "$KEY" 2>/dev/null; chmod 600 "$KEY"
   echo "أُنشئَ المفتاحُ الخاصّ: $KEY"
   echo "مهمّ: إن ضاعَ هذا الملفُّ فلا يمكنُ فكُّ أيِّ نسخة. احفظْ نسخةً منه خارجَ الإنترنت (مدير كلمات المرور أو USB)، لا في Drive."
 fi
 PUB=$(age-keygen -y "$KEY"); echo "المفتاحُ العامّ (ليس سرّاً): $PUB"
 ssh -o BatchMode=yes "$HOST" true || { echo "تعذّرَ الاتصالُ بـ$HOST عبرَ SSH"; exit 1; }
-read -rp "Google OAuth Client ID: " CID
-read -rsp "Google OAuth Client secret (لن يظهر): " CSEC; echo
-BLOB=$(printf '{"client_id":"%s","client_secret":"%s","scope":"drive.file"}' "$CID" "$CSEC" | base64 | tr -d '=\n')
-echo "سيفتحُ المتصفّح: سجّلْ دخولَك بحسابِ Google الذي تريدُ النسخَ فيه ووافق."
-OUT=$(rclone authorize drive "$BLOB")
-RAW=$(printf '%s\n' "$OUT" | awk '/--->$/{f=1;next} /^<---End paste/{f=0} f' | tr -d '\r' | head -1)
-[ -n "$RAW" ] || { echo "لم يُرجِعْ rclone authorize رمزاً"; exit 1; }
-printf '%s\n%s\n%s\n' "$CID" "$CSEC" "$RAW" | ssh "$HOST" "sudo /opt/wasla/offsite-setup.sh $PUB"
-unset CSEC RAW OUT BLOB
+
+# 1) مفتاحُ توقيعِ الخادم: يُنشأُ هناك إن غاب، ويُثبَّتُ العامُّ هنا (ثقةٌ عندَ أوّلِ استعمالٍ عبرَ SSH الموثَّق).
+SIGPUB=$(ssh "$HOST" "$RP/offsite-setup.sh --signing-key" | tr -d '\r')
+[[ "$SIGPUB" =~ ^ssh-ed25519\ [A-Za-z0-9+/=]+$ ]] || { echo "مفتاحُ التوقيعِ من الخادمِ غيرُ صالح"; exit 1; }
+if [ -s "$ALLOWED" ] && ! grep -qF "$SIGPUB" "$ALLOWED"; then
+  echo "تحذير: مفتاحُ توقيعِ الخادمِ تغيّرَ عمّا هو مثبَّتٌ في $ALLOWED. لن أستبدلَه تلقائيّاً."
+  echo "إن كان التغييرُ مقصوداً (خادمٌ جديد) فاحذفْ الملفَّ وأعدِ التشغيل؛ وإلّا فتوقّفْ وتحقّق."; exit 1
+fi
+printf 'wasla-backup namespaces="wasla-offsite-backup" %s\n' "$SIGPUB" > "$ALLOWED"; chmod 600 "$ALLOWED"
+echo "ثُبِّتَ مفتاحُ توقيعِ الخادم: $(ssh-keygen -lf <(printf '%s\n' "$SIGPUB") | cut -d' ' -f2)"
+
+# 2) عميلُ OAuth وربطُ Drive.
+IFS= read -rp "Google OAuth Client ID: " CID
+[[ "$CID" =~ ^[0-9A-Za-z.-]+\.apps\.googleusercontent\.com$ ]] || { echo "Client ID لا ينتهي بـ.apps.googleusercontent.com"; exit 2; }
+IFS= read -rsp "Google OAuth Client secret (لن يظهر): " CSEC; echo
+[ -n "$CSEC" ] || { echo "client secret فارغ"; exit 2; }
+T=$(mktemp -d "${TMPDIR:-/tmp}/wasla-connect-XXXXXX"); chmod 700 "$T"; trap 'rm -rf "$T"' EXIT
+C=$T/rclone.conf
+{ printf '[wasla-gdrive]\ntype = drive\n'; printf 'client_id = %s\n' "$CID"; printf 'client_secret = %s\n' "$CSEC"
+  printf 'scope = drive.file\n'
+  # للاختبارِ وحدَه: خادمُ OAuth محلّيّ وهميّ (tests/mock-oauth.py). الخادمُ يرفضُه ما لم يُفعَّلْ صراحةً هناك.
+  if [ -n "${WASLA_TEST_OAUTH_BASE:-}" ]; then printf 'auth_url = %s/auth\ntoken_url = %s/token\n' "$WASLA_TEST_OAUTH_BASE" "$WASLA_TEST_OAUTH_BASE"; fi
+} > "$C"
+unset CSEC; chmod 600 "$C"
+CP=$C; command -v cygpath >/dev/null 2>&1 && CP=$(cygpath -w "$C")
+echo "سيفتحُ المتصفّح: سجّلْ دخولَك بحسابِ Google الذي تريدُ النسخَ فيه ووافق. (إن لم يفتح، افتحِ الرابطَ الظاهر.)"
+rclone config reconnect wasla-gdrive: --config "$CP" --auto-confirm
+grep -q '^token = .*refresh_token' "$C" || { echo "لم يُرجِعْ Google رمزَ تحديث (refresh_token)"; exit 1; }
+
+# 3) ضبطُ الخادم: القسمُ عبرَ stdin لـSSH وحدَه.
+ssh "$HOST" "$RP/offsite-setup.sh --install $PUB ${WASLA_SETUP_EXTRA:-}" < "$C"
 echo "تمّ. للتحقّقِ الفعليّ من الاستعادة: bash wasla-offsite-restore-test.sh"

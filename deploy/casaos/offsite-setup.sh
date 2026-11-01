@@ -1,40 +1,40 @@
 #!/usr/bin/env bash
-# الغرض: ضبطٌ لمرّةٍ واحدةٍ للنسخةِ خارجَ الموقع (ADR 0297): مفتاحُ age العامّ + ربطُ Google Drive.
+# الغرض: ضبطٌ لمرّةٍ واحدةٍ للنسخةِ خارجَ الموقع (ADR 0297 · ADR 0298).
 # ينتمي إلى: deploy/casaos — يُثبَّتُ في /opt/wasla/offsite-setup.sh (700، root).
-# يُشغَّلُ من اللابتوب عبرَ deploy/casaos/laptop/wasla-offsite-connect.sh، ولا يُشغَّلُ يدويّاً عادةً:
-#   printf '%s\n%s\n%s\n' CLIENT_ID CLIENT_SECRET AUTHORIZE_OUTPUT | ssh wasla 'sudo /opt/wasla/offsite-setup.sh age1...'
-#   السطرُ الثالث: ما يطبعُه `rclone authorize drive <blob>` بينَ «--->» و«<---End paste»
-#   (كتلةٌ base64 لخريطةٍ فيها token، أو JSON الرمزِ نفسُه).
-# النطاق drive.file: لا يرى rclone إلّا ما أنشأه هو في Drive، والملفّاتُ ملكٌ لحسابِ المالك.
-# الأسرار: تُقرأُ من stdin وتُكتبُ في /etc/wasla/rclone.conf (600 root) فقط. لا تُطبَعُ ولا تُسجَّل.
+# يُشغَّلُ من اللابتوب عبرَ wasla-offsite-connect.sh (حقيبةُ اللابتوب)، ولا يُشغَّلُ يدويّاً عادةً:
+#   offsite-setup.sh --signing-key
+#       يُنشئُ مفتاحَ التوقيعِ ed25519 للخادمِ إن غاب ($SIGNING_KEY، 600 root) ويطبعُ **العامَّ** وحدَه،
+#       فيثبّتُه اللابتوبُ في ~/.wasla/allowed_signers. لا يُنسَخُ المفتاحُ الخاصُّ في أيِّ نسخةٍ أو أرشيف.
+#   offsite-setup.sh --install age1… [--no-first-backup]  < قسمُ rclone.conf
+#       يقرأُ قسمَ [wasla-gdrive] (client_id وclient_secret والرمز) من **stdin** — لا من سطرِ الأوامر —
+#       ويتحقّقُ منه ويكتبُه ذرّيّاً في $RCLONE_CONFIG_FILE (600)، ثمّ offsite.env، ثمّ أوّلُ نسخة.
+# الأسرار: لا تمرُّ في argv أيِّ عملية (لا `rclone config create`، ولا وسائطَ لبايثون)، ولا تُطبَعُ ولا تُسجَّل.
 set -euo pipefail; umask 077
-PUB=${1:?"الاستعمال: offsite-setup.sh age1<المفتاح العامّ>"}
-[[ "$PUB" =~ ^age1[02-9ac-hj-np-z]{58}$ ]] || { echo "setup-FAIL مفتاحٌ عامٌّ غيرُ صالح (يبدأ بـage1 وطولُه 62)"; exit 2; }
-IFS= read -r CID; IFS= read -r CSEC; IFS= read -r RAW
-[[ "$CID" =~ \.apps\.googleusercontent\.com$ ]] || { echo "setup-FAIL client_id لا ينتهي بـ.apps.googleusercontent.com"; exit 2; }
-[ -n "$CSEC" ] || { echo "setup-FAIL client_secret فارغ"; exit 2; }
-TOKEN=$(python3 - "$RAW" <<'PY'
-import base64, json, sys
-raw = sys.argv[1].strip()
-if raw.startswith("{"):
-    tok = raw
-else:
-    m = json.loads(base64.b64decode(raw + "=" * (-len(raw) % 4)))
-    tok = m["token"]
-assert json.loads(tok).get("refresh_token")
-print(tok)
-PY
-) || { echo "setup-FAIL لم أجد refresh_token في ناتجِ rclone authorize"; exit 2; }
-BIN=/opt/wasla/bin; export RCLONE_CONFIG=/etc/wasla/rclone.conf
-[ -f "$RCLONE_CONFIG" ] && cp -a "$RCLONE_CONFIG" "$RCLONE_CONFIG.bak-$(date -u +%Y%m%dT%H%M%SZ)"
-"$BIN/rclone" config create wasla-gdrive drive client_id="$CID" client_secret="$CSEC" scope=drive.file \
-  token="$TOKEN" config_is_local=false --non-interactive >/dev/null 2>&1 || { echo "setup-FAIL rclone config create"; exit 1; }
-unset TOKEN CSEC RAW; chmod 600 "$RCLONE_CONFIG"
-printf 'AGE_RECIPIENT=%s\nRCLONE_REMOTE=wasla-gdrive\nDRIVE_ROOT=WASLA-Backups\n' "$PUB" > /etc/wasla/offsite.env
-chmod 600 /etc/wasla/offsite.env
-"$BIN/rclone" -q mkdir wasla-gdrive:WASLA-Backups
-user=$("$BIN/rclone" about wasla-gdrive: --json 2>/dev/null |
-  python3 -c 'import json,sys;d=json.load(sys.stdin);print("free_gb=%.1f"%((d.get("free") or 0)/1e9))' 2>/dev/null || echo "free=unknown")
-logger -t wasla-offsite -- "setup-ok remote=wasla-gdrive folder=WASLA-Backups"
-echo "setup-ok remote=wasla-gdrive folder=WASLA-Backups $user"
-echo "أوّلُ نسخةٍ مشفّرةٍ الآن:"; /opt/wasla/offsite-backup.sh
+# shellcheck source=offsite-lib.sh
+. "$(cd "$(dirname "$0")" && pwd)/offsite-lib.sh"
+install -d -m 700 "$WASLA_ETC"
+case "${1:-}" in
+  --signing-key)
+    if [ ! -s "$SIGNING_KEY" ]; then
+      ssh-keygen -q -t ed25519 -N '' -C "$SIG_ID@$(hostname -s)" -f "$SIGNING_KEY" </dev/null >/dev/null
+      chmod 600 "$SIGNING_KEY"; chmod 644 "$SIGNING_KEY.pub"; logger -t "$OFFSITE_LOG_TAG" -- "setup signing-key-created" 2>/dev/null || true
+    fi
+    # سطرٌ واحدٌ فقط: «ssh-ed25519 AAAA…» (بلا تعليق) — يقرؤه wasla-offsite-connect.sh.
+    ssh-keygen -y -f "$SIGNING_KEY" | cut -d' ' -f1,2 ;;
+  --install)
+    PUB=${2:?"الاستعمال: offsite-setup.sh --install age1<المفتاح العامّ>"}
+    [[ "$PUB" =~ ^age1[02-9ac-hj-np-z]{58}$ ]] || { echo "setup-FAIL مفتاحٌ عامٌّ غيرُ صالح (يبدأ بـage1 وطولُه 62)"; exit 2; }
+    [ -s "$SIGNING_KEY" ] || { echo "setup-FAIL شغّلْ --signing-key أوّلاً"; exit 2; }
+    [ -f "$RCLONE_CONFIG_FILE" ] && cp -a "$RCLONE_CONFIG_FILE" "$RCLONE_CONFIG_FILE.bak-$(date -u +%Y%m%dT%H%M%SZ)"
+    flag=(); [ "${WASLA_OFFSITE_TEST_ENDPOINTS:-}" = 1 ] && flag=(--allow-test-endpoints)
+    "${OFFSITE_TOOL[@]}" rclone-section "$RCLONE_CONFIG_FILE" "${flag[@]}" || { echo "setup-FAIL قسمُ rclone مرفوض"; exit 2; }
+    printf 'AGE_RECIPIENT=%s\nRCLONE_REMOTE=wasla-gdrive\nDRIVE_ROOT=%s\n' "$PUB" "${DRIVE_ROOT:-WASLA-Backups}" > "$OFFSITE_ENV.part"
+    chmod 600 "$OFFSITE_ENV.part"
+    "$WASLA_BIN/rclone" -q --retries 1 --low-level-retries 2 --contimeout 20s --timeout 60s mkdir "wasla-gdrive:${DRIVE_ROOT:-WASLA-Backups}" 2>/dev/null ||
+      { rm -f "$OFFSITE_ENV.part"; echo "setup-FAIL تعذّرَ الوصولُ إلى Drive بالرمزِ الجديد"; exit 1; }
+    mv "$OFFSITE_ENV.part" "$OFFSITE_ENV"; chmod 600 "$RCLONE_CONFIG_FILE"
+    olog "setup-ok remote=wasla-gdrive folder=${DRIVE_ROOT:-WASLA-Backups}"
+    [ "${3:-}" = --no-first-backup ] && exit 0
+    echo "أوّلُ نسخةٍ مشفّرةٍ الآن:"; "$(dirname "$0")/offsite-backup.sh" ;;
+  *) echo "الاستعمال: offsite-setup.sh --signing-key | --install age1… [--no-first-backup]  < rclone-section"; exit 2 ;;
+esac
