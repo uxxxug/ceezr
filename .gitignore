@@ -24,3 +24,10 @@ runtime_agent/memory/*.json
 runtime_agent/memory/*.jsonl
 runtime_agent/memory/*.tmp
 runtime_agent/experience/*.jsonl
+
+# بايتاتُ Python المولَّدةُ وحزمُ pip المنزَّلة — لا تُلتزَم (WR-27 · wr-27-offsite-kit-hostkey).
+# ملفّاتُ .pyc الستّةُ الملتزَمةُ في docs/evidence/capacity/…/batch31/analysis/__pycache__ مختومةٌ في SHA256SUMS
+# تلك الحزمة، فتبقى (الأدلّةُ لا تُحذَف)؛ والقاعدةُ لا تمسُّ ملفّاً ملتزَماً.
+__pycache__/
+*.py[cod]
+*.whl

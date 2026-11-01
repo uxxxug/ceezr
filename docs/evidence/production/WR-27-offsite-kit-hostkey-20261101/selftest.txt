@@ -1,0 +1,142 @@
+# offsite selftest 2026-11-01T20:07:09Z host=moot rclone=v1.75.2 age=v1.3.2 python=3.14.4 ssh=OpenSSH_10.2p1
+PASS  tool check-tar accepts good
+PASS  tool check-tar accepts good-rowstats
+PASS  tool check-tar accepts good-storage
+PASS  tool check-tar rejects traversal
+PASS  tool check-tar rejects traversal-deep
+PASS  tool check-tar rejects absolute
+PASS  tool check-tar rejects subdir
+PASS  tool check-tar rejects symlink
+PASS  tool check-tar rejects hardlink
+PASS  tool check-tar rejects fifo
+PASS  tool check-tar rejects setuid
+PASS  tool check-tar rejects extra
+PASS  tool check-tar rejects dup
+PASS  tool check-tar rejects missing
+PASS  tool check-tar rejects othertts
+PASS  tool check-tar rejects storage-partial
+PASS  tool check-tar rejects notatar
+PASS  tool check-storage-tar accepts good
+PASS  tool check-storage-tar rejects symlink
+PASS  tool check-storage-tar rejects traversal
+PASS  tool check-storage-tar rejects abs
+PASS  tool check-config accepts good
+PASS  tool check-config rejects extra
+PASS  tool check-config rejects missing
+PASS  tool check-config rejects traversal
+PASS  tool extract (filter=data) refuses traversal even without check-tar
+PASS  tool manifest accepts good
+PASS  tool manifest rejects extra
+PASS  tool manifest rejects fmt
+PASS  tool manifest rejects name
+PASS  tool manifest rejects miss
+PASS  tool manifest rejects inj
+PASS  tool rclone-section accepts good, mode 600
+PASS  tool rclone-section rejects scope (nothing written)
+PASS  tool rclone-section rejects norefresh (nothing written)
+PASS  tool rclone-section rejects endpoint (nothing written)
+PASS  tool rclone-section rejects unknown (nothing written)
+PASS  tool rclone-section rejects cid (nothing written)
+PASS  tool rclone-section rejects two (nothing written)
+PASS  tool rclone-section rejects non-loopback endpoint even in test mode
+PASS  tool rclone-section accepts loopback endpoint only with explicit test flag
+PASS  tool compare-rowstats match
+PASS  tool compare-rowstats count mismatch
+PASS  tool compare-rowstats content mismatch (same count)
+PASS  tool compare-rowstats missing table
+PASS  tool compare-rowstats empty expected is not a match
+PASS  fake prod seeded (postgis + 4 tables, 2 schemas)
+PASS  backup.sh with concurrent writes during snapshot
+PASS  snapshot rowstats = pg_dump snapshot (orders 2000) while live moved on (2036)
+PASS  rowstats excludes extension tables (spatial_ref_sys), 4 tables
+PASS  dump .sha256 uses a relative name (no absolute production path)
+PASS  argv sampler positive control detects a marker in argv
+PASS  connect: wrong host-key fingerprint suffix ⇒ refuses before any SSH
+PASS  connect: wrong suffix ⇒ no ssh call, no known_hosts, no allowed_signers
+PASS  connect: tampered kit host key ⇒ refuses before prompt/SSH
+PASS  restore-test: host key not pinned ⇒ refuses
+PASS  host-key negatives made no ssh call
+PASS  connect: OAuth via temp config + reconnect, then install fails cleanly when Drive is unreachable
+PASS  connect: authorization code exchanged with (mock) token endpoint
+PASS  connect: server signing key pinned in laptop allowed_signers
+PASS  connect: host key verified by owner suffix, pinned in ~/.wasla/known_hosts (600) before signer
+PASS  server signing key mode 600
+PASS  install wrote rclone.conf (600) from stdin section
+PASS  install left no offsite.env after Drive failure (nightly stays offsite-skip)
+PASS  connect: laptop temp config removed
+PASS  backup with expired access token: refresh ok, Drive unreachable ⇒ fail at upload
+PASS  refreshed token persisted by rclone
+PASS  rclone.conf still 600 after rclone rewrote it
+PASS  oauth-refresh: no leftovers
+PASS  backup with revoked/expired refresh token (invalid_grant) ⇒ fail at upload
+PASS  oauth-invalid: no leftovers
+PASS  backup with missing token ⇒ fail at upload, no prompt
+PASS  oauth-missing: no leftovers
+PASS  fetch fails cleanly when Drive is unreachable
+PASS  no secret in any process argv/environ during connect+install+refresh (sampled /proc every 50ms)
+PASS  offsite-backup: encrypt + sign + upload + md5/sha256 verify
+PASS  remote daily has ciphertext + manifest + signature
+PASS  outer manifest holds no data (names/hashes only)
+PASS  offsite-backup: no leftovers
+PASS  restore-test: good backup ⇒ PASS (exact rowstats match with snapshot)
+PASS  production changed after backup: still PASS, drift reported as information only
+PASS  restore good: no leftovers
+PASS  restore-test negative: tampered-ciphertext
+PASS  tampered-ciphertext: no leftovers
+PASS  restore-test negative: truncated-download
+PASS  truncated-download: no leftovers
+PASS  restore-test negative: wrong-key
+PASS  wrong-key: no leftovers
+PASS  restore-test negative: manifest-modified
+PASS  manifest-modified: no leftovers
+PASS  restore-test negative: signature-missing
+PASS  signature-missing: no leftovers
+PASS  restore-test negative: signature-by-other-key
+PASS  signature-by-other-key: no leftovers
+PASS  restore-test negative: signature-wrong-namespace
+PASS  signature-wrong-namespace: no leftovers
+PASS  restore-test negative: replay-renamed
+PASS  replay-renamed: no leftovers
+PASS  after provenance negatives: no leftovers
+PASS  restore-test negative: decrypt-authentication-failure
+PASS  decrypt-authentication-failure: no leftovers
+PASS  restore-test negative: not-age-file
+PASS  not-age-file: no leftovers
+PASS  restore-test negative: archive-traversal
+PASS  archive-traversal: no leftovers
+PASS  restore-test negative: archive-symlink
+PASS  archive-symlink: no leftovers
+PASS  restore-test negative: archive-hardlink
+PASS  archive-hardlink: no leftovers
+Traceback (most recent call last):
+  File "<stdin>", line 11, in <module>
+  File "/usr/lib/python3.14/tarfile.py", line 2388, in addfile
+    copyfileobj(fileobj, self.fileobj, tarinfo.size, bufsize=bufsize)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/tarfile.py", line 257, in copyfileobj
+    raise exception("unexpected end of data")
+OSError: unexpected end of data
+PASS  restore-test negative: archive-extra
+PASS  archive-extra: no leftovers
+PASS  traversal payload never written outside the drill dir
+PASS  restore-test negative: rowcount-mismatch
+PASS  rowcount-mismatch: no leftovers
+PASS  restore-test negative: content-mismatch-same-count
+PASS  content-mismatch-same-count: no leftovers
+PASS  restore-test negative: rowstats-missing-is-inconclusive
+PASS  rowstats-missing-is-inconclusive: no leftovers
+PASS  restore-test negative: inner-manifest-not-signed-value
+PASS  inner-manifest-not-signed-value: no leftovers
+PASS  restore-test negative: dump-changed-after-manifest
+PASS  dump-changed-after-manifest: no leftovers
+PASS  drill direct: non-tar stdin rejected before restore
+PASS  drill direct: empty stdin rejected
+PASS  drill direct: no manifest/signature ⇒ refuses
+PASS  drill direct: no leftovers
+PASS  quota exceeded on remote ⇒ fail at upload, partial remote removed
+PASS  quota: no partial file left on remote
+PASS  quota: no leftovers
+PASS  no signing key ⇒ refuses to upload unsigned backup
+PASS  no secret marker in any log/output/journal (99 files)
+PASS  no token/secret field names in logs
+# selftest pass=132 fail=0

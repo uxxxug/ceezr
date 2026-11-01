@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # الغرض: يُشغَّلُ مرّةً واحدةً على لابتوبِ المالك (ADR 0297 · ADR 0298) — مفتاحُ age (إن غاب)، وتثبيتُ مفتاحِ
 #   توقيعِ الخادم، وربطُ Google Drive بعميلِ OAuth خاصٍّ بالمالك، ثمّ ضبطُ الخادمِ وأوّلُ نسخةٍ مشفّرة.
-# المتطلّبات: bash وage وrclone وssh وssh-keygen، ومُضيفٌ اسمُه `wasla` في ~/.ssh/config. يعملُ على Linux وmacOS
-#   وWindows (Git Bash). انظر README-AR.md في الحقيبة.
+# المتطلّبات: bash وage وrclone وssh وssh-keygen، ومُضيفٌ اسمُه `wasla` في ~/.ssh/config، وwasla-laptop-lib.sh
+#   بجانبِه. يعملُ على Linux وmacOS وWindows (Git Bash). انظر README-AR.md في الحقيبة.
+# الترتيب (ADR 0299): مفتاحُ SSH للخادمِ يُتحقَّقُ منه تحقّقاً مستقلّاً ويُثبَّتُ **قبلَ أيِّ اتصال**، ومفتاحُ توقيعِ
+#   النسخِ لا يُطلَبُ ولا يُثبَّتُ إلّا عبرَ اتصالٍ بذلك المفتاحِ المثبَّت.
 # الأسرار (ADR 0298 §3): client_secret يُقرأُ دونَ صدى، ويُكتَبُ بأمرٍ داخليٍّ (printf) في ملفٍّ مؤقّتٍ 600 داخلَ
 #   مجلّدٍ 700، ثمّ `rclone config reconnect` يكتبُ الرمزَ في الملفِّ نفسِه؛ ويُرسَلُ الملفُّ إلى الخادمِ عبرَ **stdin**
 #   لـSSH. لا يظهرُ سرٌّ في وسائطِ أيِّ عمليّة. يُحذَفُ المؤقّتُ عندَ الخروج. المفتاحُ الخاصُّ لـage لا يغادرُ اللابتوب.
@@ -10,6 +12,10 @@ set -euo pipefail; umask 077
 KEY=${WASLA_AGE_KEY:-$HOME/.wasla/wasla-backup.agekey}; HOST=${WASLA_SSH_HOST:-wasla}
 ALLOWED=${WASLA_ALLOWED_SIGNERS:-$HOME/.wasla/allowed_signers}; RP=${WASLA_REMOTE_PREFIX:-sudo /opt/wasla}
 for c in age age-keygen rclone ssh ssh-keygen; do command -v "$c" >/dev/null || { echo "ينقصُ الأمر: $c"; exit 1; }; done
+# shellcheck source=wasla-laptop-lib.sh
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/wasla-laptop-lib.sh"
+# 0) مفتاحُ SSH للخادم: تحقّقٌ مستقلٌّ من المالك، ثمّ تثبيت. لا اتصالَ ولا مفتاحَ قبلَه.
+host_pin_interactive || exit 1
 mkdir -p "$(dirname "$KEY")" "$(dirname "$ALLOWED")"; chmod 700 "$(dirname "$KEY")"
 if [ ! -f "$KEY" ]; then
   age-keygen -o "$KEY" 2>/dev/null; chmod 600 "$KEY"
@@ -17,10 +23,12 @@ if [ ! -f "$KEY" ]; then
   echo "مهمّ: إن ضاعَ هذا الملفُّ فلا يمكنُ فكُّ أيِّ نسخة. احفظْ نسخةً منه خارجَ الإنترنت (مدير كلمات المرور أو USB)، لا في Drive."
 fi
 PUB=$(age-keygen -y "$KEY"); echo "المفتاحُ العامّ (ليس سرّاً): $PUB"
-ssh -o BatchMode=yes "$HOST" true || { echo "تعذّرَ الاتصالُ بـ$HOST عبرَ SSH"; exit 1; }
 
-# 1) مفتاحُ توقيعِ الخادم: يُنشأُ هناك إن غاب، ويُثبَّتُ العامُّ هنا (ثقةٌ عندَ أوّلِ استعمالٍ عبرَ SSH الموثَّق).
-SIGPUB=$(ssh "$HOST" "$RP/offsite-setup.sh --signing-key" | tr -d '\r')
+"${SSH[@]}" -n -o BatchMode=yes "$HOST" true || {
+  echo "تعذّرَ الاتصالُ بـ$HOST عبرَ SSH بالمفتاحِ المثبَّت. إن ظهرَ «Host key verification failed» فالخادمُ الذي وصلتَ إليه ليس خادمَك: توقّفْ."; exit 1; }
+
+# 1) مفتاحُ توقيعِ النسخ: يُنشأُ على الخادمِ إن غاب، ويُطلَبُ عبرَ الاتصالِ الموثَّقِ بالمفتاحِ المثبَّتِ وحدَه.
+SIGPUB=$("${SSH[@]}" -n "$HOST" "$RP/offsite-setup.sh --signing-key" | tr -d '\r')
 [[ "$SIGPUB" =~ ^ssh-ed25519\ [A-Za-z0-9+/=]+$ ]] || { echo "مفتاحُ التوقيعِ من الخادمِ غيرُ صالح"; exit 1; }
 if [ -s "$ALLOWED" ] && ! grep -qF "$SIGPUB" "$ALLOWED"; then
   echo "تحذير: مفتاحُ توقيعِ الخادمِ تغيّرَ عمّا هو مثبَّتٌ في $ALLOWED. لن أستبدلَه تلقائيّاً."
@@ -48,5 +56,5 @@ rclone config reconnect wasla-gdrive: --config "$CP" --auto-confirm
 grep -q '^token = .*refresh_token' "$C" || { echo "لم يُرجِعْ Google رمزَ تحديث (refresh_token)"; exit 1; }
 
 # 3) ضبطُ الخادم: القسمُ عبرَ stdin لـSSH وحدَه.
-ssh "$HOST" "$RP/offsite-setup.sh --install $PUB ${WASLA_SETUP_EXTRA:-}" < "$C"
+"${SSH[@]}" "$HOST" "$RP/offsite-setup.sh --install $PUB ${WASLA_SETUP_EXTRA:-}" < "$C"
 echo "تمّ. للتحقّقِ الفعليّ من الاستعادة: bash wasla-offsite-restore-test.sh"
