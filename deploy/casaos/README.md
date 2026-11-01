@@ -70,3 +70,7 @@ sudo cp /opt/wasla/compose.yml.bak-pre-ingress /opt/wasla/compose.yml
 sudo cp /opt/wasla/haproxy.cfg.bak-pre-ingress /opt/wasla/haproxy.cfg
 sudo docker compose -f /opt/wasla/compose.yml up -d --remove-orphans
 ```
+
+## النسخةُ خارجَ الموقع (ADR 0297)
+
+age ← Google Drive المالك، مع تحقّقٍ بعدَ كلِّ رفعٍ وتمرينِ استعادةٍ فعليّ: [`OFFSITE-BACKUP.md`](OFFSITE-BACKUP.md).
