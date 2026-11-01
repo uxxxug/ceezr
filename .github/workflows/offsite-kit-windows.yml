@@ -25,6 +25,7 @@ jobs:
           tar -xzf age.tgz && echo "$PWD/age" >> "$GITHUB_PATH"
       - name: kit + fixtures
         run: |
+          mkdir -p out
           bash deploy/casaos/laptop/build-kit.sh out/wasla-offsite-laptop-kit.zip
           sha256sum out/wasla-offsite-laptop-kit.zip | tee out/kit.sha256
           bash deploy/casaos/tests/offsite-kit-fixtures.sh out/fx
