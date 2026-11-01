@@ -124,6 +124,12 @@ export async function deliverRiderCandidateNotice(
     readonly sender: CandidateNoticeSender;
     readonly miniAppUrl: string | null;
     readonly log?: (event: string, meta: Record<string, unknown>) => void;
+    /**
+     * ADR 0296 — إشارةٌ إلى Mini App المفتوحةِ كي تظهرَ بطاقةُ السائقِ فورًا بلا ضغطِ
+     * «تحديث». تُبَثُّ قبلَ البطاقةِ ولا تُغني عنها: المرشَّحُ مهلتُه ثوانٍ، فبطاقةُ
+     * تيليجرام تُرسَلُ دائمًا، وفشلُ الإشارةِ لا يغيّرُ مآلَ الصفّ.
+     */
+    readonly signalRider?: (telegramUserId: string, orderId: string) => Promise<boolean>;
   },
 ) {
   const orderId = delivery.payload.order_id;
@@ -156,6 +162,10 @@ export async function deliverRiderCandidateNotice(
       undeliverable: true,
       undeliverableReason: "TELEGRAM_DELIVERY_UNAVAILABLE",
     });
+  }
+  if (deps.signalRider !== undefined) {
+    const signalled = await deps.signalRider(chatId, orderId).catch(() => false);
+    deps.log?.("rider_trip_notice.candidate_signalled", { ...meta, signalled });
   }
   const language =
     typeof delivery.payload.language === "string" && delivery.payload.language !== ""

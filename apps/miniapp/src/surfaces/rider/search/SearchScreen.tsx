@@ -75,8 +75,10 @@ import { Skeleton } from "../../../system/Skeleton.tsx";
 import { SystemScreen } from "../../../system/SystemScreen.tsx";
 import type { ScreenState } from "../../../system/state-text.ts";
 import { Glyph } from "../../../system/ui/icons.tsx";
+import { PRODUCTION_TRIP_EVENTS } from "../active/production-trip-events.ts";
 import { RideJourney } from "../active/RideJourney.tsx";
 import { journeyFromSearchStatus } from "../active/ride-journey.ts";
+import { subscribeTripEvents, type TripEventsChannelDeps } from "../active/trip-events.ts";
 import type { PlaceWire } from "../destination/destination-view.ts";
 import { SosEntry } from "../sos/SosEntry.tsx";
 import { RideCandidateCard } from "./RideCandidateCard.tsx";
@@ -167,6 +169,14 @@ export interface SearchScreenProps {
   readonly initialLanguage?: MiniAppLanguage;
   /** تُحقَنُ في الاختبارِ كي تُقاسَ المدّةُ بلا انتظارٍ حقيقيٍّ. */
   readonly now?: () => number;
+  /**
+   * ADR 0296 — قناةُ إشاراتِ الراكب (`trip:update`): «سائقٌ قبِلَ طلبك» تُعيدُ قراءةَ الحالةِ
+   * والبطاقةِ فورًا بلا ضغطِ «تحديث». قراءةٌ بحدثٍ من الخادم لا استقصاء (`ADR 0035` §٤).
+   * غيابُها (الاختبارات) ⇒ السلوكُ القديمُ حرفًا.
+   */
+  readonly tripSignals?: TripEventsChannelDeps;
+  /** الإنتاجُ يمرّرُ `liveTripEvents` فتُستعمَلُ القناةُ الحقيقيّة (كشاشةِ الرحلةِ النشطة). */
+  readonly liveTripEvents?: boolean;
 }
 
 type Found = Extract<RideSearchResponse, { found: true }>;
@@ -236,7 +246,11 @@ export function SearchScreen({
   onActiveRide,
   initialLanguage = MINIAPP_DEFAULT_LANGUAGE,
   now = systemNowMs,
+  tripSignals: injectedTripSignals,
+  liveTripEvents = false,
 }: SearchScreenProps) {
+  const tripSignals =
+    injectedTripSignals ?? (liveTripEvents ? PRODUCTION_TRIP_EVENTS.channel : undefined);
   const [language] = useState<MiniAppLanguage>(initialLanguage);
   const [state, setState] = useState<SearchState>({ kind: "creating" });
   const [system, setSystem] = useState<SystemState>(null);
@@ -359,11 +373,33 @@ export function SearchScreen({
   const tracking = state.kind === "tracking" ? state : null;
   const trackedId = tracking?.orderId ?? null;
 
-  /** أوّلُ قراءةٍ فوراً بعدَ الإنشاءِ — ثمَّ لا شيءَ حتّى يطلبَ الراكبُ. */
+  /** أوّلُ قراءةٍ فوراً بعدَ الإنشاءِ — ثمَّ لا شيءَ إلّا بطلبِ الراكبِ أو إشارةِ الخادم. */
   useEffect(() => {
     if (trackedId === null) return;
     void refresh(trackedId);
   }, [trackedId, refresh]);
+
+  /** ADR 0296 — إشارةُ الخادمِ لهذا الطلبِ (أو عودةُ الاتصالِ) ⇒ قراءةٌ واحدة. */
+  useEffect(() => {
+    if (trackedId === null || tripSignals === undefined) return;
+    let joined = false;
+    const subscription = subscribeTripEvents(tripSignals, {
+      onSignal: (signalled) => {
+        if (!mounted.current) return;
+        if (signalled === null) {
+          // أوّلُ انضمامٍ قراءتُه تمّت للتوّ؛ وما بعدَه عودةٌ من انقطاعٍ فاتَته إشاراتٌ.
+          if (!joined) {
+            joined = true;
+            return;
+          }
+        } else if (signalled !== trackedId) {
+          return;
+        }
+        void refresh(trackedId);
+      },
+    });
+    return () => subscription.disconnect();
+  }, [trackedId, tripSignals, refresh]);
 
   const askCancel = useCallback(
     async (orderId: string) => {

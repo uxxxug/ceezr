@@ -93,6 +93,7 @@ import { deviceOnline, probeReachability } from "../../../system/health.ts";
 import { Skeleton } from "../../../system/Skeleton.tsx";
 import { SystemScreen } from "../../../system/SystemScreen.tsx";
 import type { ScreenState } from "../../../system/state-text.ts";
+import { isSurfaceVisible } from "../../../system/surface-visibility.ts";
 import { TRUTH_AGE_UNKNOWN_KEY, TRUTH_SOURCE_KEYS, truthAge } from "../../../system/truth.ts";
 import { Glyph } from "../../../system/ui/icons.tsx";
 import { vehicleTypeText } from "../../../system/vehicle-type.ts";
@@ -316,6 +317,8 @@ export function ActiveRideScreen({
       if (applied === null || !mounted.current) return;
       const ids = ackableIds(pending, applied.phase);
       if (ids.length === 0) return;
+      // ADR 0296: لا إقرارَ والشاشةُ مخفيّة — فيصلُ الراكبَ إشعارُ البوتِ بعدَ المهلة.
+      if (!isSurfaceVisible()) return;
       await tripEvents.api.ack(id, ids).catch(() => undefined);
     },
     [tripEvents, refresh],
@@ -327,6 +330,8 @@ export function ActiveRideScreen({
       onSignal: (signalled) => {
         if (!mounted.current) return;
         if (signalled !== null && signalled !== orderId) return;
+        // ADR 0296: إشارةُ «سائقٌ قبِلَ» ليست حدثَ طورٍ — تُعيدُ قراءةَ بطاقةِ المرشَّحِ فتظهرُ فورًا.
+        if (signalled !== null) setCandidateToken((n) => n + 1);
         void syncTripEvents(orderId);
       },
     });

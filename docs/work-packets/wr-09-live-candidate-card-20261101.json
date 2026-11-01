@@ -1,0 +1,43 @@
+{
+  "id": "wr-09-live-candidate-card-20261101",
+  "goal": "§9 اختيارُ الراكبِ للسائق: بطاقةُ المرشَّحِ تظهرُ فورًا في Mini App المفتوحة بعدّادٍ حيٍّ وزرَّي قبولٍ/بحثٍ عن غيره، ورسالةٌ صريحةٌ عندَ فواتِ المهلة؛ وإقرارُ Mini App لا يُحتسَبُ والشاشةُ مخفيّةٌ فيصلُ إشعارُ البوت (ADR 0296).",
+  "canonical_source": ["docs/adr/0296-live-candidate-card-and-visible-acks.md"],
+  "implementation": [
+    "packages/application/dispatch/deliver-candidate-notices.ts",
+    "packages/application/dispatch/deliver-rider-trip-notice.ts",
+    "apps/miniapp/src/system/use-seconds-left.ts",
+    "apps/miniapp/src/system/surface-visibility.ts",
+    "apps/miniapp/src/surfaces/rider/search/SearchScreen.tsx",
+    "apps/miniapp/src/surfaces/rider/search/RideCandidateCard.tsx",
+    "apps/miniapp/src/surfaces/rider/RiderRoot.tsx",
+    "apps/miniapp/src/surfaces/rider/active/ActiveRideScreen.tsx",
+    "apps/miniapp/src/surfaces/driver/offers/OffersScreen.tsx",
+    "apps/miniapp/src/surfaces/driver/offers/OfferDetailScreen.tsx",
+    "packages/shared/i18n/miniapp/ar.json",
+    "packages/shared/i18n/miniapp/en.json",
+    "packages/shared/i18n/miniapp/ur.json",
+    "apps/miniapp/src/system/surface-visibility.test.ts",
+    "apps/miniapp/src/system/use-seconds-left.test.ts",
+    "tests/unit/wr-09-candidate-notices.test.ts"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [
+    "docs/roadmap/execution/STATUS.md",
+    "docs/adr/0296-live-candidate-card-and-visible-acks.md"
+  ],
+  "decision": "طلبُ المالكِ 2026-11-01: بطاقةُ السائقِ القابلِ أمامَ الزبونِ بمعلوماتِه وتقييماتِه ثلاثينَ ثانيةً بعدّادٍ ظاهرٍ وزرِّ قبولٍ أو بحثٍ عن غيره، والإشعاراتُ تصلُ داخلَ Mini App وخارجَ تيليجرام.",
+  "tests": [
+    "tests/unit/wr-09-candidate-notices.test.ts — إشارةٌ لغرفةِ الراكبِ مع البطاقة، وفشلُها لا يمنعُ البطاقة، والمرشَّحُ الفائتُ لا إشارةَ له",
+    "apps/miniapp/src/system/use-seconds-left.test.ts — الثواني الباقيةُ من موعدٍ مطلق، وتأخيرُ التكّةِ التالية، وonReached مرّةً واحدة",
+    "apps/miniapp/src/system/surface-visibility.test.ts — مخفيٌّ ⇒ لا إقرار، وبيئةٌ بلا document ⇒ ظاهر",
+    "check-system-screens-policy و check-i18n و check-performance-budget و measure-first-paint"
+  ],
+  "evidence": "docs/roadmap/execution/STATUS.md (صفّ WR-09)",
+  "constraints": [
+    "لا هجرة",
+    "لا تغييرَ في عتباتِ السعةِ ولا في إعداداتِ المدنِ من الكود",
+    "لا استقصاءَ دوريّ (ADR 0035 §٤)"
+  ],
+  "limitations": "لم يُقَس على جهازٍ حقيقيٍّ في تيليجرام بعد؛ ينتظرُ تجربةَ المالكِ بسائقٍ وراكب. الراكبُ داخلَ التطبيقِ تصلُه بطاقةُ تيليجرام أيضًا للمرشَّح."
+}

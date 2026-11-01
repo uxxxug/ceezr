@@ -37,6 +37,7 @@ import {
 } from "../../../../../../packages/shared/i18n/miniapp/core.ts";
 import { EmptyState } from "../../../system/EmptyState.tsx";
 import { UiCard, UiTimer } from "../../../system/ui/index.tsx";
+import { useSecondsLeft } from "../../../system/use-seconds-left.ts";
 import { openExternalLink } from "../../../tg/index.ts";
 import { offerTimerProps } from "./offer-timer.ts";
 import {
@@ -262,6 +263,21 @@ export function OfferDetailScreen({
     }
   }, [onBack, onRejected, offerId, reject]);
 
+  /**
+   * ADR 0296 — عدّادُ مهلةِ قرارِ العميلِ يتناقصُ ظاهرًا، وعندَ الصفرِ قراءةُ المآلِ مرّةً
+   * (اختارَك/لم يخترْك/فاتَت المهلة) بدلَ أن ينتظرَ السائقُ ضغطَ «تحديث القرار».
+   */
+  const decisionDeadlineMs =
+    claim.kind === "pending"
+      ? claim.acceptedAtMs + Math.max(0, claim.secondsAtAccept) * 1000
+      : null;
+  const decisionSecondsLeft = useSecondsLeft(decisionDeadlineMs, {
+    now,
+    onReached: () => {
+      void refreshDecision();
+    },
+  });
+
   if (state.kind === "loading") {
     return (
       <section
@@ -450,13 +466,18 @@ export function OfferDetailScreen({
           <p className="dof__pending-text">{t("driver.offers.candidate.waiting")}</p>
           <UiTimer
             {...offerTimerProps({
-              secondsRemaining: Math.max(
-                0,
-                Math.ceil(claim.secondsAtAccept - (now() - claim.acceptedAtMs) / 1000),
-              ),
+              secondsRemaining: claim.secondsAtAccept,
               secondsLeftAtRead: claim.secondsAtAccept,
               t,
             })}
+            deadlineText={
+              decisionSecondsLeft > 0
+                ? t("driver.offers.candidate.secondsLeft").replace(
+                    "{value}",
+                    String(decisionSecondsLeft),
+                  )
+                : t("driver.offers.timer.elapsed")
+            }
             label={t("driver.offers.candidate.timerLabel")}
           />
           <button type="button" className="dof__retry" onClick={() => void refreshDecision()}>
