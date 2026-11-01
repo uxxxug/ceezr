@@ -76,4 +76,6 @@ sudo docker compose -f /opt/wasla/compose.yml up -d --remove-orphans
 age ← Google Drive المالك، ببيانٍ يوقّعُه الخادم، وتحقّقٍ بعدَ كلِّ رفع، وتمرينِ استعادةٍ يُقارَنُ بلقطةِ الصفوفِ في النسخةِ نفسِها: [`OFFSITE-BACKUP.md`](OFFSITE-BACKUP.md).
 
 - حقيبةُ اللابتوب: `bash laptop/build-kit.sh OUT.zip` (حتميّة، ودليلُها [`laptop/README-AR.md`](laptop/README-AR.md)).
-- الاختبارات (على الخادم، لا تمسُّ الإنتاج): `sudo bash tests/offsite-selftest.sh OUT`. وللقراءةِ فقط من الإنتاجِ إلى «Drive» محلّيّ: `sudo bash tests/offsite-prod-readonly-sim.sh OUT`.
+  - تثبّتُ مفتاحَ SSH للخادمِ بتحقّقٍ مستقلٍّ من المالكِ قبلَ أيِّ اتصال (`laptop/wasla-laptop-lib.sh`، [ADR 0299](../../docs/adr/0299-casaos-offsite-laptop-ssh-host-key-pinning.md)).
+- `shim-overlay/Dockerfile`: نسخةٌ من `/opt/wasla/shim-overlay/Dockerfile` في الإنتاج، ليُعادَ بناؤه عندَ الاستعادةِ على خادمٍ جديد.
+- الاختبارات (على الخادم، لا تمسُّ الإنتاج): `sudo bash tests/offsite-selftest.sh OUT`. واتصالٌ حقيقيٌّ من اللابتوب: `tests/offsite-laptop-e2e-server.sh up|down` على الخادم مع `tests/offsite-laptop-e2e-client.sh` على اللابتوب. وللقراءةِ فقط من الإنتاجِ إلى «Drive» محلّيّ: `sudo bash tests/offsite-prod-readonly-sim.sh OUT`.

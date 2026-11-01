@@ -46,8 +46,11 @@ trap cleanup EXIT
 # ssh بديل: يتجاهلُ الخياراتِ والمضيف ويشغّلُ الأمرَ محلّيّاً (نحن root أصلاً).
 cat > "$T/fakebin/ssh" <<'EOF'
 #!/usr/bin/env bash
-while [ $# -gt 0 ]; do case "$1" in -o) shift 2;; -*) shift;; *) break;; esac; done
-shift; exec bash -c "$*"
+[ -n "${SSH_CALL_LOG:-}" ] && echo "ssh $*" >> "$SSH_CALL_LOG"
+# كـssh الحقيقيّ: دونَ -n يقرأُ stdin كلَّه (فيبتلعُ ما بعدَه من مدخلاتِ المالك)؛ مع -n لا يقرأُ شيئاً.
+n=0; while [ $# -gt 0 ]; do case "$1" in -n) n=1; shift;; -o) shift 2;; -*) shift;; *) break;; esac; done
+shift; [ $n = 1 ] && exec bash -c "$*" < /dev/null
+i=$(mktemp); cat > "$i"; bash -c "$*" < "$i"; r=$?; rm -f "$i"; exit $r
 EOF
 chmod 755 "$T/fakebin/ssh"
 
@@ -206,10 +209,25 @@ if grep -q '^argv' "$T/argv-hits"; then ok "argv sampler positive control detect
 export HTTPS_PROXY=http://127.0.0.1:1 HTTP_PROXY=http://127.0.0.1:1 NO_PROXY=127.0.0.1,localhost https_proxy=http://127.0.0.1:1 no_proxy=127.0.0.1,localhost
 python3 "$H/tests/mock-oauth.py" 18080 ok "$L/mock.log" & MOCK_PID=$!; sleep 1
 "$REAL_BIN/age-keygen" -o "$T/laptop/.wasla/wasla-backup.agekey" 2>/dev/null
+# ADR 0299: إدخالٌ خاطئٌ لآخرِ 8 أحرفٍ من بصمةِ الخادم ⇒ توقّفٌ قبلَ أيِّ اتصالٍ وأيِّ تثبيت.
+printf 'AAAAAAAA\n' > "$T/hk-bad"; : > "$T/ssh-calls"
+SSH_CALL_LOG="$T/ssh-calls" bash "$H/laptop/wasla-offsite-connect.sh" < "$T/hk-bad" > "$L/connect-hk-bad" 2>&1; rc=$?
+check "connect: wrong host-key fingerprint suffix ⇒ refuses before any SSH" 1 $rc "$L/connect-hk-bad" 'لا تطابق' 'ثُبِّتَ مفتاحُ'
+[ ! -s "$T/ssh-calls" ] && [ ! -e "$T/laptop/.wasla/known_hosts" ] && [ ! -e "$T/laptop/.wasla/allowed_signers" ] &&
+  ok "connect: wrong suffix ⇒ no ssh call, no known_hosts, no allowed_signers" || bad "connect: wrong suffix side effects" "$(cat "$T/ssh-calls")"
+# الحقيبةُ معدَّلة: مفتاحٌ مضمَّنٌ لا يطابقُ بصمتَه ⇒ توقّفٌ قبلَ السؤال.
+mkdir -p "$T/kit-bad"; cp "$H/laptop/"*.sh "$T/kit-bad/"
+sed -i "s#^WASLA_HOST_PUB=.*#WASLA_HOST_PUB='$(ssh-keygen -q -t ed25519 -N '' -f "$T/kit-bad/k" <<<y >/dev/null 2>&1; cut -d' ' -f1,2 "$T/kit-bad/k.pub")'#" "$T/kit-bad/wasla-laptop-lib.sh"
+SSH_CALL_LOG="$T/ssh-calls" bash "$T/kit-bad/wasla-offsite-connect.sh" < "$T/hk-bad" > "$L/connect-kit-bad" 2>&1; rc=$?
+check "connect: tampered kit host key ⇒ refuses before prompt/SSH" 1 $rc "$L/connect-kit-bad" 'الحقيبةُ تالفةٌ أو معدَّلة' 'آخرُ 8 أحرف'
+SSH_CALL_LOG="$T/ssh-calls" bash "$H/laptop/wasla-offsite-restore-test.sh" --list > "$L/rt-nohost" 2>&1; rc=$?
+check "restore-test: host key not pinned ⇒ refuses" 1 $rc "$L/rt-nohost" 'مفتاحُ الخادمِ غيرُ مثبَّت'
+[ ! -s "$T/ssh-calls" ] && ok "host-key negatives made no ssh call" || bad "host-key negatives ssh calls" "$(cat "$T/ssh-calls")"
+HKFP=$(sed -n "s/^WASLA_HOST_FP='\(.*\)'$/\1/p" "$H/laptop/wasla-laptop-lib.sh")
 mkfifo "$T/in"
 WASLA_TEST_OAUTH_BASE=http://127.0.0.1:18080 WASLA_OFFSITE_TEST_ENDPOINTS=1 \
   bash "$H/laptop/wasla-offsite-connect.sh" < "$T/in" > "$L/connect" 2>&1 & CON=$!
-exec 7> "$T/in"; printf '1-test.apps.googleusercontent.com\n%s\n' "$CSEC" >&7; exec 7>&-
+exec 7> "$T/in"; printf '%s\n1-test.apps.googleusercontent.com\n%s\n' "${HKFP: -8}" "$CSEC" >&7; exec 7>&-
 for _ in $(seq 60); do U=$(grep -o 'http://127.0.0.1:53682/auth?state=[A-Za-z0-9_-]*' "$L/connect" | head -1); [ -n "$U" ] && break; sleep 0.5; done
 [ -n "${U:-}" ] && curl -s --noproxy '*' -L -o /dev/null "$U"
 wait "$CON"; rc=$?
@@ -217,6 +235,8 @@ check "connect: OAuth via temp config + reconnect, then install fails cleanly wh
 grep -q 'grant=authorization_code' "$L/mock.log" && ok "connect: authorization code exchanged with (mock) token endpoint" || bad "connect: code exchange" "$(cat "$L/mock.log")"
 [ -s "$T/laptop/.wasla/allowed_signers" ] && grep -q '^wasla-backup namespaces="wasla-offsite-backup" ssh-ed25519 ' "$T/laptop/.wasla/allowed_signers" &&
   ok "connect: server signing key pinned in laptop allowed_signers" || bad "connect: allowed_signers"
+[ "$(stat -c %a "$T/laptop/.wasla/known_hosts" 2>/dev/null)" = 600 ] && grep -q '^wasla-casaos ssh-ed25519 ' "$T/laptop/.wasla/known_hosts" &&
+  grep -q 'تطابق. ثُبِّتَ مفتاحُ الخادم' "$L/connect" && ok "connect: host key verified by owner suffix, pinned in ~/.wasla/known_hosts (600) before signer" || bad "connect: known_hosts"
 [ "$(stat -c %a "$WASLA_ETC/backup-signing.key")" = 600 ] && ok "server signing key mode 600" || bad "signing key mode"
 [ "$(stat -c %a "$WASLA_ETC/rclone.conf" 2>/dev/null)" = 600 ] && grep -q MOCK-REFRESH "$WASLA_ETC/rclone.conf" && ok "install wrote rclone.conf (600) from stdin section" || bad "install rclone.conf"
 [ ! -e "$WASLA_ETC/offsite.env" ] && ok "install left no offsite.env after Drive failure (nightly stays offsite-skip)" || bad "offsite.env written on failure"

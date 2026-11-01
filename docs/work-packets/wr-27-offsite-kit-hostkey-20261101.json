@@ -1,0 +1,46 @@
+{
+  "id": "wr-27-offsite-kit-hostkey-20261101",
+  "goal": "§27 النشرُ والتحقّق: متابعةُ PR #714 قبلَ تسليمِ خطواتِ الربطِ للمالك. إصلاحُ تلفِ وتكرارِ OFFSITE-BACKUP.md ووضوحُ الربطِ والاستعادةِ الحقيقيّة، وتثبيتُ مفتاحِ SSH للخادمِ بتحقّقٍ مستقلٍّ قبلَ تثبيتِ مفتاحِ التوقيع، وإزالةُ __pycache__ و.pyc وملفِّ wheel المُدخَلةِ خطأً مع قواعدِ تجاهل، وإعادةُ بناءِ الحقيبةِ والتحقّقُ منها. دونَ تثبيتٍ على CasaOS ودونَ ربطِ Drive.",
+  "canonical_source": [
+    "docs/roadmap/execution/ORDER-20261012.md",
+    "docs/adr/0299-casaos-offsite-laptop-ssh-host-key-pinning.md"
+  ],
+  "implementation": [
+    "deploy/casaos/laptop/wasla-laptop-lib.sh",
+    "deploy/casaos/laptop/wasla-offsite-connect.sh",
+    "deploy/casaos/laptop/wasla-offsite-restore-test.sh",
+    "deploy/casaos/laptop/build-kit.sh",
+    "deploy/casaos/shim-overlay/Dockerfile",
+    "deploy/casaos/tests/offsite-selftest.sh",
+    "deploy/casaos/tests/offsite-prod-readonly-sim.sh",
+    "deploy/casaos/tests/offsite-laptop-e2e-client.sh",
+    ".gitignore"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [
+    "docs/roadmap/execution/STATUS.md",
+    "docs/adr/0299-casaos-offsite-laptop-ssh-host-key-pinning.md",
+    "deploy/casaos/OFFSITE-BACKUP.md",
+    "deploy/casaos/README.md",
+    "deploy/casaos/laptop/README-AR.md",
+    "docs/evidence/production/WR-27-offsite-kit-hostkey-20261101.md"
+  ],
+  "decision": "مفتاحُ ed25519 للخادمِ وبصمتُه مضمَّنانِ في الحقيبة (طابقا بصمةَ المالكِ من سكربتِ الإعداد). أوّلَ مرّةٍ يكتبُ المالكُ آخرَ 8 أحرفٍ من البصمةِ مقروءةً بقناةٍ مستقلّة (شاشةُ الخادم أو مخرجاتُ الإعداد)، ولا تُعرَضُ المتوقَّعة. المطابقةُ تكتبُ ~/.wasla/known_hosts، وبعدَها كلُّ اتصالٍ بـStrictHostKeyChecking=yes وHostKeyAlias=wasla-casaos على هذا الملفِّ وحدَه. مفتاحُ التوقيعِ يُجلَبُ بعدَ ذلك فقط. اتصالاتٌ بلا مُدخَلٍ بـssh -n.",
+  "tests": [
+    "offsite-selftest.sh على الخادم (ssh بديلٌ يبتلعُ stdin كالحقيقيِّ دونَ -n): انظرِ الدليل",
+    "offsite-laptop-e2e-client.sh عبرَ SSH حقيقيّ: pass=19 fail=0 (إدخالٌ خاطئ، صحيح، حقيبةٌ معدَّلة، مفتاحُ خادمٍ منتحَل، known_hosts معدَّل/غائب، restore-test PASS، خطواتُ الاستعادةِ الحقيقيّةِ أ وب-1 حرفيّاً)",
+    "بناءُ Mini App بأمرِ الدليلِ نفسِه (bun 1.4.2) ووجودُ docker/upstash-rest-shim في 099c1076",
+    "build-kit.sh: بناءانِ بـsha256 واحد، وsha256sum -c وbash -n، ومطابقةُ ملفّاتِ الحقيبةِ للمستودع بايتاً ببايت",
+    "shellcheck -S warning · bun run lint · check-state-sync · check-docs-hygiene · check-execution-roadmap · check-roadmap · check-adr-numbering"
+  ],
+  "evidence": "docs/evidence/production/WR-27-offsite-kit-hostkey-20261101.md",
+  "constraints": [
+    "لا تثبيتَ على CasaOS ولا ربطَ لـDrive",
+    "لا رفعَ لأيِّ نسخةٍ أو بياناتٍ إلى حسابٍ خارجيّ",
+    "لا تغييرَ لمفاتيحِ الخادمِ أو DNS أو المنافذ",
+    "ملفّاتُ .pyc داخلَ docs/evidence مختومةٌ بـSHA256SUMS وتبقى",
+    "render.yaml بلا مساس"
+  ],
+  "limitations": "Google Drive الحقيقيّ وموافقةُ OAuth الفعليّة وmacOS وWindows (Git Bash) NOT TESTED. خطواتُ بناءِ صورتَي الوسيطِ وMini App بـdocker على خادمٍ جديدٍ لم تُنفَّذْ على CasaOS (لا تثبيت)؛ البناءُ بـbun جُرِّبَ في بيئةِ التطوير. التثبيتُ والربطُ الحقيقيُّ ينتظرانِ مراجعةَ الحقيبةِ واعتمادَ المالك."
+}

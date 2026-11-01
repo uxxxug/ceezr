@@ -20,18 +20,21 @@ say(){ printf '%s\n' "$*" | tee -a "$LOG"; }
 stop(){ say "النتيجة: FAIL — $1 (لم يُستعَدْ شيء)"; exit 1; }
 sha(){ if command -v sha256sum >/dev/null; then sha256sum "$1" | cut -d' ' -f1; else shasum -a 256 "$1" | cut -d' ' -f1; fi; }
 for c in age age-keygen ssh ssh-keygen base64; do command -v "$c" >/dev/null || { echo "ينقصُ الأمر: $c"; exit 1; }; done
+# shellcheck source=wasla-laptop-lib.sh
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/wasla-laptop-lib.sh"
+host_require || exit 1   # ADR 0299: لا اتصالَ إلّا بمفتاحِ الخادمِ المثبَّت
 [ -f "$KEY" ] || { echo "المفتاحُ غيرُ موجود: $KEY"; exit 1; }
 [ -s "$ALLOWED" ] || { echo "مفتاحُ توقيعِ الخادمِ غيرُ مثبَّت: $ALLOWED (شغّلْ wasla-offsite-connect.sh)"; exit 1; }
-if [ "${1:-}" = --list ]; then ssh "$HOST" "$RP/offsite-fetch.sh --list"; exit 0; fi
-NAME=${1:-$(ssh "$HOST" "$RP/offsite-fetch.sh latest" | tr -d '\r')}
+if [ "${1:-}" = --list ]; then "${SSH[@]}" -n "$HOST" "$RP/offsite-fetch.sh --list"; exit 0; fi
+NAME=${1:-$("${SSH[@]}" -n "$HOST" "$RP/offsite-fetch.sh latest" | tr -d '\r')}
 [[ "$NAME" =~ $NAME_RE ]] || { echo "اسمٌ غيرُ صالح"; exit 2; }
 BASE=${NAME%.tar.age}; FILE=${NAME##*/}
 T=$(mktemp -d "${TMPDIR:-/tmp}/wasla-restore-XXXXXX"); chmod 700 "$T"; trap 'rm -rf "$T"' EXIT
 say "اختبارُ استعادة: $NAME"
 
 # 1) المصدر
-ssh "$HOST" "$RP/offsite-fetch.sh get $BASE.manifest" > "$T/m" || stop "تعذّرَ تنزيلُ البيان"
-ssh "$HOST" "$RP/offsite-fetch.sh get $BASE.manifest.sig" > "$T/m.sig" || stop "تعذّرَ تنزيلُ التوقيع"
+"${SSH[@]}" -n "$HOST" "$RP/offsite-fetch.sh get $BASE.manifest" > "$T/m" || stop "تعذّرَ تنزيلُ البيان"
+"${SSH[@]}" -n "$HOST" "$RP/offsite-fetch.sh get $BASE.manifest.sig" > "$T/m.sig" || stop "تعذّرَ تنزيلُ التوقيع"
 ssh-keygen -Y verify -f "$ALLOWED" -I wasla-backup -n wasla-offsite-backup -s "$T/m.sig" < "$T/m" >/dev/null 2>&1 ||
   stop "التوقيعُ غيرُ صالح: البيانُ ليس من خادمِك أو عُدِّل"
 get(){ v=$(grep -E "^$1=" "$T/m" | head -1); v=${v#*=}; printf '%s' "${v%$'\r'}"; }
@@ -41,7 +44,7 @@ get(){ v=$(grep -E "^$1=" "$T/m" | head -1); v=${v#*=}; printf '%s' "${v%$'\r'}"
 say "provenance-ok (توقيعُ الخادمِ صالح)"
 
 # 2) النصُّ المشفّر
-ssh "$HOST" "$RP/offsite-fetch.sh get $NAME" > "$T/c" || stop "تعذّرَ تنزيلُ النسخة"
+"${SSH[@]}" -n "$HOST" "$RP/offsite-fetch.sh get $NAME" > "$T/c" || stop "تعذّرَ تنزيلُ النسخة"
 [ "$(wc -c < "$T/c" | tr -d ' ')" = "$(get ciphertext_bytes)" ] || stop "الحجمُ لا يطابقُ الموقَّع (تنزيلٌ ناقصٌ أو عبث)"
 [ "$(sha "$T/c")" = "$(get ciphertext_sha256)" ] || stop "sha256 لا يطابقُ الموقَّع"
 [ "$(head -c 21 "$T/c")" = "age-encryption.org/v1" ] || stop "ليس ملفَّ age"
@@ -54,7 +57,7 @@ say "decrypt-ok"
 # 4) الاستعادة
 MB=$(base64 < "$T/m" | tr -d '\n\r'); SB=$(base64 < "$T/m.sig" | tr -d '\n\r')
 set +e
-age -d -i "$KEY" "$T/c" | ssh "$HOST" "$RP/offsite-restore-drill.sh --manifest-b64 $MB --sig-b64 $SB" 2>&1 | tee -a "$LOG"
+age -d -i "$KEY" "$T/c" | "${SSH[@]}" "$HOST" "$RP/offsite-restore-drill.sh --manifest-b64 $MB --sig-b64 $SB" 2>&1 | tee -a "$LOG"
 rc=${PIPESTATUS[1]}; set -e
 case "$rc" in
   0) say "النتيجة: PASS — استُعيدت النسخةُ وطابقت لقطةَ النسخِ تماماً (السجلّ: $LOG — بلا أسرار)";;

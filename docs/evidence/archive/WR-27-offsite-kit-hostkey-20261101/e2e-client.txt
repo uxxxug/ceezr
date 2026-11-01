@@ -1,0 +1,21 @@
+# e2e client 2026-11-01T20:06:19Z OpenSSH_10.2p1 Ubuntu-2ubuntu3.7 age=v1.3.2 host_fp=SHA256:xpIw6WmQ6gB/t7pDMYlzvkcfgSbe7/8LyNECMJd0D+U
+PASS  wrong fingerprint suffix ⇒ stop; no known_hosts, no allowed_signers, no age key
+PASS  expected fingerprint not shown before/after wrong input
+PASS  correct suffix ⇒ host key pinned (600), real SSH connects with StrictHostKeyChecking=yes
+PASS  backup signing key pinned only after host key, equals server's
+PASS  order: host key pinned before signing key
+PASS  second run: already pinned, no prompt needed
+PASS  restore-test over pinned real SSH ⇒ PASS
+PASS  partially tampered kit ⇒ stop before prompt
+PASS  host key ≠ pinned reference ⇒ real ssh refuses (Host key verification failed), no signing key pinned
+PASS  edited known_hosts ⇒ restore-test refuses
+PASS  no known_hosts ⇒ restore-test refuses
+PASS  DR A2: signature verify prints Good signature
+PASS  DR A3: ciphertext sha256 = manifest
+PASS  DR A4: age -d
+PASS  DR B1: tar -tvf flat names, no links (5 members)
+PASS  DR B1: sha256sum -c --strict (4 OK)
+PASS  DR B1: MANIFEST sha256 = inner_manifest_sha256
+PASS  DR B2: config tgz lists 3 files
+PASS  no age secret in any log
+# e2e client pass=19 fail=0

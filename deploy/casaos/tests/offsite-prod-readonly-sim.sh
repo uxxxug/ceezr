@@ -26,6 +26,8 @@ age-keygen -o "$T/laptop/.wasla/wasla-backup.agekey" 2>/dev/null
 PUB=$(age-keygen -y "$T/laptop/.wasla/wasla-backup.agekey")
 SIG=$(bash "$H/offsite-setup.sh" --signing-key)
 printf 'wasla-backup namespaces="wasla-offsite-backup" %s\n' "$SIG" > "$T/laptop/.wasla/allowed_signers"
+# ADR 0299: اختبارُ الاستعادةِ لا يتّصلُ إلّا بمفتاحِ خادمٍ مثبَّت. هنا تثبيتٌ مباشرٌ من المرجعِ في الحقيبة (ssh وهميّ).
+( . "$H/laptop/wasla-laptop-lib.sh"; printf '%s %s\n' "$WASLA_HOST_ALIAS" "$WASLA_HOST_PUB" > "$T/laptop/.wasla/known_hosts" )
 printf '[testdrive]\ntype = local\n' > "$T/etc/rclone.conf"; chmod 600 "$T/etc/rclone.conf"
 printf 'AGE_RECIPIENT=%s\nRCLONE_REMOTE=testdrive\nDRIVE_ROOT=%s\n' "$PUB" "$T/drive" > "$T/etc/offsite.env"
 s=$(date +%s); bash "$H/backup.sh" > "$T/logs/backup" 2>&1; brc=$?; b=$(( $(date +%s) - s ))

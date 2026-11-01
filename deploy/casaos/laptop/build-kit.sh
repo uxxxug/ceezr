@@ -6,7 +6,7 @@
 set -euo pipefail; umask 022
 OUT=${1:?OUT.zip}; H=$(cd "$(dirname "$0")" && pwd); C=$(cd "$H/.." && pwd)
 command -v python3 >/dev/null || { echo "python3 مطلوب"; exit 1; }
-FILES=("$H/README-AR.md" "$C/OFFSITE-BACKUP.md" "$H/wasla-offsite-connect.sh" "$H/wasla-offsite-restore-test.sh")
+FILES=("$H/README-AR.md" "$C/OFFSITE-BACKUP.md" "$H/wasla-offsite-connect.sh" "$H/wasla-offsite-restore-test.sh" "$H/wasla-laptop-lib.sh")
 for f in "${FILES[@]}"; do
   [ -f "$f" ] || { echo "ناقص: $f"; exit 1; }
   if grep -nE 'AGE-SECRET-KEY-1|BEGIN [A-Z ]*PRIVATE KEY|"refresh_token" *: *"1//|ya29\.|GOCSPX-' "$f"; then echo "يشبهُ سرّاً: $f"; exit 1; fi
@@ -19,7 +19,7 @@ root, ts = "wasla-offsite-kit/", (2026, 1, 1, 0, 0, 0)
 entries = []
 for p in files:
     data = open(p, "rb").read()
-    entries.append((os.path.basename(p), data, 0o755 if p.endswith(".sh") else 0o644))
+    entries.append((os.path.basename(p), data, 0o755 if p.endswith(".sh") and not p.endswith("-lib.sh") else 0o644))
 sums = "".join(f"{hashlib.sha256(d).hexdigest()}  {n}\n" for n, d, _ in entries).encode()
 entries.append(("SHA256SUMS", sums, 0o644))
 tmp = out + ".tmp"
