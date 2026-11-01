@@ -8,7 +8,8 @@
 #
 # - العاملُ في gateway-1 وحدَها (RUN_WORKER_IN_GATEWAY)، والمصرِّفُ في الاثنتين (SKIP LOCKED).
 # - lb وحدَه منشورٌ: 127.0.0.1:8080 للمشغِّل (المنفذُ نفسُه الذي كانت تنشرُه البوابةُ الواحدة)،
-#   و127.0.0.1:8443 لـcloudflared وحدَه (بابُ الإنترنت، ADR 0293). لا منفذَ على 0.0.0.0.
+#   و0.0.0.0:8443 لـcloudflared (بابُ الإنترنت، ADR 0293/0295): يصلُه بعنوانِ الشبكةِ المحلّيّة،
+#   وHAProxy يرفضُ كلَّ مصدرٍ غيرِ المضيفِ نفسِه (`from_host`). و8080 يبقى على 127.0.0.1.
 # - miniapp: حزمةُ Mini App الساكنةُ المبنيّةُ من الالتزامِ نفسِه في /opt/wasla/miniapp/current.
   gateway-1: &gateway
     build: {context: /opt/wasla/src, dockerfile: docker/Dockerfile.gateway}
@@ -39,7 +40,7 @@
     image: haproxy:3.2-alpine
     restart: unless-stopped
     volumes: ["/opt/wasla/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro"]
-    ports: ["127.0.0.1:8080:8080", "127.0.0.1:8443:8443"]
+    ports: ["127.0.0.1:8080:8080", "0.0.0.0:8443:8443", "0.0.0.0:8444:8444"]
     depends_on: [gateway-1, gateway-2, miniapp]
     # `internal` شبكةٌ داخليّةٌ لا يُنشَرُ منها منفذ؛ `egress` لنشرِ 127.0.0.1:8080 وحدَه.
     networks: [internal, egress]

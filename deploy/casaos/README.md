@@ -43,6 +43,13 @@ sudo docker compose -f /opt/wasla/compose.yml up -d --remove-orphans
 - `wasla-tunnel-sync.timer` (60ث) ينسخُ رابطَ النفقِ إلى `/etc/wasla/public.env` (`MINIAPP_URL`)، ويُعيدُ `gateway-1` ثمّ `gateway-2`، ويضبطُ webhook البوتين.
 - تثبيت: انسخ ملفّاتِ `tunnel/*.service` و`*.timer` إلى `/etc/systemd/system/`، والسكربتَ إلى `/usr/local/sbin/`، ثمّ نفّذ `systemctl enable --now wasla-public-tunnel wasla-tunnel-sync.timer`.
 
+## النطاقُ الثابتُ ولوحةُ الإدارة (ADR 0295)
+
+- نفقُ Cloudflare المسمّى (تطبيقُ CasaOS `cloudflared`، شبكةُ المضيف) يوجّه: `app.waslareev.dpdns.org` و`api.waslareev.dpdns.org` ← `http://192.168.0.135:8443`، و`admin.waslareev.dpdns.org` ← `http://192.168.0.135:8444`. **`http://` لا `https://`**: المنفذانِ يتكلّمانِ HTTP، وTLS عند Cloudflare.
+- `8443` و`8444` منشورانِ على `0.0.0.0`، وHAProxy يرفضُ (403) كلَّ مصدرٍ غيرِ المضيفِ (`acl from_host`) قبلَ فحصِ `Cf-Connecting-Ip`.
+- `admin_front` (`:8444`) لا يمرّرُ إلّا `/admin`، و`/` ← `/admin`، وما سواهما 404. الدخولُ: `/admin/login` برمزٍ يصلُ إلى حسابِ المسؤولِ في تيليجرام.
+- `/etc/wasla/ingress.env` بسطر `PUBLIC_BASE_URL=https://app.waslareev.dpdns.org` يجعلُ `wasla-tunnel-sync` يكتبُ النطاقَ الثابتَ بدلَ رابطِ النفقِ السريع. بعدَ تغييرِه: `systemctl start wasla-tunnel-sync.service`.
+
 ## تفعيلُ مدينةٍ أثناءَ التشغيل
 
 العاملُ يعيدُ حسابَ مهامِّ المدنِ كلَّ 60 ثانية (`embedded_worker.jobs_reconciled` في السجلّ). لكن بينَ التفعيلِ وأوّلِ شوطٍ لمهامِّ المدينة، قد يبقى `/ready` فاشلًا في النسختَين حتّى دقيقةٍ أو أكثرَ قليلًا («لا نبضةَ لها»)، ويُخرجُهما HAProxy خلالَها. **فعِّلِ المدنَ قبلَ فتحِ التجربةِ أو في وقتٍ هادئ.** وإيقافُ مدينةٍ لا يُزيلُ مهامَّها إلّا بإعادةِ `gateway-1`:
