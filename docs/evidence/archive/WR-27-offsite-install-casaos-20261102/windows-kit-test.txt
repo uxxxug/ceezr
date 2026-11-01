@@ -1,0 +1,25 @@
+# GitHub Actions run 41351085357 (windows-latest, Git Bash) — kit sha256 2b9e0c4da0a189df8524a669895768ee5681dee75022406ed99e2fd8fe5dd998
+# windows kit test 2026-11-01T21:16:25Z MINGW64_NT-10.0-26100 3.6.10-5a1665c8.x86_64
+# bash=5.3.15(2)-release ssh=/usr/bin/ssh (OpenSSH_10.6p1, OpenSSL 3.5.9 29 Sep 2026) keygen=/usr/bin/ssh-keygen age=v1.3.2 rclone=rclone v1.75.2
+# HOME=/d/a/_temp/Ahmed Ali
+PASS  HOME contains a space (like C:/Users/Ahmed Ali)
+PASS  kit: sha256sum -c SHA256SUMS (5 OK)
+PASS  kit: no CRLF after PowerShell Expand-Archive
+PASS  kit: bash -n on all scripts
+PASS  host_kit_ok with Git ssh-keygen
+PASS  host_kit_ok with native Windows ssh-keygen (OpenSSH_for_Windows_9.5p2, LibreSSL 3.8.2)
+PASS  connect: wrong suffix ⇒ stop, no ssh call, nothing pinned
+PASS  connect: full run rc=0 (host pin → signer → native rclone OAuth → install via stdin)
+PASS  known_hosts pinned under spaced HOME
+PASS  allowed_signers = server signing key
+PASS  rclone (native Windows) exchanged the code with the token endpoint
+PASS  server received rclone section via stdin (client_id, drive.file, refresh token)
+PASS  laptop temp rclone config removed
+PASS  no-input ssh calls use -n
+PASS  ssh got the spaced known_hosts path quoted (ssh splits unquoted values at spaces)
+PASS  client secret not in logs or ~/.wasla
+PASS  restore-test: signature (Linux-signed) verified, sha256, native age -d, binary pipe intact ⇒ PASS
+PASS  restore-test: tampered ciphertext ⇒ FAIL before decrypt
+PASS  restore-test: edited known_hosts ⇒ refuse, no ssh
+PASS  no age secret in logs
+# windows kit test pass=20 fail=0

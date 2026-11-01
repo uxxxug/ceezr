@@ -1,0 +1,104 @@
+# baseline 2026-11-01T21:05:28Z
+wasla-db-1|28ba93111c42|postgis/postgis:17-3.5|Up 3 days (healthy)
+wasla-gateway-1-1|425c1bea26f0|wasla/gateway:78841453|Up 5 hours (healthy)
+wasla-gateway-2-1|674f4961134d|wasla/gateway:78841453|Up 5 hours (healthy)
+wasla-lb-1|c4cbb6588e3d|haproxy:3.2-alpine|Up 8 hours
+wasla-miniapp-1|498804bfab2c|nginx:1.29-alpine|Up 7 hours (healthy)
+wasla-redis-1|f1878bbb57fe|redis:7-alpine|Up 3 days (healthy)
+wasla-redis-rest-1|84b9b89908bc|wasla/upstash-rest-shim:4d8c2b7c|Up 2 days
+wasla-storage-1|a6829792e981|supabase/storage-api:v1.84.36|Up 2 days
+wasla-storage-db-1|82a6f99d6d9d|postgres:17-alpine|Up 2 days (healthy)
+## inspect
+/wasla-db-1 started=2026-10-29T16:28:47.502163711Z restarts=1 health=healthy cfg=postgis/postgis:17-3.5
+/wasla-gateway-1-1 started=2026-11-01T15:37:43.748373986Z restarts=0 health=healthy cfg=wasla/gateway:78841453
+/wasla-gateway-2-1 started=2026-11-01T15:37:28.407164593Z restarts=0 health=healthy cfg=wasla/gateway:78841453
+/wasla-lb-1 started=2026-11-01T12:59:19.716828516Z restarts=0 health=none cfg=haproxy:3.2-alpine
+/wasla-miniapp-1 started=2026-11-01T13:51:16.663341511Z restarts=0 health=healthy cfg=nginx:1.29-alpine
+/wasla-redis-1 started=2026-10-29T16:28:15.287266874Z restarts=0 health=healthy cfg=redis:7-alpine
+/wasla-redis-rest-1 started=2026-10-29T23:19:04.509879878Z restarts=0 health=none cfg=wasla/upstash-rest-shim:4d8c2b7c
+/wasla-storage-1 started=2026-10-30T14:24:16.90149213Z restarts=0 health=none cfg=supabase/storage-api:v1.84.36@sha256:da5e5e14e48002ff7ec8f38e3ca2186edc9dc1940c45b6b17b649fca87cd3f8e
+/wasla-storage-db-1 started=2026-10-30T14:24:06.264587052Z restarts=0 health=healthy cfg=postgres:17-alpine
+## compose sha
+b55c38f18f102855ca2803ed65dce4371cb2388a681e491072089de8ab8fd937 /opt/wasla/compose.yml
+cf750372f4766af5595436a32e72adf451cb9bdfe6ef0e64f06a7a54a3ac7a46 /opt/wasla/.env
+62e77b65171666e15d986c0931effced5ae7e6104c7c4991eb7543df8c89d94c /opt/wasla/haproxy.cfg
+5451201df7f977373ef65686def10c206ad9b4ea7a969aa0b3eab3af70caeff2 /opt/wasla/miniapp-nginx.conf
+06bfa3dff2080d71f4bad4dd07b93aaf17fb16b8f8122835ff229551e872c862 /opt/wasla/shim-overlay/Dockerfile
+2413261e10f44b09d376d0165a65878f30f6a20e4229aa705fce17ebc2b26fa8 /etc/systemd/system/wasla-backup.service
+ef5741118cb4d02d7cd870fe27f0c965955247616f06c6da7a5ccacb26582cde /etc/systemd/system/wasla-backup.timer
+## /etc/wasla
+-rw------- root root db.env
+-rw------- root root gateway.env
+-rw------- root root gateway.env.bak-pre-25932d35
+-rw------- root root gateway.env.bak-pretrial-20261030T123330Z
+-rw------- root root ingress.env
+-rw------- root root ingress.env.bak-pre-app-20261101T150731Z
+-rw------- root root public.env
+-rw------- root root public.env.bak-pre-app-20261101T150731Z
+-rw------- root root public.env.bak-pre-storage
+-rw------- 999 systemd-journal redis.conf
+-rw------- root root shim.env
+-rw------- root root signal.env
+-rw------- root root storage-client.env
+-rw------- root root storage.env
+## timers
+Sun 2026-11-01 21:06:04 UTC      35s Sun 2026-11-01 21:05:04 UTC    24s ago wasla-tunnel-sync.timer        wasla-tunnel-sync.service
+Mon 2026-11-02 03:38:16 UTC       6h Sun 2026-11-01 03:34:24 UTC    17h ago wasla-backup.timer             wasla-backup.service
+## local backups (last 3 days)
+2026-10-29T22:16 600 114 waslah-20261029T221636Z.dump.sha256
+2026-10-29T22:16 600 1579 config-20261029T221636Z.tgz
+2026-10-29T22:16 600 2058113 waslah-20261029T221636Z.dump
+2026-10-29T22:16 644 2058113 pre-migrate-20261029T221646Z.dump
+2026-10-29T23:18 600 114 waslah-20261029T231818Z.dump.sha256
+2026-10-29T23:18 600 1579 config-20261029T231818Z.tgz
+2026-10-29T23:18 600 2123445 waslah-20261029T231818Z.dump
+2026-10-29T23:18 644 2123445 pre-migrate-20261029T231830Z.dump
+2026-10-30T03:30 600 114 waslah-20261030T033024Z.dump.sha256
+2026-10-30T03:30 600 1579 config-20261030T033024Z.tgz
+2026-10-30T03:30 600 2123870 waslah-20261030T033024Z.dump
+2026-10-30T14:30 600 114 waslah-20261030T143018Z.dump.sha256
+2026-10-30T14:30 600 118 storage-db-20261030T143018Z.dump.sha256
+2026-10-30T14:30 600 120 storage-files-20261030T143018Z.tar.sha256
+2026-10-30T14:30 600 142588 storage-db-20261030T143018Z.dump
+2026-10-30T14:30 600 1517 storage-roles-20261030T143018Z.sql
+2026-10-30T14:30 600 152 storage-files-20261030T143018Z.sha256
+2026-10-30T14:30 600 2126038 waslah-20261030T143018Z.dump
+2026-10-30T14:30 600 304640 storage-files-20261030T143018Z.tar
+2026-10-30T14:30 600 6225 config-20261030T143018Z.tgz
+2026-10-30T15:01 600 114 waslah-20261030T150113Z.dump.sha256
+2026-10-30T15:01 600 118 storage-db-20261030T150113Z.dump.sha256
+2026-10-30T15:01 600 120 storage-files-20261030T150113Z.tar.sha256
+2026-10-30T15:01 600 142719 storage-db-20261030T150113Z.dump
+2026-10-30T15:01 600 1517 storage-roles-20261030T150113Z.sql
+2026-10-30T15:01 600 2126057 waslah-20261030T150113Z.dump
+2026-10-30T15:01 600 308 storage-files-20261030T150113Z.sha256
+2026-10-30T15:01 600 309248 storage-files-20261030T150113Z.tar
+2026-10-30T15:01 600 6231 config-20261030T150113Z.tgz
+2026-10-31T03:35 600 114 waslah-20261031T033555Z.dump.sha256
+2026-10-31T03:35 600 118 storage-db-20261031T033555Z.dump.sha256
+2026-10-31T03:35 600 120 storage-files-20261031T033555Z.tar.sha256
+2026-10-31T03:35 600 142719 storage-db-20261031T033555Z.dump
+2026-10-31T03:35 600 1517 storage-roles-20261031T033555Z.sql
+2026-10-31T03:35 600 2131435 waslah-20261031T033555Z.dump
+2026-10-31T03:35 600 308 storage-files-20261031T033555Z.sha256
+2026-10-31T03:35 600 309248 storage-files-20261031T033555Z.tar
+2026-10-31T03:35 600 6231 config-20261031T033555Z.tgz
+2026-11-01T03:34 600 114 waslah-20261101T033424Z.dump.sha256
+2026-11-01T03:34 600 118 storage-db-20261101T033424Z.dump.sha256
+2026-11-01T03:34 600 120 storage-files-20261101T033424Z.tar.sha256
+2026-11-01T03:34 600 142719 storage-db-20261101T033424Z.dump
+2026-11-01T03:34 600 1517 storage-roles-20261101T033424Z.sql
+2026-11-01T03:34 600 2133788 waslah-20261101T033424Z.dump
+2026-11-01T03:34 600 308 storage-files-20261101T033424Z.sha256
+2026-11-01T03:34 600 309248 storage-files-20261101T033424Z.tar
+2026-11-01T03:34 600 6231 config-20261101T033424Z.tgz
+2026-11-01T15:50 600 114 waslah-20261101T155009Z.dump.sha256
+2026-11-01T15:50 600 118 storage-db-20261101T155009Z.dump.sha256
+2026-11-01T15:50 600 120 storage-files-20261101T155009Z.tar.sha256
+2026-11-01T15:50 600 142719 storage-db-20261101T155009Z.dump
+2026-11-01T15:50 600 1517 storage-roles-20261101T155009Z.sql
+2026-11-01T15:50 600 2135335 waslah-20261101T155009Z.dump
+2026-11-01T15:50 600 308 storage-files-20261101T155009Z.sha256
+2026-11-01T15:50 600 309248 storage-files-20261101T155009Z.tar
+2026-11-01T15:50 600 6782 config-20261101T155009Z.tgz
+200 200 200 

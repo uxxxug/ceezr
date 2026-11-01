@@ -1,0 +1,43 @@
+{
+  "id": "wr-27-offsite-install-casaos-20261102",
+  "goal": "§27 النشرُ والتحقّق: تثبيتُ كلِّ ملفّاتِ WR-27 للنسخِ خارجَ الموقعِ على CasaOS من main عندَ 9b8c3b1b بصلاحيّاتِها مع نسخةِ تراجع، والتحقّقُ من أنّ offsite-setup.sh --signing-key يعملُ دونَ OAuth، وبقاءُ الرفعِ معطّلاً (offsite-skip no_config) والنسخِ المحلّيّةِ مستمرّة، واختبارُ حقيبةِ اللابتوبِ فعليّاً على Windows Git Bash وإصلاحُ ما كشفَه. دونَ offsite.env أو rclone.conf ودونَ ربطِ Drive.",
+  "canonical_source": [
+    "docs/roadmap/execution/ORDER-20261012.md",
+    "docs/adr/0297-casaos-offsite-backup-age-google-drive.md",
+    "docs/adr/0299-casaos-offsite-laptop-ssh-host-key-pinning.md"
+  ],
+  "implementation": [
+    "deploy/casaos/laptop/wasla-laptop-lib.sh",
+    "deploy/casaos/laptop/wasla-offsite-connect.sh",
+    "deploy/casaos/tests/offsite-kit-fixtures.sh",
+    "deploy/casaos/tests/offsite-kit-windows-test.sh",
+    ".github/workflows/offsite-kit-windows.yml"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [
+    "docs/roadmap/execution/STATUS.md",
+    "deploy/casaos/OFFSITE-BACKUP.md",
+    "deploy/casaos/README.md",
+    "deploy/casaos/laptop/README-AR.md",
+    "docs/evidence/production/WR-27-offsite-install-casaos-20261102.md"
+  ],
+  "decision": "لا قرارَ معماريّاً جديداً. التثبيتُ يُؤخَذُ بـgit show <commit>:deploy/casaos/<f> ويُتحقَّقُ بـsha256 قبلَه وبعدَه، والسكربتاتُ 700 والمكتبتان 600 root:root، ونسخةُ تراجعٍ مع ROLLBACK.sh قبلَ أيِّ تغيير. مسارُ known_hosts يُمرَّرُ لـssh بينَ علامتَي تنصيصٍ داخلَ القيمة (ssh يقسمُها عندَ المسافات)، والبصمةُ تُحسَبُ من stdin لا من /dev/fd.",
+  "tests": [
+    "offsite-kit-windows (windows-latest، Git Bash، age وrclone أصليّان): pass=20 fail=0",
+    "offsite-laptop-e2e-client.sh عبرَ SSH حقيقيّ من مجلّدٍ فيه مسافة: pass=19 fail=0",
+    "offsite-selftest.sh على الخادم: pass=132 fail=0",
+    "على CasaOS: sha256 10/10، --signing-key مرّتان بالمفتاحِ نفسِه وتوقيعٌ Good، offsite-skip no_config، backup-ok، drill-PASS، الحاوياتُ التسعُ وتجزئاتُ الإعدادِ بلا تغيير، /ready 200",
+    "الحقيبةُ ضدَّ الإنتاج عبرَ SSH حقيقيّ: تثبيتُ مفتاحَي الخادمِ والتوقيعِ والتوقّفُ عندَ Client ID غيرِ صالح، بلا كتابة",
+    "build-kit.sh: بناءانِ بـsha256 واحد",
+    "shellcheck -S warning · bun run lint · check-state-sync · check-docs-hygiene · check-docs-budget · check-execution-roadmap · check-roadmap · check-adr-numbering"
+  ],
+  "evidence": "docs/evidence/production/WR-27-offsite-install-casaos-20261102.md",
+  "constraints": [
+    "لا offsite.env ولا rclone.conf ولا ربطَ لـDrive ولا رفعَ خارجيّ",
+    "لا مساسَ بالحاوياتِ التسعِ ولا بإعداداتِها غيرِ المتعلّقةِ بالنسخ",
+    "لا تغييرَ لـDNS أو المنافذ أو مفاتيحِ الخادم",
+    "render.yaml بلا مساس"
+  ],
+  "limitations": "Google Drive الحقيقيُّ وOAuth وmacOS NOT TESTED. Windows اختُبرَ على windows-latest (NT 10.0.26100) بخادمٍ محاكًى؛ SSH حقيقيٌّ عبرَ cloudflared من Windows والتثبيتُ بـwinget وWindows 11 المكتبيّ NOT TESTED. نظامُ لابتوبِ المالكِ غيرُ معروف. الربطُ ينتظرُ موافقةَ المالك."
+}
