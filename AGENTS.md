@@ -10,7 +10,7 @@
 
 | المكوّن | المسار | ملاحظة |
 |---|---|---|
-| البوّابة (HTTP + webhooks + Socket.IO + `/admin`) | `apps/gateway` | خدمةُ Render `waslah-gateway` (Docker، Frankfurt). **والعاملُ الخلفيُّ يعملُ داخلَ عمليّتِها** (`PROCESS_TOPOLOGY=single-process` في `render.yaml`) |
+| البوّابة (HTTP + webhooks + Socket.IO + `/admin`) | `apps/gateway` | **منصّةُ التشغيلِ المستهدفة: خادمُ CasaOS** (`deploy/casaos/`، ADR 0292/0293/0295): نسختانِ خلفَ HAProxy، والعاملُ داخلَ `gateway-1`، والنطاقُ `waslareev.dpdns.org` (`app`/`api` ← `:8443`، `admin` ← `:8444`). ملفّاتُ Render (`render.yaml`) باقيةٌ في المستودعِ ولا تُستعمَلُ للنشر |
 | الـMini App | `apps/miniapp` | Vite + Preact (`preact/compat`، ADR 0258). موقعٌ ساكنٌ `waslah-miniapp` |
 | العاملُ ولوحتا الإدارة | `apps/workers` · `apps/admin` · `apps/admin-dashboard` | |
 | المنطق | `packages/{domain,application,infrastructure,shared,maps,tracking,agent-core}` | |
@@ -62,8 +62,9 @@ gh pr list --repo uxxxug/ceezr --state open
 git branch -r
 
 # الإنتاج (قراءةٌ عامّة لا تغيّرُ شيئًا)
-curl -s https://waslah-gateway.onrender.com/ready     # المتوقَّع: "status":"ready"
-# ما الـcommitُ المنشور؟ من Render (deploys للخدمتين)، لا من الوثائق.
+curl -s https://api.waslareev.dpdns.org/ready     # المتوقَّع: "status":"ready" (CasaOS)
+# ما الـcommitُ المنشور؟ من الخادم: TAG في /opt/wasla/.env وصورةُ wasla/gateway:<TAG>، لا من الوثائق.
+# (لقطةُ 2026-10-13 أدناه تاريخيّةٌ من عهدِ Render، وخدمةُ Render موقوفةٌ ولا تُستعمَل.)
 
 # الفحوصُ المحلّيّةُ نفسُها التي يشغّلُها CI
 bun install
