@@ -35,7 +35,7 @@ if [ "$(docker inspect -f '{{.State.Running}}' wasla-storage-1 2>/dev/null)" = "
   storage_note="storage_files=$(wc -l < "$SM") storage_tar=$(stat -c %s "$SF")"
 fi
 
-cfg=(); for f in db.env gateway.env shim.env redis.conf signal.env public.env storage.env storage-client.env; do
+cfg=(); for f in db.env gateway.env shim.env redis.conf signal.env public.env ingress.env storage.env storage-client.env; do
   [ -f "/etc/wasla/$f" ] && cfg+=("etc/wasla/$f"); done
 for f in .env compose.yml haproxy.cfg; do [ -f "/opt/wasla/$f" ] && cfg+=("opt/wasla/$f"); done
 tar -C / -czf "$D/config-$TS.tgz" "${cfg[@]}"
