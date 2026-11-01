@@ -10,11 +10,16 @@
     "tests/unit/http-object-existence-checker.test.ts",
     "deploy/casaos/backup.sh"
   ],
-  "state": ["docs/SYSTEM_STATE.md"],
-  "roadmap": ["ROADMAP.md"],
+  "state": [
+    "docs/SYSTEM_STATE.md"
+  ],
+  "roadmap": [
+    "ROADMAP.md"
+  ],
   "affected_docs": [
     "docs/roadmap/execution/STATUS.md",
-    "docs/evidence/production/WR-27-handover-baseline-20261101.md"
+    "docs/evidence/production/WR-27-handover-baseline-20261101.md",
+    "docs/evidence/production/WR-27-public-base-app-switch-20261101.md"
   ],
   "decision": "HEAD 200 ⇒ موجود، HEAD 404 ⇒ غائب (Supabase المستضاف). HEAD 400 ⇒ GET بـRange bytes=0-0: 200/206 ⇒ موجود، 404 ⇒ غائب، 400 بجسمٍ code=NoSuchKey ⇒ غائب، وكلُّ ما سواه (NoSuchBucket لمفتاحٍ خاطئٍ أو دلوٍ غائب، جسمٌ غيرُ مفهوم، شبكة، 5xx، 401/403) ⇒ CHECKER_UNAVAILABLE. لا مسارَ يقبلُ كائنًا غائبًا.",
   "tests": [
