@@ -20,7 +20,17 @@
     "deploy/casaos/OFFSITE-BACKUP.md",
     "deploy/casaos/README.md",
     "deploy/casaos/laptop/README-AR.md",
-    "docs/evidence/production/WR-27-offsite-install-casaos-20261102.md"
+    "docs/evidence/production/WR-27-offsite-install-casaos-20261102.md",
+    "docs/evidence/archive/WR-27-offsite-install-casaos-20261102/SHA256SUMS",
+    "docs/evidence/archive/WR-27-offsite-install-casaos-20261102/after.txt",
+    "docs/evidence/archive/WR-27-offsite-install-casaos-20261102/baseline.txt",
+    "docs/evidence/archive/WR-27-offsite-install-casaos-20261102/e2e-client-space.txt",
+    "docs/evidence/archive/WR-27-offsite-install-casaos-20261102/installed-SHA256SUMS.9b8c3b1b",
+    "docs/evidence/archive/WR-27-offsite-install-casaos-20261102/kit-connect-prod.txt",
+    "docs/evidence/archive/WR-27-offsite-install-casaos-20261102/selftest.txt",
+    "docs/evidence/archive/WR-27-offsite-install-casaos-20261102/verify-backup.txt",
+    "docs/evidence/archive/WR-27-offsite-install-casaos-20261102/verify-setup.txt",
+    "docs/evidence/archive/WR-27-offsite-install-casaos-20261102/windows-kit-test.txt"
   ],
   "decision": "لا قرارَ معماريّاً جديداً. التثبيتُ يُؤخَذُ بـgit show <commit>:deploy/casaos/<f> ويُتحقَّقُ بـsha256 قبلَه وبعدَه، والسكربتاتُ 700 والمكتبتان 600 root:root، ونسخةُ تراجعٍ مع ROLLBACK.sh قبلَ أيِّ تغيير. مسارُ known_hosts يُمرَّرُ لـssh بينَ علامتَي تنصيصٍ داخلَ القيمة (ssh يقسمُها عندَ المسافات)، والبصمةُ تُحسَبُ من stdin لا من /dev/fd.",
   "tests": [
