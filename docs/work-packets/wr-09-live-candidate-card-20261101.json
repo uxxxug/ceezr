@@ -19,7 +19,10 @@
   ],
   "state": ["docs/SYSTEM_STATE.md"],
   "roadmap": ["ROADMAP.md"],
-  "affected_docs": ["docs/roadmap/execution/STATUS.md", "docs/adr/0296-live-candidate-card-and-visible-acks.md"],
+  "affected_docs": [
+    "docs/roadmap/execution/STATUS.md",
+    "docs/adr/0296-live-candidate-card-and-visible-acks.md"
+  ],
   "decision": "طلبُ المالكِ 2026-11-01: بطاقةُ السائقِ القابلِ أمامَ الزبونِ بمعلوماتِه وتقييماتِه ثلاثينَ ثانيةً بعدّادٍ ظاهرٍ وزرِّ قبولٍ أو بحثٍ عن غيره، والإشعاراتُ تصلُ داخلَ Mini App وخارجَ تيليجرام.",
   "tests": [
     "tests/unit/wr-09-candidate-notices.test.ts — إشارةٌ لغرفةِ الراكبِ مع البطاقة، وفشلُها لا يمنعُ البطاقة، والمرشَّحُ الفائتُ لا إشارةَ له",
@@ -28,6 +31,10 @@
     "check-system-screens-policy و check-i18n و check-performance-budget و measure-first-paint"
   ],
   "evidence": "docs/roadmap/execution/STATUS.md (صفّ WR-09)",
-  "constraints": ["لا هجرة", "لا تغييرَ في عتباتِ السعةِ ولا في إعداداتِ المدنِ من الكود", "لا استقصاءَ دوريّ (ADR 0035 §٤)"],
+  "constraints": [
+    "لا هجرة",
+    "لا تغييرَ في عتباتِ السعةِ ولا في إعداداتِ المدنِ من الكود",
+    "لا استقصاءَ دوريّ (ADR 0035 §٤)"
+  ],
   "limitations": "لم يُقَس على جهازٍ حقيقيٍّ في تيليجرام بعد؛ ينتظرُ تجربةَ المالكِ بسائقٍ وراكب. الراكبُ داخلَ التطبيقِ تصلُه بطاقةُ تيليجرام أيضًا للمرشَّح."
 }
