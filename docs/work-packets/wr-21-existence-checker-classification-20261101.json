@@ -10,12 +10,8 @@
     "tests/unit/http-object-existence-checker.test.ts",
     "deploy/casaos/backup.sh"
   ],
-  "state": [
-    "docs/SYSTEM_STATE.md"
-  ],
-  "roadmap": [
-    "ROADMAP.md"
-  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
   "affected_docs": [
     "docs/roadmap/execution/STATUS.md",
     "docs/evidence/production/WR-27-handover-baseline-20261101.md",
