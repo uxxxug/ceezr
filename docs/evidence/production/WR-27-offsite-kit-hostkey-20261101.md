@@ -41,7 +41,7 @@
 
 ### أ) self-test على الخادم (`offsite-selftest.sh`): **pass=132 fail=0**
 
-- السجلُّ الكامل: [`WR-27-offsite-kit-hostkey-20261101/selftest.txt`](WR-27-offsite-kit-hostkey-20261101/selftest.txt).
+- السجلُّ الكامل: [`WR-27-offsite-kit-hostkey-20261101/selftest.txt`](../archive/WR-27-offsite-kit-hostkey-20261101/selftest.txt).
 - الحالاتُ الجديدة:
   - لاحقةٌ خاطئةٌ ⇒ رفضٌ بلا أيِّ استدعاءٍ لـssh، وبلا `known_hosts` ولا `allowed_signers`؛
   - حقيبةٌ معدَّلة ⇒ رفضٌ قبلَ السؤال؛
@@ -51,7 +51,7 @@
 
 ### ب) اتصالٌ حقيقيٌّ من لابتوب Linux عبرَ SSH حقيقيّ (`offsite-laptop-e2e-client.sh`): **pass=19 fail=0**
 
-- السجلّ: [`WR-27-offsite-kit-hostkey-20261101/e2e-client.txt`](WR-27-offsite-kit-hostkey-20261101/e2e-client.txt).
+- السجلّ: [`WR-27-offsite-kit-hostkey-20261101/e2e-client.txt`](../archive/WR-27-offsite-kit-hostkey-20261101/e2e-client.txt).
 - البيئةُ اصطناعيّةٌ على الخادم (`offsite-laptop-e2e-server.sh up/down`) و«Drive» محلّيّ، بـOpenSSH 10.2p1 وage 1.3.2.
 
 | الحالة | النتيجة |
