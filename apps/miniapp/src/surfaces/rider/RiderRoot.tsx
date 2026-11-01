@@ -676,6 +676,7 @@ export default function RiderRoot({ language, onLanguageChanged, entry }: Langua
             onOpenSos={onOpenSos}
             onActiveRide={(orderId) => setFollowed(orderId)}
             onBack={leaveSearch}
+            liveTripEvents
           />
         </Deferred>
       </ScreenFrame>

@@ -142,6 +142,66 @@ describe("WR-09 — إشعارُ المرشَّحِ للراكب", () => {
     expect(result.ok && result.value.messageId).toBeNull();
     expect(result.ok && result.value.failure).toBe("TELEGRAM_REJECTED");
   });
+
+  test("ADR 0296: متصلٌ بـMini App ⇒ إشارةٌ لغرفتِه فتظهرُ البطاقةُ فورًا، والبطاقةُ في تيليجرامَ تُرسَلُ معها", async () => {
+    const rec = recorder();
+    const signalled: string[] = [];
+    const handler = createRiderTripNoticeHandler({
+      facts: { read: async () => null },
+      candidates: { read: async () => FACTS },
+      sender: rec.sender,
+      miniAppUrl: MINIAPP,
+      app: {
+        findReceipt: async () => new Date(),
+        signalRider: async (tg, order) => {
+          signalled.push(`${tg}:${order}`);
+          return true;
+        },
+      },
+    });
+    const result = await handler(
+      delivery("rider_trip_notice", { event: "CANDIDATE", order_id: ORDER, offer_id: OFFER }),
+    );
+    expect(signalled).toEqual([`${FACTS.riderTelegramId}:${ORDER}`]);
+    // إيصالُ العميلِ لا يُغني عن البطاقة: المرشَّحُ ينتظرُ ثوانيَ، والراكبُ قد يكونُ خارجَ التطبيق.
+    expect(result.ok && result.value.messageId).toBe("m-1");
+    expect(rec.sent).toHaveLength(1);
+  });
+
+  test("ADR 0296: فشلُ الإشارةِ لا يمنعُ البطاقة، ومرشَّحٌ فائتٌ لا إشارةَ له", async () => {
+    const rec = recorder();
+    let calls = 0;
+    const app = {
+      findReceipt: async () => null,
+      signalRider: async () => {
+        calls += 1;
+        throw new Error("socket down");
+      },
+    };
+    const live = createRiderTripNoticeHandler({
+      facts: { read: async () => null },
+      candidates: { read: async () => FACTS },
+      sender: rec.sender,
+      miniAppUrl: MINIAPP,
+      app,
+    });
+    const ok = await live(
+      delivery("rider_trip_notice", { event: "CANDIDATE", order_id: ORDER, offer_id: OFFER }),
+    );
+    expect(ok.ok && ok.value.messageId).toBe("m-1");
+    expect(calls).toBe(1);
+    const stale = createRiderTripNoticeHandler({
+      facts: { read: async () => null },
+      candidates: { read: async () => ({ ...FACTS, live: false }) },
+      sender: rec.sender,
+      miniAppUrl: MINIAPP,
+      app,
+    });
+    await stale(
+      delivery("rider_trip_notice", { event: "CANDIDATE", order_id: ORDER, offer_id: OFFER }),
+    );
+    expect(calls).toBe(1);
+  });
 });
 
 describe("WR-09 — إشعارُ المآلِ للسائق", () => {

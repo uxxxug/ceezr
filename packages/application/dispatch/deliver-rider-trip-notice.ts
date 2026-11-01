@@ -100,11 +100,15 @@ export function createRiderTripNoticeHandler(
 ): NotificationHandler {
   return async (delivery) => {
     if (delivery.payload.event === "CANDIDATE" && deps.candidates !== undefined) {
+      const app = deps.app;
       return deliverRiderCandidateNotice(delivery, {
         candidates: deps.candidates,
         sender: deps.sender,
         miniAppUrl: deps.miniAppUrl,
         ...(deps.log === undefined ? {} : { log: deps.log }),
+        ...(app === undefined
+          ? {}
+          : { signalRider: (tg: string, order: string) => app.signalRider(tg, order) }),
       });
     }
     const orderId = delivery.payload.order_id;

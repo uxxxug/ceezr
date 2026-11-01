@@ -24,6 +24,7 @@ import {
   miniAppTranslator,
 } from "../../../../../../packages/shared/i18n/miniapp/core.ts";
 import { UiCard, UiTimer } from "../../../system/ui/index.tsx";
+import { useSecondsLeft } from "../../../system/use-seconds-left.ts";
 import {
   type ApiRideCandidate,
   decideRideCandidate,
@@ -110,17 +111,36 @@ export function RideCandidateCard({
   const [outcome, setOutcome] = useState<Outcome>({ kind: "idle" });
   /** ردٌّ متأخِّرٌ لقراءةٍ قديمةٍ يُطرَح. */
   const issued = useRef(0);
+  const shownRef = useRef<Shown>(shown);
+  shownRef.current = shown;
 
   const load = useCallback(async () => {
     const ticket = ++issued.current;
     try {
       const response = await read(orderId);
       if (ticket !== issued.current) return;
-      setShown(
-        response.candidate === null
-          ? { kind: "none" }
-          : { kind: "candidate", candidate: response.candidate, readAtMs: now() },
-      );
+      const wasShowing = shownRef.current.kind === "candidate";
+      if (response.candidate === null) {
+        // ADR 0296: كانَ أمامَه سائقٌ ثمّ غابَ بلا قرارٍ منه ⇒ فاتتِ المهلة (أو ألغى السائق)،
+        // والطلبُ عادَ للبحث — يُقالُ له ذلك صراحةً بدلَ أن تختفيَ البطاقةُ صامتة.
+        if (wasShowing) {
+          setOutcome((o) =>
+            o.kind === "idle"
+              ? { kind: "done", key: "rider.search.candidate.expiredContinuing" }
+              : o,
+          );
+        }
+        setShown({ kind: "none" });
+        return;
+      }
+      if (
+        !wasShowing ||
+        (shownRef.current.kind === "candidate" &&
+          shownRef.current.candidate.driver_id !== response.candidate.driver_id)
+      ) {
+        setOutcome((o) => (o.kind === "busy" ? o : { kind: "idle" }));
+      }
+      setShown({ kind: "candidate", candidate: response.candidate, readAtMs: now() });
     } catch {
       // القراءةُ تكميليّة: فشلُها لا يُسقِطُ شاشةَ البحث، والبطاقةُ تبقى على آخرِ حال.
     }
@@ -164,6 +184,21 @@ export function RideCandidateCard({
     [decide, load, onDecided, orderId],
   );
 
+  /**
+   * ADR 0296 — عدّادٌ ظاهرٌ يتناقصُ كلَّ ثانيةٍ من موعدٍ مطلقٍ (لحظةُ القراءةِ + ما قالَه
+   * الخادم). وعندَ الصفرِ قراءةٌ واحدةٌ للمآلِ الحقيقيّ — لا استقصاء.
+   */
+  const deadlineMs =
+    shown.kind === "candidate"
+      ? shown.readAtMs + Math.max(0, shown.candidate.seconds_left) * 1000
+      : null;
+  const live = useSecondsLeft(deadlineMs, {
+    now,
+    onReached: () => {
+      void load();
+    },
+  });
+
   if (shown.kind === "none") {
     if (outcome.kind === "done") {
       return (
@@ -183,8 +218,13 @@ export function RideCandidateCard({
   }
 
   const c = shown.candidate;
-  const remaining = candidateSecondsAtRender(c.seconds_left, now() - shown.readAtMs);
-  const total = Math.max(c.seconds_left, remaining);
+  const remaining = Math.min(
+    live,
+    candidateSecondsAtRender(c.seconds_left, now() - shown.readAtMs),
+  );
+  // الشريطُ يُرسَمُ مرّةً من لحظةِ القراءة (حركةُ CSS)، والرقمُ وحدَه يتناقصُ كلَّ ثانية.
+  const atRead = Math.max(0, Math.ceil(c.seconds_left));
+  const total = Math.max(atRead, 1);
   const unknown = "—";
   const rating =
     c.rating_average === null || c.rating_count === 0
@@ -206,10 +246,10 @@ export function RideCandidateCard({
           label={t("rider.search.candidate.timerLabel")}
           deadlineText={
             remaining > 0
-              ? t("rider.search.candidate.leftAtRender").replace("{value}", String(remaining))
+              ? t("rider.search.candidate.secondsLeft").replace("{value}", String(remaining))
               : t("rider.search.candidate.elapsed")
           }
-          remainingSeconds={remaining}
+          remainingSeconds={atRead}
           totalSeconds={total}
           tone={remaining <= 0 ? "bad" : remaining <= URGENT_SECONDS ? "amber" : "neutral"}
         />
@@ -238,7 +278,7 @@ export function RideCandidateCard({
           <button
             type="button"
             className="sys__action rs__candidate-accept"
-            disabled={busy}
+            disabled={busy || remaining <= 0}
             onClick={() => void choose(c.driver_id, "accept")}
           >
             {t("rider.search.candidate.accept")}

@@ -52,6 +52,7 @@ import {
   miniAppTranslator,
 } from "../../../../../../packages/shared/i18n/miniapp/core.ts";
 import { EmptyState } from "../../../system/EmptyState.tsx";
+import { isSurfaceVisible } from "../../../system/surface-visibility.ts";
 import { Glyph, IconChevron } from "../../../system/ui/icons.tsx";
 import { UiTimer } from "../../../system/ui/index.tsx";
 import { offerTimerProps } from "./offer-timer.ts";
@@ -297,6 +298,8 @@ export function OffersScreen({
     (board: DriverOffersResponse) => {
       const ids = board.offers.map((offer) => offer.offer_id);
       if (ids.length === 0) return;
+      // ADR 0296: لا إيصالَ والشاشةُ مخفيّة — وإلّا أُغلقَ الصفُّ بلا بطاقةِ بوتٍ وسكتَ الهاتف.
+      if (!isSurfaceVisible()) return;
       void ackBoard(ids).catch(() => undefined);
     },
     [ackBoard],
