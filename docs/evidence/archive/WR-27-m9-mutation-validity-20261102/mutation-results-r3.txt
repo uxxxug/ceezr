@@ -1,0 +1,90 @@
+## M0-baseline rc=0 # offsite stages test pass=134 fail=0
+## M9-server-link-allowed-while-enabled rc=1 # offsite stages test pass=126 fail=8
+FAIL  relink while enabled (server --link, other account on stdin) ⇒ link-FAIL nightly_enabled -- rc=0 want=1: linked=yes first_upload=none nightly=on 
+FAIL  server relink enabled side effects -- offsite.env dd2065071d76b253
+FAIL  nightly after refused relink: still uploads with the approved credential -- rc=1 want=0: backup-ok /tmp/wasla-stages-CMIDcK/srv/backups/waslah-20261102T062020Z.dump 200000 bytes storage=absent offsite-fail stage=li
+FAIL  CRED_FP binding -- 
+FAIL  nightly binding (ADR 0301): rclone-conf-replaced-by-other-account ⇒ refused -- missing /offsite-fail stage=credential_changed/: offsite-fail stage=link_changed reason=link_record 
+FAIL  nightly binding (ADR 0301): rclone-conf-missing ⇒ refused -- missing /offsite-fail stage=credential_changed/: offsite-fail stage=link_changed reason=link_record 
+## M10-kit-connect-no-enabled-stop rc=1 # offsite stages test pass=132 fail=2
+FAIL  relink while enabled: kit stops at --status (rc=1) before RELINK prompt and before Client ID -- missing /الرفعُ الليليُّ مفعَّلٌ على الخادم/: link-FAIL nightly_enabled الرفعُ ا�
+FAIL  kit relink enabled -- ssh -o StrictHostKeyChecking=yes -o UserKnownHostsFile="/tmp/wasla-stages-EUuP0y/Owner Home/.wasla/known_hosts" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlias=wasla-casaos -o HostKeyAlgorit
+## M11-reviewer-bug-both-link-layers-removed rc=1 # offsite stages test pass=118 fail=16
+FAIL  relink while enabled: kit stops at --status (rc=1) before RELINK prompt and before Client ID -- rc=0 want=1: nightly=on انتهى الربط: لم يُرفَعْ أيُّ ملفّ، والرفعُ الليليُّ
+FAIL  kit relink enabled -- ssh -o StrictHostKeyChecking=yes -o UserKnownHostsFile="/tmp/wasla-stages-keyTmP/Owner Home/.wasla/known_hosts" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlias=wasla-casaos -o HostKeyAlgorit
+FAIL  relink while enabled (server --link, other account on stdin) ⇒ link-FAIL nightly_enabled -- rc=0 want=1: linked=yes first_upload=none nightly=on 
+FAIL  server relink enabled side effects -- offsite.env a32d0d4ae2f45b98
+FAIL  CRED_FP binding -- 
+FAIL  nightly binding (ADR 0301): rclone-conf-replaced-by-other-account ⇒ refused -- rc=0 want=1: offsite-ok name=wasla-20261102T062126Z.tar.age bytes=215288 sha256=4b8d9f4eabe47287 signed=yes drive_md5=ok drive_sha256
+## M12-nightly-ignores-link-record rc=1 # offsite stages test pass=128 fail=6
+FAIL  nightly binding (ADR 0301): pending-relinked-out-of-band ⇒ refused -- rc=0 want=1: offsite-ok name=wasla-20261102T062206Z.tar.age bytes=215288 sha256=e08fe1d4d3734f7b signed=yes drive_md5=ok drive_sha256=ok tiers
+FAIL  nightly pending-relinked-out-of-band called rclone -- copyto wasla-gdrive:WASLA-Backups/daily/wasla-20261102T062206Z.tar.age;md5sum wasla-gdrive:WASLA-Backups/daily/wasla-20261102T062206Z.tar.age;cat wasla-gdrive:W
+FAIL  nightly binding (ADR 0301): pending-cred-fp-changed ⇒ refused -- rc=0 want=1: offsite-ok name=wasla-20261102T062206Z.tar.age bytes=215288 sha256=71923004b4589846 signed=yes drive_md5=ok drive_sha256=ok tiers=dail
+FAIL  nightly pending-cred-fp-changed called rclone -- copyto wasla-gdrive:WASLA-Backups/daily/wasla-20261102T062206Z.tar.age;md5sum wasla-gdrive:WASLA-Backups/daily/wasla-20261102T062206Z.tar.age;cat wasla-gdrive:WASLA-
+FAIL  nightly binding (ADR 0301): pending-missing ⇒ refused -- rc=0 want=1: offsite-ok name=wasla-20261102T062206Z.tar.age bytes=215288 sha256=b850bf819ce4f64a signed=yes drive_md5=ok drive_sha256=ok tiers=daily remote
+FAIL  nightly pending-missing called rclone -- copyto wasla-gdrive:WASLA-Backups/daily/wasla-20261102T062206Z.tar.age;md5sum wasla-gdrive:WASLA-Backups/daily/wasla-20261102T062206Z.tar.age;cat wasla-gdrive:WASLA-Backups/
+## M13-nightly-ignores-first-ok-record rc=1 # offsite stages test pass=132 fail=2
+FAIL  nightly binding (ADR 0301): first-ok-missing ⇒ refused -- rc=0 want=1: offsite-ok name=wasla-20261102T062244Z.tar.age bytes=215288 sha256=90a8f9c3970b9c5e signed=yes drive_md5=ok drive_sha256=ok tiers=daily remot
+FAIL  nightly first-ok-missing called rclone -- copyto wasla-gdrive:WASLA-Backups/daily/wasla-20261102T062244Z.tar.age;md5sum wasla-gdrive:WASLA-Backups/daily/wasla-20261102T062244Z.tar.age;cat wasla-gdrive:WASLA-Backups
+## M14-nightly-ignores-credential rc=1 # offsite stages test pass=132 fail=2
+FAIL  nightly binding (ADR 0301): rclone-conf-replaced-by-other-account ⇒ refused -- rc=0 want=1: offsite-ok name=wasla-20261102T062319Z.tar.age bytes=215288 sha256=b31b897b4af8f78a signed=yes drive_md5=ok drive_sha256
+FAIL  nightly rclone-conf-replaced-by-other-account called rclone -- copyto wasla-gdrive:WASLA-Backups/daily/wasla-20261102T062319Z.tar.age;md5sum wasla-gdrive:WASLA-Backups/daily/wasla-20261102T062319Z.tar.age;cat wasla
+## M15-nightly-accepts-unbound-config rc=1 # offsite stages test pass=132 fail=2
+FAIL  nightly binding (ADR 0301): offsite-env-without-cred-fp ⇒ refused -- missing /stage=link_changed reason=unbound_config/: offsite-fail stage=link_changed reason=link_record 
+FAIL  nightly binding (ADR 0301): offsite-env-without-link-id ⇒ refused -- missing /stage=link_changed reason=unbound_config/: offsite-fail stage=link_changed reason=link_record 
+## M16-cred-fp-ignores-refresh-token rc=1 # offsite stages test pass=123 fail=12
+FAIL  integrity (ADR 0301): rclone-conf-swapped-to-other-account ⇒ enable refused (credential_changed) -- rc=0 want=1: linked=yes first_upload=20261102T062406Z nightly=on 
+FAIL  integrity rclone-conf-swapped-to-other-account side effects -- env=yes writes=0
+FAIL  first upload refused when rclone.conf is not the linked credential -- missing /first-FAIL credential_changed/: first-FAIL nightly_already_enabled (الرفعُ الليليُّ مفعَّل؛ لا حاجةَ لأو
+FAIL  kit enable: lowercase/other word ⇒ cancelled -- rc=0 want=1: الرفعُ الليليُّ مفعَّلٌ مسبقاً. 
+FAIL  offsite.env after refusals -- 
+FAIL  test 9 first-ok -- 
+## M17-enable-skips-ciphertext-sha rc=1 # offsite stages test pass=122 fail=30
+FAIL  integrity (ADR 0301): ciphertext-same-size-bitflip ⇒ enable refused (ciphertext_mismatch) -- rc=0 want=1: linked=yes first_upload=20261102T062443Z nightly=on 
+FAIL  integrity ciphertext-same-size-bitflip side effects -- env=yes writes=0
+FAIL  integrity (ADR 0301): ciphertext-last-byte ⇒ enable refused (ciphertext_mismatch) -- rc=0 want=1: linked=yes first_upload=20261102T062443Z nightly=on 
+FAIL  integrity ciphertext-last-byte side effects -- env=yes writes=0
+FAIL  integrity (ADR 0301): ciphertext-replaced-same-size-same-age-header ⇒ enable refused (ciphertext_mismatch) -- rc=0 want=1: linked=yes first_upload=20261102T062443Z nightly=on 
+FAIL  integrity ciphertext-replaced-same-size-same-age-header side effects -- env=yes writes=0
+## M18-enable-skips-manifest-sha rc=1 # offsite stages test pass=124 fail=22
+FAIL  integrity (ADR 0301): manifest-edited-old-signature ⇒ enable refused (manifest_mismatch) -- missing /enable-FAIL manifest_mismatch/: enable-FAIL manifest_signature_invalid 
+FAIL  integrity (ADR 0301): manifest-same-fields-other-bytes-resigned ⇒ enable refused (manifest_mismatch) -- rc=0 want=1: linked=yes first_upload=20261102T062518Z nightly=on 
+FAIL  integrity manifest-same-fields-other-bytes-resigned side effects -- env=yes writes=0
+FAIL  integrity manifest-of-another-backup-resigned side effects -- env=yes writes=0
+FAIL  integrity manifest-truncated-resigned side effects -- env=yes writes=0
+FAIL  integrity signature-garbage side effects -- env=yes writes=0
+## M19-enable-skips-signature rc=1 # offsite stages test pass=120 fail=23
+FAIL  integrity (ADR 0301): signature-garbage ⇒ enable refused (manifest_signature_invalid) -- rc=0 want=1: linked=yes first_upload=20261102T062553Z nightly=on 
+FAIL  integrity signature-garbage side effects -- env=yes writes=0
+FAIL  integrity (ADR 0301): signature-empty ⇒ enable refused (manifest_signature_invalid) -- rc=0 want=1: linked=yes first_upload=20261102T062553Z nightly=on 
+FAIL  integrity signature-empty side effects -- env=yes writes=0
+FAIL  integrity (ADR 0301): signature-by-another-key ⇒ enable refused (manifest_signature_invalid) -- rc=0 want=1: linked=yes first_upload=20261102T062553Z nightly=on 
+FAIL  integrity signature-by-another-key side effects -- env=yes writes=0
+## M20-enable-skips-manifest-fields rc=1 # offsite stages test pass=125 fail=12
+FAIL  integrity (ADR 0301): manifest-other-recipient-with-matching-record-hash ⇒ enable refused (manifest_mismatch) -- rc=0 want=1: linked=yes first_upload=20261102T062628Z nightly=on 
+FAIL  integrity manifest-other-recipient-with-matching-record-hash side effects -- env=yes writes=0
+FAIL  integrity extra-file-in-set side effects -- env=yes writes=0
+FAIL  integrity rclone-conf-swapped-to-other-account side effects -- env=yes writes=0
+FAIL  first upload refused when rclone.conf is not the linked credential -- missing /first-FAIL credential_changed/: first-FAIL nightly_already_enabled (الرفعُ الليليُّ مفعَّل؛ لا حاجةَ لأو
+FAIL  kit enable: lowercase/other word ⇒ cancelled -- rc=0 want=1: الرفعُ الليليُّ مفعَّلٌ مسبقاً. 
+## M21-enable-skips-credential rc=1 # offsite stages test pass=125 fail=10
+FAIL  integrity (ADR 0301): rclone-conf-swapped-to-other-account ⇒ enable refused (credential_changed) -- rc=0 want=1: linked=yes first_upload=20261102T062703Z nightly=on 
+FAIL  integrity rclone-conf-swapped-to-other-account side effects -- env=yes writes=0
+FAIL  first upload refused when rclone.conf is not the linked credential -- missing /first-FAIL credential_changed/: first-FAIL nightly_already_enabled (الرفعُ الليليُّ مفعَّل؛ لا حاجةَ لأو
+FAIL  kit enable: lowercase/other word ⇒ cancelled -- rc=0 want=1: الرفعُ الليليُّ مفعَّلٌ مسبقاً. 
+FAIL  offsite.env after refusals -- 
+FAIL  test 9 first-ok -- 
+## M22-reviewer-bug-size-only-check rc=1 # offsite stages test pass=110 fail=42
+FAIL  integrity (ADR 0301): ciphertext-same-size-bitflip ⇒ enable refused (ciphertext_mismatch) -- rc=0 want=1: linked=yes first_upload=20261102T062736Z nightly=on 
+FAIL  integrity ciphertext-same-size-bitflip side effects -- env=yes writes=0
+FAIL  integrity (ADR 0301): ciphertext-last-byte ⇒ enable refused (ciphertext_mismatch) -- rc=0 want=1: linked=yes first_upload=20261102T062736Z nightly=on 
+FAIL  integrity ciphertext-last-byte side effects -- env=yes writes=0
+FAIL  integrity (ADR 0301): ciphertext-replaced-same-size-same-age-header ⇒ enable refused (ciphertext_mismatch) -- rc=0 want=1: linked=yes first_upload=20261102T062736Z nightly=on 
+FAIL  integrity ciphertext-replaced-same-size-same-age-header side effects -- env=yes writes=0
+## M23-first-skips-credential rc=1 # offsite stages test pass=127 fail=7
+FAIL  first upload refused when rclone.conf is not the linked credential -- rc=0 want=1: offsite-first-ok name=wasla-20261102T062821Z.tar.age bytes=215288 sha256=50cf54f7f32c669f signed=yes drive_md5=ok drive_sha256=ok t
+FAIL  restore3 -- 
+FAIL  test 9 first-ok -- 
+FAIL  enable ssh -- ssh -o StrictHostKeyChecking=yes -o UserKnownHostsFile="/tmp/wasla-stages-qrKgVC/Owner Home/.wasla/known_hosts" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlias=wasla-casaos -o HostKeyAlgorithms=ssh-
+FAIL  enable writes -- lsf wasla-gdrive:WASLA-Backups/daily;cat wasla-gdrive:WASLA-Backups/daily/wasla-20261102T062821Z.tar.age;cat wasla-gdrive:WASLA-Backups/daily/wasla-20261102T062821Z.manifest;cat wasla-gdrive:WASLA-
+FAIL  enable is idempotent (already_enabled) -- rc=1 want=0: enable-FAIL ts_mismatch (آخرُ أوّلِ رفعٍ ناجح: 20261102T062821Z) 

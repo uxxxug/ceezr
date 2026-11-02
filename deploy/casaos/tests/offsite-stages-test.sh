@@ -357,7 +357,13 @@ connect connect-relink-enabled RELINK 1-test.apps.googleusercontent.com "$CSEC";
 check "relink while enabled: kit stops at --status (rc=1) before RELINK prompt and before Client ID" 1 $rc "$L/connect-relink-enabled" 'الرفعُ الليليُّ مفعَّلٌ على الخادم' 'link-ok|Client ID|اكتبْ RELINK'
 ! grep -q -- '--link' "$T/ssh-calls" && [ "$(state)" = "$S5" ] && [ ! -s "$FLOG" ] && ! grep -q 'grant=' "$L/mock2.log" &&
   ok "relink while enabled (kit): no --link sent, no OAuth, zero rclone calls, all 4 state files byte-identical" || bad "kit relink enabled" "$(tr '\n' ';' < "$T/ssh-calls")"
-bash "$S/offsite-setup.sh" --link "$PUB" < "$T/rc.other" > "$L/link-enabled-direct" 2>&1; rc=$?
+# صلاحيةُ المدخلِ أوّلًا (ADR 0301، اختبارُ الطفرةِ M9): rc.other قسمُ rclone صالحٌ يقبلهُ محلّلُ الإنتاجِ
+# برايةِ نقاطِ OAuth التجريبيةِ وحدها، والاستدعاءُ المباشرُ يمرّرُ الرايةَ نفسَها التي تمرّرُها حقيبةُ اللابتوب —
+# وإلّا فستُرفَضُ إعادةُ الربطِ المُطفَّرةُ برسالةِ section-reject أجنبيّةٍ عن nightly_enabled، وتَفشَلُ الطفرةُ
+# لسببٍ غيرِ الذي صُمِّمَت لِكشفِه. رفضُ الإنتاجِ يبقى منَ الحارسِ نفسِهِ لا منَ رفضِ المدخل.
+python3 "$S/offsite-tool.py" rclone-section "$T/rc-other-valid" --allow-test-endpoints < "$T/rc.other" > "$L/rc-other-valid" 2>&1
+check "relink input validity: rc.other accepted by the production parser (rclone-section)" 0 $? "$L/rc-other-valid" 'section-ok'
+WASLA_OFFSITE_TEST_ENDPOINTS=1 bash "$S/offsite-setup.sh" --link "$PUB" < "$T/rc.other" > "$L/link-enabled-direct" 2>&1; rc=$?
 check "relink while enabled (server --link, other account on stdin) ⇒ link-FAIL nightly_enabled" 1 $rc "$L/link-enabled-direct" 'link-FAIL nightly_enabled' 'link-ok'
 [ "$(state)" = "$S5" ] && [ ! -s "$FLOG" ] && [ -z "$(find "$ETC" -name '.rclone-link-*')" ] && [ -e "$ETC/offsite-first-ok" ] &&
   ok "server refusal: rclone.conf/pending/first-ok/offsite.env unchanged, not even the read-only about call" || bad "server relink enabled side effects" "$(state)"

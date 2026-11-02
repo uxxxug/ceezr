@@ -1,0 +1,7 @@
+section-ok keys=8
+setup link-ok remote=wasla-gdrive folder=WASLA-Backups uploads=0
+الحساب مربوطٌ فقط: لم يُرفَعْ شيء، والرفعُ الليليُّ غيرُ مفعَّل.
+stage=enabled
+linked=yes
+first_upload=none
+nightly=on
