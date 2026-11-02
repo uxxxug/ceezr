@@ -69,7 +69,7 @@ set value = '[]'::jsonb
 where key = 'driver_required_document_types';
 
 insert into platform_settings (city_id, key, value, value_type, description_ar, is_provisional)
-select id, 'driver_required_document_types', '[]'::jsonb, 'string',
+select id, 'driver_required_document_types', '[]'::jsonb, 'array',
        'الأنواعُ الإلزاميّةُ من وثائقِ السائقِ — مصفوفةٌ فارغةٌ = لا وثيقةَ مطلوبةً للتسجيلِ أو التفعيلِ (قرارُ المالكِ 2026-11-02، ADR 0302). أعدِ تعبئتَها بالأنواعِ لإعادةِ الإلزامِ.',
        false
 from cities
