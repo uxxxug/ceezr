@@ -11,20 +11,26 @@
     "deploy/casaos/tests/haproxy-trusted-acl-test.sh",
     ".github/workflows/haproxy-trusted-acl.yml"
   ],
-  "state": ["docs/SYSTEM_STATE.md"],
-  "roadmap": ["ROADMAP.md"],
+  "state": [
+    "docs/SYSTEM_STATE.md"
+  ],
+  "roadmap": [
+    "ROADMAP.md"
+  ],
   "affected_docs": [
     "deploy/casaos/README.md",
     "AGENTS.md",
     "docs/roadmap/execution/STATUS.md",
     "docs/evidence/production/WR-27-state-verification-20261102.md",
-    "docs/work-packets/wr-27-haproxy-trusted-networks-20261102.json"
+    "docs/work-packets/wr-27-haproxy-trusted-networks-20261102.json",
+    "docs/evidence/wr-27-product-paths-20261102.txt"
   ],
   "decision": "لا قرارَ معماريًّا جديدًا — ADR 0295 نافذٌ ولم يُمسّ (النطاقُ الثابتُ ولوحةُ الإدارةِ وراءَ HAProxy وcloudflared). القرارُ تنفيذيٌّ: تحديدُ «الشبكاتِ الموثوقةِ» بنطاقَي شبكاتِ wasla الفعليّينِ المقيسَينِ على الخادمِ (docker network inspect) بدلَ العِمِّ الواسعِ، وتوثيقُ تثبيتِهما في compose ليصيرَ التطابقُ حتميًّا. مسارُ الإنتاجِ لم يُنشرْ بعدُ — النشرُ خطوةُ مالكٍ بموافقةٍ صريحة.",
   "tests": [
     "haproxy-trusted-acl-test.sh: الحالةُ السليمةُ + 4 طفراتٍ (عودةُ 172.16.0.0/12، إسقاطُ جسرِ egress، إسقاطُ حمايةِ admin_front، انحرافُ compose عن الـACL) — 5/5",
     "سيرُ CI الجديدُ haproxy-trusted-acl: pass",
-    "CI الكاملُ على رأسِ الطلبِ بعدَ الدفع"
+    "CI الكاملُ على رأسِ الطلبِ بعدَ الدفع",
+    "مساراتُ المنتجِ الجوهريةُ (تكليفُ §5) محليًّا على PostgreSQL حقيقي (postgis 17-3.5 + هجرات 300): 215/215 ناجحٌ عبرَ 20 ملفًا — الرحلةُ والتوصيلةُ والطلبُ والعروضُ والقبولُ والمحادثةُ والإشعاراتُ والحالاتُ والتقييمُ ومنعُ تعديلِ بياناتِ الغيرِ ووثائقُ السائقِ والتسجيلُ والجلساتُ + تعافي العاملِ F11-02 (دليل: docs/evidence/wr-27-product-paths-20261102.txt)"
   ],
   "evidence": "docs/evidence/production/WR-27-state-verification-20261102.md",
   "constraints": [
