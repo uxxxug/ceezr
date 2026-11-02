@@ -48,7 +48,8 @@
   "affected_docs": [
     "docs/adr/0302-driver-registration-without-uploaded-documents.md",
     "docs/evidence/driver-registration/WR-28-driver-reg-no-docs-20261102.md",
-    "docs/roadmap/execution/STATUS.md"
+    "docs/roadmap/execution/STATUS.md",
+    "docs/evidence/production/WR-28-deploy-7d308521-20261103.md"
   ],
   "tests": [
     {
@@ -68,8 +69,9 @@
     }
   ],
   "production": {
-    "deployed": false,
-    "reason": "النشر على CasaOS يحتاج موافقة المالك الصريحة على خطوة النشر (§6 من التكليف)؛ الإنتاج ما زال a4933d8b",
-    "rollback": "رد سياسة المدن إلى الستة الوثائقية + نشر صورة a4933d8b — التفصيل في docs/evidence/driver-registration/WR-28-driver-reg-no-docs-20261102.md"
+    "deployed": true,
+    "deploy_commit": "7d3085213f460c2a44b7367d2fbdf17585e8d862 (دمج PR #728 — شجرته مطابقة لـ246f3fd1 المختبر)",
+    "verified": "المدن الخمس على السياسة [] · /ready نظيف طوال النشر وبعده · الحزمة الجديدة تخدم النص الجديد والقديمة 404 · صفر أخطاء في سجلا البوابتين · العامل في gateway-1 وحدها · لا فقد لبيانات السائقين (سائقان و6 وثائق تاريخية باقية)",
+    "rollback": "رد سياسة المدن إلى الستة الوثائقية + نشر صورة a4933d8b — التفصيل في docs/evidence/production/WR-28-deploy-7d308521-20261103.md"
   }
 }
