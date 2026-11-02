@@ -249,14 +249,31 @@ describe("تسجيل السائق — المسار الكامل", () => {
   });
 
   it("يعلن سبب عدم بدء التجربة بدل الصمت", async () => {
-    const withReason = build({ trial: trialPort(false, "already_used") });
+    const withReason = build({ trial: trialPort(false, "TRIAL_ALREADY_USED") });
     await handleDriverUpdate(text("/start"), withReason);
     await handleDriverUpdate(text("أحمد العمري"), withReason);
     await handleDriverUpdate(contact("0501234567"), withReason);
     await handleDriverUpdate(callback(`city:${JEDDAH.id}`), withReason);
     await handleDriverUpdate(callback("service:transport"), withReason);
     const done = await completeKyc(withReason);
-    expect(done[1]?.text).toBe(ar("driver.trial_not_started", { reason: "already_used" }));
+    expect(done[1]?.text).toBe(
+      ar("driver.trial_not_started", { reason: ar("driver.trial_reason.already_used") }),
+    );
+  });
+
+  /** FT-DOCS-PATH — رمزُ الرفضِ الخامُّ صارَ يُعرَبُ ويوجِّهُ إلى رفعِ الوثائقِ لا صدى. */
+  it("سبب DRIVER_NOT_VERIFIED يوجّه السائق إلى رفع وثائقه من التطبيق", async () => {
+    const withReason = build({ trial: trialPort(false, "DRIVER_NOT_VERIFIED") });
+    await handleDriverUpdate(text("/start"), withReason);
+    await handleDriverUpdate(text("أحمد العمري"), withReason);
+    await handleDriverUpdate(contact("0501234567"), withReason);
+    await handleDriverUpdate(callback(`city:${JEDDAH.id}`), withReason);
+    await handleDriverUpdate(callback("service:transport"), withReason);
+    const done = await completeKyc(withReason);
+    expect(done[1]?.text).toBe(
+      ar("driver.trial_not_started", { reason: ar("driver.trial_reason.not_verified") }),
+    );
+    expect(done[1]?.text).toContain("وثائقي");
   });
 });
 

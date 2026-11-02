@@ -161,6 +161,7 @@
   "driver.documents.block.UNVERIFIED": "وثيقة لم تقبل بعد — المراجعة جارية.",
   "driver.documents.block.fix": "أصلح",
   "driver.documents.blocksLabel": "أسباب حجب العمل",
+  "driver.documents.completeAction": "أكمل وثائقك هنا",
   "driver.documents.daysLeft": "الأيّام الباقية",
   "driver.documents.debt.camera": "لا تصوير داخل التطبيق بعد — تفتح كاميرا الجهاز من مدخل الملفّ.",
   "driver.documents.debt.preview": "لا تعرض الوثيقة المرفوعة في التطبيق بعد — الدلو خاصّ ولا رابط قراءة.",

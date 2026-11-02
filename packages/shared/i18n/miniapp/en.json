@@ -161,6 +161,7 @@
   "driver.documents.block.UNVERIFIED": "A document is not accepted yet — review is in progress.",
   "driver.documents.block.fix": "Fix",
   "driver.documents.blocksLabel": "Reasons your work is blocked",
+  "driver.documents.completeAction": "Complete your documents here",
   "driver.documents.daysLeft": "Days left",
   "driver.documents.debt.camera": "No in-app capture yet — the device camera opens from the file input.",
   "driver.documents.debt.preview": "The uploaded document is not shown in the app yet — the bucket is private and there is no read link.",

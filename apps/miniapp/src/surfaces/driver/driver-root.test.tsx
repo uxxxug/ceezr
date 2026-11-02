@@ -182,6 +182,23 @@ describe("D2–D3 — مؤقّتُ العرضِ: CSS لا عقرب", () => {
     expect(code).not.toContain("#/driver/documents");
     expect(code).toContain("onOpenDocuments(");
   });
+
+  /**
+   * FT-DOCS-PATH — عطلُ التجربةِ المغلقةِ (2026-11-02): «لا يوجد مكانٌ لرفعِ
+   * الوثائق». رسالةُ «حسابُكَ لم يوثَّقْ» في لوحِ العروضِ كانت سلبًا بلا زرٍّ،
+   * وزرُّ الإصلاحِ كانَ لا يظهرُ إلا للوثيقةِ المنتهيةِ أو المرفوضةِ — فالسائقُ
+   * الجديدُ بلا وثائقٍ لا يرى أيَّ مدخلٍ. الآنَ زرٌّ واحدٌ يفتحُ شاشةَ الوثائقِ
+   * منَ الرسالةِ نفسِها، والقاموسُ الثلاثيُّ يحملُهُ.
+   */
+  it("FT-DOCS-PATH: زرُّ «أكمل وثائقك» يظهرُ معَ عنوانِ عدمِ التوثيقِ ويفتحُ الوثائق", () => {
+    const code = codeOnly(read("./offers/OffersScreen.tsx"));
+    expect(code).toContain('board.headlineKey === "driver.offers.headline.notVerified"');
+    expect(code).toContain("driver.documents.completeAction");
+    for (const language of ["ar", "en", "ur"] as const) {
+      const t = miniAppTranslator(language);
+      expect(t("driver.documents.completeAction")).not.toContain("{");
+    }
+  });
 });
 
 describe("D8 — خطواتُ رفعِ الوثيقةِ الحقيقيّة", () => {
