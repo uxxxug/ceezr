@@ -2,9 +2,7 @@
   "id": "driver-reg-no-docs-20261102",
   "title": "تسجيل السائق بلا وثائق مرفوعة — ADR 0302 (WR-28)",
   "date": "2026-11-02",
-  "roadmap_items": [
-    "WR-28"
-  ],
+  "roadmap_items": ["WR-28"],
   "implementation": [
     "apps/admin-dashboard/src/layout.ts",
     "apps/admin-dashboard/src/pages/driver-detail.ts",
@@ -45,12 +43,8 @@
     "scripts/lib/rollback-registry.ts",
     "tests/integration/admin-dashboard.test.ts"
   ],
-  "state": [
-    "docs/SYSTEM_STATE.md"
-  ],
-  "roadmap": [
-    "ROADMAP.md"
-  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
   "affected_docs": [
     "docs/adr/0302-driver-registration-without-uploaded-documents.md",
     "docs/evidence/driver-registration/WR-28-driver-reg-no-docs-20261102.md",
