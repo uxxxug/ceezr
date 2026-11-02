@@ -65,6 +65,7 @@ import {
   renderRecoveryPage,
   renderSettingsPage,
   renderShell,
+  verificationNotice,
 } from "../../../admin-dashboard/src/index.ts";
 import { renderMapPanel } from "../../../admin-dashboard/src/map.ts";
 import {
@@ -1101,6 +1102,8 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
       listCities(deps.sql),
       listDrivers(deps.sql, { cityId, verification, search: query, limit: DRIVERS_LIMIT }),
     ]);
+    const verifyParam = c.req.query("verify");
+    const verifyNotice = verifyParam === undefined ? undefined : verificationNotice(verifyParam);
     return page(
       c,
       "السائقون",
@@ -1113,6 +1116,8 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
         filters: { cityId, verification, query },
         csrfToken: c.get("csrfToken"),
       }),
+      undefined,
+      verifyNotice,
     );
   });
 
@@ -1137,6 +1142,8 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
       reviewParam === undefined
         ? undefined
         : documentReviewNotice(REVIEW_NOTICE_CODES.has(reviewParam) ? reviewParam : "UNKNOWN");
+    const verifyParam = c.req.query("verify");
+    const verifyNotice = verifyParam === undefined ? undefined : verificationNotice(verifyParam);
 
     return page(
       c,
@@ -1152,7 +1159,7 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
         csrfToken: c.get("csrfToken"),
       }),
       undefined,
-      reviewNotice,
+      reviewNotice ?? verifyNotice,
     );
   });
 
@@ -1834,7 +1841,17 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
       status,
     );
     log("admin.driver_verification_changed", { ok: outcome.ok, error: outcome.error });
-    return c.redirect(formText(checked.form, "back") ?? "/admin/drivers", SEE_OTHER);
+    /**
+     * FT-VERIFY-NOTICE: النتيجةُ تُعرضُ لا تُبتلَع. قبلَ هذا كانتِ الضغطاتُ الفاشلةُ
+     * (وأشهرُها رفضُ حارسِ الوثائقِ `INCOMPLETE_DOCUMENTS`) تحوّلُ إلى الصفحةِ
+     * نفسِها بلا أثرٍ مرئيّ — فوقعت في التجربةِ المغلقةِ ضغطاتٌ متتاليةٌ بلا خبر.
+     */
+    const backPath = formText(checked.form, "back") ?? "/admin/drivers";
+    const code = outcome.ok ? "ok" : (outcome.error ?? "UNKNOWN");
+    return c.redirect(
+      `${backPath}${backPath.includes("?") ? "&" : "?"}verify=${encodeURIComponent(code)}`,
+      SEE_OTHER,
+    );
   });
 
   app.post("/users/:id/blocked", async (c) => {

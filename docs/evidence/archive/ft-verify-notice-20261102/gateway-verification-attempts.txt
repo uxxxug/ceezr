@@ -1,0 +1,24 @@
+# مخرج grep خام من سجل حاوية wasla-gateway-1-1 (قراءة فقط) — 2026-11-02 ~20:45
+# الأمر: sudo docker logs wasla-gateway-1-1 --since 45m | grep -iE 'verification|csrf' | tail -30
+{"at":"2026-11-02T17:09:39.381Z","service":"gateway","event":"admin.driver_verification_changed","request_id":"8fb17bae-2a55-4aad-b9a9-41cdaaa313f2","ok":false,"error":"INCOMPLETE_DOCUMENTS"}
+{"at":"2026-11-02T17:10:44.966Z","service":"gateway","event":"admin.driver_verification_changed","request_id":"7d135e04-b27a-4162-a68c-8c3b87ed8a6b","ok":false,"error":"INCOMPLETE_DOCUMENTS"}
+{"at":"2026-11-02T17:10:46.574Z","service":"gateway","event":"admin.driver_verification_changed","request_id":"c851be5f-38ba-44cc-b73f-149aa2d202f2","ok":false,"error":"INCOMPLETE_DOCUMENTS"}
+{"at":"2026-11-02T17:11:07.008Z","service":"gateway","event":"admin.driver_verification_changed","request_id":"e2cbe395-4843-4c24-8646-0a1c6f2c6b95","ok":false,"error":"INCOMPLETE_DOCUMENTS"}
+{"at":"2026-11-02T17:41:06.086Z","service":"gateway","event":"admin.driver_verification_changed","request_id":"a7c5ac4d-64c1-4ac1-8936-c49dab88db5c","ok":false,"error":"INCOMPLETE_DOCUMENTS"}
+{"at":"2026-11-02T17:41:08.855Z","service":"gateway","event":"admin.driver_verification_changed","request_id":"3c6aad63-7975-4669-a6b1-3888b1a2b9c2","ok":false,"error":"INCOMPLETE_DOCUMENTS"}
+{"at":"2026-11-02T17:41:10.421Z","service":"gateway","event":"admin.driver_verification_changed","request_id":"4ed08222-256a-4ec4-be55-0eda1aae0c54","ok":false,"error":"INCOMPLETE_DOCUMENTS"}
+{"at":"2026-11-02T17:41:11.186Z","service":"gateway","event":"admin.driver_verification_changed","request_id":"da127efa-4cee-4be1-b06c-689285509267","ok":false,"error":"INCOMPLETE_DOCUMENTS"}
+{"at":"2026-11-02T17:41:11.955Z","service":"gateway","event":"admin.driver_verification_changed","request_id":"53d2ea5e-698b-49fc-9f82-f303e4755cc6","ok":false,"error":"INCOMPLETE_DOCUMENTS"}
+{"at":"2026-11-02T17:41:12.676Z","service":"gateway","event":"admin.driver_verification_changed","request_id":"0b2595ff-dd54-432c-928e-f8d4ea2644c4","ok":false,"error":"INCOMPLETE_DOCUMENTS"}
+{"at":"2026-11-02T17:41:29.498Z","service":"gateway","event":"admin.driver_verification_changed","request_id":"d994833d-1c00-42a4-80d6-594f2b899208","ok":false,"error":"INCOMPLETE_DOCUMENTS"}
+{"at":"2026-11-02T17:41:33.180Z","service":"gateway","event":"admin.driver_verification_changed","request_id":"5ee6c383-32ab-4188-8188-eb1ce1271d9c","ok":false,"error":"INCOMPLETE_DOCUMENTS"}
+{"at":"2026-11-02T17:41:33.951Z","service":"gateway","event":"admin.driver_verification_changed","request_id":"cd314667-683f-4807-9f9e-e1652111d3c0","ok":false,"error":"INCOMPLETE_DOCUMENTS"}
+{"at":"2026-11-02T17:41:46.083Z","service":"gateway","event":"admin.driver_verification_changed","request_id":"0f50fa49-6708-4c02-ac60-b171bd037181","ok":false,"error":"INCOMPLETE_DOCUMENTS"}
+{"at":"2026-11-02T17:41:47.879Z","service":"gateway","event":"admin.driver_verification_changed","request_id":"fe115fe6-6ae2-4bfa-b46e-b592d56da839","ok":false,"error":"INCOMPLETE_DOCUMENTS"}
+{"at":"2026-11-02T17:41:49.568Z","service":"gateway","event":"admin.driver_verification_changed","request_id":"7dce160f-1597-4372-a1f3-0a70bbc3c01e","ok":false,"error":"INCOMPLETE_DOCUMENTS"}
+{"at":"2026-11-02T17:41:50.795Z","service":"gateway","event":"admin.driver_verification_changed","request_id":"49bd3d08-5757-4426-bea1-39e9d36ad165","ok":false,"error":"INCOMPLETE_DOCUMENTS"}
+{"at":"2026-11-02T17:41:51.590Z","service":"gateway","event":"admin.driver_verification_changed","request_id":"6633d7bb-8ac5-4e00-9e11-468e9e0746a6","ok":false,"error":"INCOMPLETE_DOCUMENTS"}
+{"at":"2026-11-02T17:42:47.514Z","service":"gateway","event":"admin.driver_verification_changed","request_id":"deff2b59-fe12-49d4-a00c-055ad991f951","ok":false,"error":"INCOMPLETE_DOCUMENTS"}
+{"at":"2026-11-02T17:42:48.276Z","service":"gateway","event":"admin.driver_verification_changed","request_id":"01de8d8d-9a47-4479-883c-a1158b99c81a","ok":false,"error":"INCOMPLETE_DOCUMENTS"}
+{"at":"2026-11-02T17:42:49.277Z","service":"gateway","event":"admin.driver_verification_changed","request_id":"9527acfe-a97b-4889-aa86-ddd054ff623f","ok":false,"error":"INCOMPLETE_DOCUMENTS"}
+{"at":"2026-11-02T17:42:52.249Z","service":"gateway","event":"admin.driver_verification_changed","request_id":"ab16e4f5-7617-4957-b7d4-327e1da622a4","ok":false,"error":"INCOMPLETE_DOCUMENTS"}

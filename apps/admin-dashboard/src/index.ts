@@ -92,6 +92,7 @@ export {
   type DriversFilters,
   type DriversPageData,
   renderDriversPage,
+  verificationNotice,
 } from "./pages/drivers.ts";
 export { type HeatCell, type HeatmapPageData, renderHeatmapPage } from "./pages/heatmap.ts";
 export {

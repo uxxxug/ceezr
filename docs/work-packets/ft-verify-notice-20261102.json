@@ -1,0 +1,36 @@
+{
+  "id": "ft-verify-notice-20261102",
+  "goal": "عطبٌ في التجربةِ الميدانيّةِ المغلقةِ أبلغَهُ المالكُ مساءَ 2026-11-02: ضغطاتٌ متتاليةٌ (عشرونَ فأكثر) على زرّ «توثيق» السائقِ من لوحةِ الإدارةِ بلا أيّ أثرٍ مرئيّ. القراءةُ (بالقراءةِ فقط) من سجلِّ بوّابةِ الإنتاجِ أثبتت أنّ كلَّ الضغطاتِ تُردُّ بالرفضِ نفسِه من دالّةِ القاعدةِ (`INCOMPLETE_DOCUMENTS` — حارسُ F12-21 يمنعُ توثيقَ سائقٍ لم تُرفعْ وثائقُهُ المطلوبةُ وتُعتمَدْ، وهذا سلوكٌ مقصودٌ صحيح)، لكنّ المسارَ كان يبتلعُ النتيجةَ ويحوّلُ بلا إشعارٍ — نجاحًا كانَ أو رفضًا. الهدفُ: إيصالُ نتيجةِ الفعلِ إلى المسؤولِ نصًّا مقروءًا في صفحتَي قائمةِ السائقين وتفاصيلِ السائق.",
+  "canonical_source": [
+    "docs/evidence/production/FT-verify-notice-20261102.md",
+    "supabase/migrations/20260930120000_f12_21_approval_guard.sql"
+  ],
+  "implementation": [
+    "apps/admin-dashboard/src/pages/drivers.ts",
+    "apps/admin-dashboard/src/index.ts",
+    "apps/gateway/src/routes/admin-ui.ts"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [
+    "tests/unit/admin-driver-detail.test.ts",
+    "docs/roadmap/execution/STATUS.md",
+    "docs/evidence/production/FT-verify-notice-20261102.md",
+    "docs/work-packets/ft-verify-notice-20261102.json",
+    "docs/evidence/archive/ft-verify-notice-20261102/gateway-verification-attempts.txt"
+  ],
+  "decision": "لا قرارَ معماريًّا جديدَ ولا تغييرَ في منطقِ الحارسِ — رفضُ التوثيقِ بلا وثائقٍ معتمدةٍ سلوكٌ مقصودٌ (F12-21) ولا يُمسّ. القرارُ تنفيذيّ محضُ: عرضُ نتيجةِ الفعلِ الكتابيّ للمسؤولِ عبرَ آليةِ الإشعارِ القائمةِ في `page()` نفسِها المستخدمةِ لإشعارِ مراجعةِ الوثائقِ (`?review=`) — النمطُ نفسُه برمزِ `?verify=`.",
+  "tests": [
+    "tests/unit/admin-driver-detail.test.ts: 35/35 (منها 5 جديدةً للإشعار: التحويلُ يحملُ الرمز، عرضُ الرفضِ نصًّا مقروءًا، إشعارُ النجاحِ، الرمزُ المجهولُ «تعذّر»، والحالةُ غيرُ الصالحةِ 422)",
+    "tests/unit/admin-dashboard.test.ts + tests/unit/admin-console-ui6.test.ts: 55/55",
+    "tests/integration/admin-dashboard.test.ts على PostgreSQL حقيقيّ (postgis 17-3.5 + 300 هجرة، يشملُ مسارَ التوثيقِ بذاتهِ): 45/45",
+    "typecheck + biome: نظيفان، وسيرُ CI الكاملُ على رأسِ الطلب"
+  ],
+  "evidence": "docs/evidence/production/FT-verify-notice-20261102.md",
+  "constraints": [
+    "لا كتابةَ على قاعدةِ الإنتاجِ ولا إنشاءَ بياناتٍ — التشخيصُ من سجلِّ الحاويةِ بالقراءةِ فقط (docker logs)",
+    "لا مسَّ بحارسِ F12-21 ولا بمنطقِ الرفضِ — العرضُ وحدهُ تغيّر",
+    "تجميدُ الميزاتِ قائمٌ — هذا إصلاحُ عطبٍ لا ميزة"
+  ],
+  "limitations": "غيرُ منشورٍ على خادمِ CasaOS — الإنتاجُ على 78841453 وهذا كودُ بوّابةٍ يحتاجُ بناءَ صورةٍ ونشرًا بموافقةِ المالكِ الصريحةِ (حدودُ §11). خطواتُ التجربةِ الحاليّةُ (رفعُ الوثائقِ ← الاعتمادُ ← التوثيق) تعملُ على النسخةِ المنشورةِ كما هي."
+}
