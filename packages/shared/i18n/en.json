@@ -113,7 +113,7 @@
   "driver.subscription_upgraded": "Your plan is now {plan}. The cycle end date is unchanged: {until}.",
   "driver.trial_not_started": "Free trial did not start: {reason}",
   "driver.trial_started": "Your {days}-day free trial has started.",
-  "driver.trial_reason.not_verified": "Your account is not verified yet — upload your documents from the WASLA app (My Account ← Work Profile ← My Documents) and admin will approve them.",
+  "driver.trial_reason.not_verified": "Your account is not verified yet — your written details are under admin review, and you will see the decision in the WASLA app.",
   "driver.trial_reason.already_used": "A previous free trial has already been used for this account.",
   "driver.trial_reason.city_not_active": "Your city is not active right now.",
   "driver.trial_reason.unknown": "Contact support.",

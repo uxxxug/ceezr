@@ -291,6 +291,14 @@ export function composeDriverOfferBoard(
         : readInstant(payload.availability_changed_at),
     isBlocked: payload.is_blocked,
     blockReasons,
+    // ADR 0302 — سببُ قرارِ التوثيقِ ينشَرُ للسائقِ لا يُحجَبُ في الإدارة.
+    // (exactOptionalPropertyTypes: المفتاحُ يُكتَبُ عندَ وجودِ القيمةِ لا «undefined» صريحةً)
+    ...(typeof payload.verification_status === "string"
+      ? { verificationStatus: payload.verification_status }
+      : {}),
+    ...(typeof payload.verification_note === "string"
+      ? { verificationNote: payload.verification_note }
+      : {}),
     eligibilityReasons: parts.eligibilityReasons,
     offers: enriched,
   });

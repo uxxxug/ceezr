@@ -246,6 +246,8 @@ describe("ملخَّصُ اللوحِ", () => {
       block_reasons: [],
       unreadable_block_reasons: 0,
       is_blocked: false,
+      verification_note: null,
+      required_document_types: [],
       ...overrides,
     };
   }
@@ -262,6 +264,7 @@ describe("ملخَّصُ اللوحِ", () => {
     const summary = toBoardSummary(
       response({
         documents: [row({ status: "accepted", submitted: true, expires_soon: true, days_left: 3 })],
+        required_document_types: ["driving_license"],
       }),
     );
     expect(summary.headlineKey).toBe("driver.documents.headline.expiring");
@@ -269,9 +272,41 @@ describe("ملخَّصُ اللوحِ", () => {
 
   it("الخالي من الحجبِ والاقترابِ يقرأُ تطميناً", () => {
     const summary = toBoardSummary(
-      response({ documents: [row({ status: "accepted", submitted: true })] }),
+      response({
+        documents: [row({ status: "accepted", submitted: true })],
+        required_document_types: ["driving_license"],
+      }),
     );
     expect(summary.headlineKey).toBe("driver.documents.headline.clear");
     expect(summary.canSubmit).toBe(false);
+  });
+
+  /**
+   * ADR 0302 — الإلزامُ **المعلَنُ** هو الحاكمُ: سياسةُ `[]` تعنيُ «لا وثائقَ
+   * مطلوبةً» حتى لو بقيَ في الجدولِ سجلٌّ تاريخيٌّ مرفوعٌ سابقًا (لا يُطلبُ
+   * رفعُهُ ولا يُحجبُ عليهِ السباقُ لأجلِهِ).
+   */
+  it("سياسةُ لا وثائقَ مطلوبةً تُعلِنُ «لا مطلوبَ» حتى مع سجلٍّ تاريخيٍّ", () => {
+    const summary = toBoardSummary(
+      response({
+        documents: [row({ status: "under_review", submitted: true })],
+        required_document_types: [],
+      }),
+    );
+    expect(summary.headlineKey).toBe("driver.documents.headline.noneRequired");
+    expect(summary.noneRequired).toBe(true);
+    expect(summary.canSubmit).toBe(false);
+  });
+
+  it("سياسةُ إلزامِ وثائقٍ محفوظةٌ تُبقي حجبَ اللوحةِ كما هو — لا انكسارَ للتوافقِ", () => {
+    const summary = toBoardSummary(
+      response({
+        is_blocked: true,
+        block_reasons: [{ code: "MISSING", doc_type: "driving_license" }],
+        required_document_types: ["driving_license"],
+      }),
+    );
+    expect(summary.headlineKey).toBe("driver.documents.headline.blocked");
+    expect(summary.noneRequired).toBe(false);
   });
 });

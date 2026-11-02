@@ -284,6 +284,12 @@ export interface OffersBoardModel {
   readonly isReady: boolean;
   readonly isBlocked: boolean;
   readonly blockLines: readonly OfferBlockLine[];
+  /**
+   * ADR 0302 — سببُ قرارِ التوثيقِ الأخيرِ كما كتبَهُ المسؤولُ (يرافِقُ العنوانَ
+   * حينَ يكونُ السائقُ مرفوضًا أو معلّقًا)، وحالةُ التوثيقِ إن وصلَت.
+   */
+  readonly verificationStatus: string | null;
+  readonly verificationNote: string | null;
   readonly cards: readonly OfferCardModel[];
 }
 
@@ -328,6 +334,8 @@ export function toOffersBoard(response: DriverOffersResponse): OffersBoardModel 
     isReady: response.is_available && !response.is_blocked && ineligible === null,
     isBlocked: response.is_blocked,
     blockLines: toOfferBlockLines(response.block_reasons),
+    verificationStatus: response.verification_status ?? null,
+    verificationNote: response.verification_note ?? null,
     cards,
   };
 }

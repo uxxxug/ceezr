@@ -90,6 +90,12 @@ export interface DriverOffersResponse {
   /** `EXPIRED:insurance` ونظائرُها — نصٌّ من القاعدةِ يُقسَمُ في `offers-view`. */
   readonly block_reasons: readonly string[];
   /**
+   * ADR 0302 — حالةُ التوثيقِ وسببُ قرارِهِ الأخيرِ إن رُفضَ السائقُ أو عُلِّقَ.
+   * اختياريّةٌ: بوّابةٌ أقدمُ لا ترسلُها فيبقى اللوحُ كما كان.
+   */
+  readonly verification_status?: string | null;
+  readonly verification_note?: string | null;
+  /**
    * `WR-11` — أسبابُ استبعادِ المتوفّرِ غيرِ المحجوب: `NOT_VERIFIED`/`NO_LOCATION`/`STALE_LOCATION`.
    * اختياريّةٌ: بوّابةٌ أقدمُ لا ترسلُها فيبقى اللوحُ كما كان.
    */

@@ -63,7 +63,14 @@ export interface ApiDriverBlockReason {
 export interface DriverDocumentsResponse {
   readonly ok: true;
   readonly verification_status: string;
+  /** ADR 0302 — سببُ قرارِ التوثيقِ الأخيرِ كما كتبَهُ المسؤولُ. */
+  readonly verification_note: string | null;
   readonly warning_days: number;
+  /**
+   * ADR 0302 — الأنواعُ الإلزاميّةُ المعلنةُ: فارغةٌ = لا وثيقةَ مطلوبةً،
+   * فالشاشةُ تعرضُ «لا مطلوبَ» لا خطواتِ رفعٍ لا يُطلَبُ منها شيءٌ.
+   */
+  readonly required_document_types: readonly ApiDriverDocumentType[];
   readonly documents: readonly ApiDriverDocumentRow[];
   readonly block_reasons: readonly ApiDriverBlockReason[];
   /** عددُ أسبابٍ نطقَ بها الخادمُ ولم يفهمْها هذا الإصدارُ — **يُعرَضُ عامّاً**. */

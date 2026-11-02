@@ -261,8 +261,11 @@ describe("تسجيل السائق — المسار الكامل", () => {
     );
   });
 
-  /** FT-DOCS-PATH — رمزُ الرفضِ الخامُّ صارَ يُعرَبُ ويوجِّهُ إلى رفعِ الوثائقِ لا صدى. */
-  it("سبب DRIVER_NOT_VERIFIED يوجّه السائق إلى رفع وثائقه من التطبيق", async () => {
+  /**
+   * FT-DOCS-PATH ثم ADR 0302 — رمزُ الرفضِ الخامُّ صارَ يُعرَبُ لا صدى،
+   * ويُوجِّهُ إلى انتظارِ مراجعةِ الإدارةِ بعدَ إرسالِ البياناتِ لا إلى رفعِ وثائقَ.
+   */
+  it("سبب DRIVER_NOT_VERIFIED يوجّه السائق إلى مراجعة الإدارة بعد إرسال بياناته", async () => {
     const withReason = build({ trial: trialPort(false, "DRIVER_NOT_VERIFIED") });
     await handleDriverUpdate(text("/start"), withReason);
     await handleDriverUpdate(text("أحمد العمري"), withReason);
@@ -273,7 +276,8 @@ describe("تسجيل السائق — المسار الكامل", () => {
     expect(done[1]?.text).toBe(
       ar("driver.trial_not_started", { reason: ar("driver.trial_reason.not_verified") }),
     );
-    expect(done[1]?.text).toContain("وثائقي");
+    expect(done[1]?.text).toContain("بياناتك");
+    expect(done[1]?.text).toContain("المراجعة");
   });
 });
 

@@ -130,7 +130,17 @@ export interface DriverDocumentRow {
 /** لوحُ `SD-02` كامِلاً — ومعَه حكمُ الحجبِ **كما نطقَت بهِ القاعدةُ**. */
 export interface DriverDocumentDashboard {
   readonly verificationStatus: string;
+  /**
+   * ADR 0302 — سببُ قرارِ التوثيقِ الأخيرِ كما كتبَهُ المسؤولُ، يُعرَضُ للسائقِ.
+   */
+  readonly verificationNote: string | null;
   readonly warningDays: number;
+  /**
+   * ADR 0302 — الأنواعُ الإلزاميّةُ **المعلنةُ** لمدينةِ السائقِ: فارغةٌ = لا
+   * وثيقةَ مطلوبةً للتسجيلِ أو التفعيلِ، فتُعرَضُ شاشةُ الوثائقِ حالةَ «لا
+   * مطلوبَ» لا خطواتِ رفعٍ لا يُطلَبُ منها شيءٌ.
+   */
+  readonly requiredDocumentTypes: readonly DriverDocumentType[];
   readonly documents: readonly DriverDocumentRow[];
   readonly blockReasons: readonly DriverBlockReason[];
   /**

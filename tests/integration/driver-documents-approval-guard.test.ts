@@ -15,6 +15,12 @@ import {
   ensureActiveCity,
   restoreCityBaseline,
 } from "../support/active-city.ts";
+import {
+  LEGACY_REQUIRED_DOCUMENT_TYPES,
+  pinRequiredDocumentTypes,
+  type RequiredDocumentTypesSnapshot,
+  restoreRequiredDocumentTypes,
+} from "../support/required-documents-policy.ts";
 
 const DATABASE_URL = process.env.TEST_DATABASE_URL;
 
@@ -47,6 +53,14 @@ let adminUserId = "";
 let driverId = "";
 let driverUserId = "";
 let requiredTypes: readonly string[] = [];
+let policyHandle: RequiredDocumentTypesSnapshot | undefined;
+
+/**
+ * الأنواعُ الستةُ التاريخيّةُ (إلزامُ ما قبلَ 2026-11-02) — مصدرٌ واحدٌ مشتركٌ
+ * (`tests/support/required-documents-policy.ts`) يُثبِّتُها هذا الملفُّ صريحةً
+ * لاختبارِ انحدارِ الحارسِ حينَ تعيدُ الإدارةُ الإلزامَ، ثمَّ يُرَدُّ ما كانَ
+ * عليهِ الإعدادُ (سياسةُ `[]` بعدَ هجرةِ ADR 0302).
+ */
 
 beforeAll(async () => {
   if (DATABASE_URL === undefined) return;
@@ -55,13 +69,11 @@ beforeAll(async () => {
   cityHandle = await ensureActiveCity(sql, { prior: cityHandle });
   cityId = cityHandle.cityId;
 
-  const [types] = await sql<{ types: string[] }[]>`
-    select driver_required_document_types(${cityId}::uuid)::text[] as types
-  `;
-  requiredTypes = types?.types ?? [];
-  if (requiredTypes.length === 0) {
-    throw new Error("تعذّر الزرعُ: لا أنواعَ إلزاميّةً في إعداداتِ المدينةِ");
-  }
+  // اختبارُ الانحدارِ يقيسُ الحارسَ تحتَ إلزامٍ **معروفٍ** لا موروثٍ:
+  // الأنواعُ الستةُ التاريخيّةُ مثبَّتةٌ صريحةً (سيناريو «أعادتِ الإدارةُ الإلزامَ»)،
+  // والمعينُ يُعيدُ لقطةَ ما قبلَهُ حرفاً في afterAll.
+  policyHandle = await pinRequiredDocumentTypes(sql, cityId);
+  requiredTypes = LEGACY_REQUIRED_DOCUMENT_TYPES;
 
   // مسؤولٌ لإصدارِ أفعالِ اللوحةِ
   const [admin] = await sql<{ id: string }[]>`
@@ -91,6 +103,8 @@ beforeAll(async () => {
 
 afterAll(async () => {
   if (DATABASE_URL === undefined) return;
+  // ردُّ سياسةِ المدينةِ كما كانت (بعدَ هجرةِ 2026-11-02: `[]`) — لا تُورَّث.
+  await restoreRequiredDocumentTypes(sql, policyHandle);
   if (driverId !== "") {
     await sql`delete from audit_log where entity_id = ${driverId} or actor_user_id = ${driverUserId}`;
     await sql`delete from driver_documents where driver_id = ${driverId}`;
@@ -113,10 +127,10 @@ afterAll(async () => {
   }
 });
 
-function setVerification(status: string): Promise<Payload> {
+function setVerification(status: string, note: string | null = null): Promise<Payload> {
   return callJson(sql<{ result: Payload }[]>`
     select admin_set_driver_verification(
-      ${adminUserId}::uuid, ${driverId}::uuid, ${status}
+      ${adminUserId}::uuid, ${driverId}::uuid, ${status}, ${note}::text
     ) as result
   `);
 }
@@ -154,8 +168,13 @@ describeIf("F12-21 — حارسُ اعتمادِ السائقِ", () => {
     expect(result.changed).toBe(true);
   });
 
-  it("يقبلُ `rejected` بلا وثائقَ — فالرفضُ لا يشترطُ وثائقَ", async () => {
-    const result = await setVerification("rejected");
+  it("يقبلُ `rejected` بلا وثائقَ — وبلا سببٍ مكتوبٍ لا يُقبلُ (ADR 0302: NOTE_REQUIRED)", async () => {
+    // الرفضُ لا يشترطُ وثائقَ كما كانَ — لكنّهُ صارَ يشترطُ سببًا مكتوبًا
+    // يصلُ السائقَ: قرارُ المالكِ 2026-11-02 (ADR 0302).
+    const refused = await setVerification("rejected");
+    expect(refused.ok).toBe(false);
+    expect(refused.error).toBe("NOTE_REQUIRED");
+    const result = await setVerification("rejected", "سببٌ تجريبيٌّ مكتوبٌ");
     expect(result.ok).toBe(true);
     expect(result.changed).toBe(true);
   });
@@ -197,5 +216,85 @@ describeIf("F12-21 — حارسُ اعتمادِ السائقِ", () => {
     // أصلِح الوثيقةَ
     const future = await futureDate(400);
     await acceptDocument(docType, future);
+  });
+});
+
+/**
+ * ADR 0302 — سياسةُ 2026-11-02: **لا وثائقَ مطلوبةً** للتسجيل.
+ *
+ * الحارسُ نفسُهُ (`F12-21`) لم يُمسَّ: حينَ تُلزِمُ المدينةُ وثائقَ يظلُّ يحجبُ
+ * (اختُبِرَ أعلاهُ)، وحينَ تكونُ السياسةُ `[]` صريحةً يمرُّ التوثيقُ بلا وثيقةٍ
+ * واحدةٍ — والسجلُّ التاريخيُّ المرفوعُ سابقًا **لا يُفقدُ ولا يُحجبُ**.
+ */
+describeIf("ADR 0302 — سياسة لا وثائق مطلوبة", () => {
+  // الدالتانِ (اللوحُ والسباقُ) تقرآنِ **معرّفَ تيليجرامَ** bigint لا معرّفَ
+  // المستخدمِ uuid — والسائقُ المزروعُ أعلاه رقمُهُ 900_000_402.
+  const DRIVER_TG = 900_000_402;
+  it("السياسةُ `[]` تُمِرُّ التوثيقَ بلا وثائقَ واحدةٍ — لا حجبَ بلا إلزامٍ", async () => {
+    await pinRequiredDocumentTypes(sql, cityId, []);
+    // السائقُ عندهُ ستُّ وثائقَ مقبولةٍ من ملفِّ الانحدارِ — أفرِغها كلَّها.
+    await sql`delete from driver_documents where driver_id = ${driverId}`;
+    // انقلْهُ أولًا إلى `rejected` بسبّبٍ مكتوبٍ كي تكونَ عودةُ `verified`
+    // تغييرًا حقيقيًّا — لا «لا عمليةً» لأنّ الحالةَ سبقتِ الحكمَ (changed=false).
+    await setVerification("rejected", "تمهيدٌ لاختبارِ العودةِ");
+    const result = await setVerification("verified");
+    expect(result.ok).toBe(true);
+    expect(result.changed).toBe(true);
+    expect(result.status).toBe("verified");
+  });
+
+  it("اللوحُ والسباقُ يُعلِنانِ «لا مطلوبَ» لا حجبًا — والإعدادُ المعلَنُ `[]`", async () => {
+    const [dashboard] = await sql<{ result: Payload }[]>`
+      select driver_document_dashboard(${DRIVER_TG}::bigint) as result
+    `;
+    const board = dashboard?.result;
+    if (board === undefined) throw new Error("لا ردَّ من لوحِ الوثائقِ");
+    expect(board.ok).toBe(true);
+    expect(board.required_document_types).toEqual([]);
+    expect(board.block_reasons).toEqual([]);
+    expect(board.is_blocked).toBe(false);
+
+    const [offers] = await sql<{ result: Payload }[]>`
+      select driver_offer_board(${DRIVER_TG}::bigint) as result
+    `;
+    const offersBoard = offers?.result;
+    if (offersBoard === undefined) throw new Error("لا ردَّ من سباقِ العروضِ");
+    expect(offersBoard.ok).toBe(true);
+    expect(offersBoard.verification_status).toBe("verified");
+  });
+
+  it("الرفضُ بلا سببٍ مكتوبٍ يُردُّ NOTE_REQUIRED — والسببُ يصلُ السائقَ", async () => {
+    const refused = await setVerification("rejected");
+    expect(refused.ok).toBe(false);
+    expect(refused.error).toBe("NOTE_REQUIRED");
+
+    const note = "بيانات المركبة غير مكتملة في الملف";
+    const accepted = await setVerification("rejected", note);
+    expect(accepted.ok).toBe(true);
+    expect(accepted.changed).toBe(true);
+
+    const [offers] = await sql<{ result: Payload }[]>`
+      select driver_offer_board(${DRIVER_TG}::bigint) as result
+    `;
+    const offersBoard = offers?.result;
+    if (offersBoard === undefined) throw new Error("لا ردَّ من سباقِ العروضِ");
+    expect(offersBoard.verification_status).toBe("rejected");
+    expect(offersBoard.verification_note).toBe(note);
+
+    const [driver] = await sql<{ note: string | null }[]>`
+      select verification_note as note from drivers where id = ${driverId}::uuid
+    `;
+    expect(driver?.note).toBe(note);
+  });
+
+  it("الوثائقُ التاريخيّةُ لا تُفقدُ: السجلُّ يُقرأُ والسياسةُ `[]` لا تحذفُهُ", async () => {
+    // سجلٌّ تاريخيٌّ واحدٌ يبقى (رفعَهُ السائقُ سابقًا) — لا حذفَ ولا حجبَ.
+    await acceptDocument("driving_license", await futureDate(400));
+    const [rows] = await sql<{ count: number }[]>`
+      select count(*)::int as count from driver_documents where driver_id = ${driverId}
+    `;
+    expect(rows?.count).toBe(1);
+    const result = await setVerification("verified");
+    expect(result.ok).toBe(true);
   });
 });

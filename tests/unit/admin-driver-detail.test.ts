@@ -47,6 +47,7 @@ function profile(overrides: Partial<DriverDetailProfile> = {}): DriverDetailProf
     cityCode: "JED",
     cityNameAr: "جدة",
     verificationStatus: "verified",
+    verificationNote: null,
     isBlocked: false,
     isAvailable: true,
     availabilityChangedAt: "2026-08-11T09:00:00.000Z",
@@ -598,10 +599,12 @@ describe("FT-VERIFY-NOTICE · مسار توثيق السائق — النتيج�
   async function postVerification(
     app: ReturnType<typeof createAdminUiRoutes>,
     status = "verified",
+    note?: string,
   ): Promise<Response> {
     const body = new FormData();
     body.set("csrf", csrfTokenFor(SESSION_HASH));
     body.set("status", status);
+    if (note !== undefined) body.set("note", note);
     return app.request(`/drivers/${DRIVER_ID}/verification`, {
       method: "POST",
       body,
@@ -621,8 +624,55 @@ describe("FT-VERIFY-NOTICE · مسار توثيق السائق — النتيج�
     });
     const html = await page.text();
     expect(page.status).toBe(200);
-    expect(html).toContain("رُفضَ التوثيقُ: وثائقُ السائقِ غيرُ مكتملةٍ");
+    /** ADR 0302 — الرسالةُ الجديدةُ تُعلِمُ أنّ هذا لا يقعُ إلا إن أعادتِ الإدارةُ الإلزامَ. */
+    expect(html).toContain("رُفضَ التوثيقُ: مدينةُ السائقِ تُلزِمُهُ بوثائقَ لم يستوفِها");
+    expect(html).toContain("سياسةُ 2026-11-02: لا وثائقَ مطلوبةً");
     expect(html).toContain("قسمُ الوثائقِ");
+  });
+
+  /**
+   * ADR 0302 — سببُ الرفضِ المكتوبُ إلزاميٌّ: القاعدةُ تردُّ `NOTE_REQUIRED` حينَ
+   * يُرفَضُ السائقُ بلا سببٍ، والتحويلُ يحملُ الرمزَ ليقرأهُ المسؤولُ لا صمتًا.
+   */
+  it("الرفض بلا سببٍ مكتوبٍ يُردَّ برمز NOTE_REQUIRED ويصل إلى المسؤول", async () => {
+    const { app } = verificationHarness({ ok: false, error: "NOTE_REQUIRED" });
+
+    const response = await postVerification(app, "rejected");
+
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe("/admin/drivers?verify=NOTE_REQUIRED");
+    const page = await app.request("/drivers?verify=NOTE_REQUIRED", {
+      headers: { cookie: `${ADMIN_SESSION_COOKIE}=${SESSION_TOKEN}` },
+    });
+    const html = await page.text();
+    expect(page.status).toBe(200);
+    /** الصفحةُ تُعرِبُ الرمزَ لا صداهُ الخامَّ — المسؤولُ يقرأُ ماذا ينقصُهُ. */
+    expect(html).toContain("اكتبْ سببَ القرارِ");
+  });
+
+  /** ADR 0302 — سببُ الرفضِ يُنقَلُ من النموذجِ إلى الدالّةِ الذرّيةِ كما هو. */
+  it("سبب الرفض المكتوب يمرُّ إلى القاعدة كما أرسله المسؤول", async () => {
+    const calls: unknown[][] = [];
+    const sql = ((strings: TemplateStringsArray, ...values: readonly unknown[]) => {
+      if (strings.join("?").includes("admin_set_driver_verification")) {
+        calls.push([...values]);
+        return Promise.resolve([{ result: { ok: true, changed: true } }]);
+      }
+      return Promise.resolve([]);
+    }) as never;
+    const app = createAdminUiRoutes({
+      sql,
+      auth: authDouble(),
+      codeSender: { send: async () => true },
+    });
+
+    const response = await postVerification(app, "rejected", "الاسم في الهوية لا يطابق الملف");
+
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe("/admin/drivers?verify=ok");
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.[2]).toBe("rejected");
+    expect(calls[0]?.[3]).toBe("الاسم في الهوية لا يطابق الملف");
   });
 
   it("النجاح يُخبَر أيضًا: verify=ok وإشعار بدء الشهر المجاني", async () => {

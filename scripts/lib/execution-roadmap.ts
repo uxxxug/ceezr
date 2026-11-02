@@ -43,6 +43,7 @@ export const CANONICAL_ITEMS: readonly string[] = [
   "WR-25",
   "WR-26",
   "WR-27",
+  "WR-28",
 ];
 
 /** السلّمُ التصاعديّ، و`متوقف` خارجَه. */

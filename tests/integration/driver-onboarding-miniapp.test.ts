@@ -24,6 +24,11 @@ import {
   ensureActiveCity,
   restoreCityBaseline,
 } from "../support/active-city.ts";
+import {
+  pinRequiredDocumentTypes,
+  type RequiredDocumentTypesSnapshot,
+  restoreRequiredDocumentTypes,
+} from "../support/required-documents-policy.ts";
 
 const DATABASE_URL = process.env.TEST_DATABASE_URL;
 const describeIf = DATABASE_URL === undefined ? describe.skip : describe;
@@ -43,6 +48,7 @@ interface Payload {
 
 let sql: Sql;
 let cityHandle: ActiveCityHandle | undefined;
+let policyHandle: RequiredDocumentTypesSnapshot | undefined;
 let cityId = "";
 let adminId = "";
 let ungrantedId = "";
@@ -121,6 +127,9 @@ beforeAll(async () => {
   sql = createSql({ connectionString: DATABASE_URL });
   cityHandle = await ensureActiveCity(sql, { prior: cityHandle });
   cityId = cityHandle.cityId;
+  // ADR 0302 — هذا الملفُّ يقيسُ الحارسَ تحتَ الإلزامِ، فالإلزامُ **مكتوبٌ**
+  // فيه لا موروثٌ من بذرةِ الهجراتِ (الافتراضيُّ منذ 2026-11-02: `[]`).
+  policyHandle = await pinRequiredDocumentTypes(sql, cityId);
   const [types] = await sql<{ t: string[] }[]>`
     select driver_required_document_types(${cityId}::uuid)::text[] as t
   `;
@@ -151,6 +160,7 @@ afterAll(async () => {
   await sql`delete from driver_document_reviewers where user_id in
               (select id from users where telegram_id = any(${tgs}::bigint[]))`;
   await sql`delete from users where telegram_id = any(${tgs}::bigint[])`;
+  await restoreRequiredDocumentTypes(sql, policyHandle);
   if (cityHandle !== undefined) await restoreCityBaseline(sql, cityHandle);
   await sql.end();
 });

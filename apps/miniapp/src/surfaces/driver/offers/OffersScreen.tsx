@@ -501,12 +501,29 @@ export function OffersScreen({
       <p className="dof__headline">{t(board.headlineKey)}</p>
 
       {/**
+       * ADR 0302 — سببُ الرفضِ أو التعليقِ كما كتبَهُ المسؤولُ: قرارٌ بلا سببٍ
+       * معروضٍ للسائقِ قرارٌ على بياناتِهِ لا يملكُ إصلاحَها. يُعرَضُ تحتَ العنوانِ
+       * لأنَّهِ هو الذي يفسِّرُهُ، وللسائقِ المرفوضِ أوّلاً.
+       */}
+      {board.verificationNote !== null &&
+      (board.verificationStatus === "rejected" || board.verificationStatus === "suspended") ? (
+        <p className="dof__verification-note">
+          {t("driver.offers.verificationNote").replace("{note}", board.verificationNote)}
+        </p>
+      ) : null}
+
+      {/**
        * FT-DOCS-PATH — عطلُ التجربةِ المغلقةِ (2026-11-02): «لا يوجد مكانٌ لرفعِ
        * الوثائق» — الشاشةُ كانت تقولُ «حسابُكَ لم يوثَّقْ» سلبًا بلا طريقٍ للإصلاح،
        * والرفعُ مدفونٌ في حسابي ← ملفِ العملِ ← وثائقي. هنا يُفتَحُ الطريقُ منَ
        * الرسالةِ نفسِها: زرٌّ يفتحُ شاشةَ الوثائقِ حيثُ الوثائقُ المطلوبةُ والرفعُ.
+       *
+       * ADR 0302 — صارَ الزرُّ مشروطًا بأسبابِ حجبِ وثائقٍ فعليةٍ (`blockLines`):
+       * فبسياسةِ «لا وثائقَ مطلوبةً» لا يُعرَضُ زرُّ رفعٍ لا يُطلَبُ منهُ شيءٌ —
+       * وعنوانُ المراجعةِ الإداريةِ يكفيهِ حتى يعتمدَ القرارُ.
        */}
       {board.headlineKey === "driver.offers.headline.notVerified" &&
+      board.blockLines.length > 0 &&
       onOpenDocuments !== undefined ? (
         <button type="button" className="dof__block-fix" onClick={() => onOpenDocuments()}>
           {t("driver.documents.completeAction")}

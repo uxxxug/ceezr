@@ -38,6 +38,11 @@ import {
   ensureActiveCity,
   restoreCityBaseline,
 } from "../support/active-city.ts";
+import {
+  pinRequiredDocumentTypes,
+  type RequiredDocumentTypesSnapshot,
+  restoreRequiredDocumentTypes,
+} from "../support/required-documents-policy.ts";
 
 const DATABASE_URL = process.env.TEST_DATABASE_URL;
 
@@ -63,6 +68,7 @@ const DROPOFF = { lat: 21.5433, lng: 39.1728 };
 
 let cityId = "";
 let cityHandle: ActiveCityHandle | undefined;
+let policyHandle: RequiredDocumentTypesSnapshot | undefined;
 let driverUserId = "";
 let driverId = "";
 let rivalUserId = "";
@@ -178,6 +184,9 @@ beforeAll(async () => {
   // فعَّلَ مدينةً ولم يُرجِعْها — فيصيرُ الأخضرُ رهنَ ترتيبِ التشغيلِ.
   cityHandle = await ensureActiveCity(sql, { prior: cityHandle });
   cityId = cityHandle.cityId;
+  // ADR 0302 — هذا الملفُّ يقيسُ حجبَ الوثيقةِ المنتهيةِ تحتَ الإلزامِ، فالإلزامُ
+  // مكتوبٌ صريحًا لا موروثًا (الافتراضيُّ منذ 2026-11-02: `[]`).
+  policyHandle = await pinRequiredDocumentTypes(sql, cityId);
 
   const seedDriver = async (
     telegramId: number,
@@ -248,6 +257,7 @@ afterAll(async () => {
   }
   // ترجعُ المدينةُ إلى حالتِها قبلَ هذا الملفِّ: تركُها مفعَّلةً يُورِّثُ لِمَن
   // بعدَها شرطاً لم يطلُبْه، وهوَ الداءُ نفسُه معكوساً.
+  await restoreRequiredDocumentTypes(sql, policyHandle);
   await restoreCityBaseline(sql, cityHandle);
   await sql.end();
 });

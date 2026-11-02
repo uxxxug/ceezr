@@ -73,6 +73,8 @@ export interface DriverDetailProfile {
   readonly cityCode: string;
   readonly cityNameAr: string;
   readonly verificationStatus: string;
+  /** ADR 0302 — سببُ قرارِ التوثيقِ الأخيرِ كما كتبَهُ المسؤولُ (للرفضِ والتعليقِ). */
+  readonly verificationNote: string | null;
   readonly isBlocked: boolean;
   readonly isAvailable: boolean;
   readonly availabilityChangedAt: string | null;
@@ -308,7 +310,11 @@ function fieldRows(profile: DriverDetailProfile, now: Date): readonly (readonly 
       badge(
         VERIFICATION_LABEL[profile.verificationStatus] ?? profile.verificationStatus,
         VERIFICATION_TONE[profile.verificationStatus] ?? "muted",
-      ) + (profile.isBlocked ? ` ${badge("محظور", "bad")}` : ""),
+      ) +
+        (profile.isBlocked ? ` ${badge("محظور", "bad")}` : "") +
+        (profile.verificationNote === null
+          ? ""
+          : `<div class="card-hint">سببُ القرارِ (يراهُ السائقُ): ${escapeHtml(profile.verificationNote)}</div>`),
     ],
     ["الاشتراك", subscriptionText(profile.subscription)],
     [
@@ -361,6 +367,15 @@ function actions(profile: DriverDetailProfile, csrfToken: string): string {
   ${back}
   <input type="hidden" name="status" value="${escapeHtml(nextVerification)}">
   <button type="submit"${suspends ? ' class="danger"' : ""}>${escapeHtml(verificationLabel)}</button>
+</form>
+<form class="inline reject" method="post" data-confirm="${escapeHtml(`رفضُ تسجيلِ «${name}»؟`)}" action="/admin/drivers/${escapeHtml(profile.driverId)}/verification">
+  ${csrf}
+  ${back}
+  <input type="hidden" name="status" value="rejected">
+  <label class="reject-note">سببُ الرفضِ (يراهُ السائقُ — إلزاميٌّ)
+    <input type="text" name="note" maxlength="500" required placeholder="مثال: رقمُ اللوحةِ غيرُ مقروءٍ في بياناتِكَ — عدِّلها من شاشةِ المركبةِ">
+  </label>
+  <button type="submit" class="danger">رفض</button>
 </form>
 <form class="inline" method="post"${
     profile.isBlocked ? "" : ` data-confirm="${escapeHtml(`حظرُ حسابِ «${name}»؟`)}"`
@@ -557,7 +572,7 @@ ${section(
     rows: documentRows,
     emptyText: "لا وثائق مرفوعة لهذا السائق.",
   }),
-  "الرابطُ موقَّعٌ لدقيقةٍ ويُفتَحُ في صفحةٍ مستقلّةٍ، وكلُّ فتحٍ يُسجَّلُ في سجلّ التدقيق لمراجِعي الوثائق الممنوحين وحدَهم. افتح الوثيقة وتحقّق منها قبل القرار؛ القبولُ وحدَه لا يوثّق السائق — التوثيقُ قرارٌ مستقلّ بعد قبول كل الوثائق الإلزامية.",
+  "الرابطُ موقَّعٌ لدقيقةٍ ويُفتَحُ في صفحةٍ مستقلّةٍ، وكلُّ فتحٍ يُسجَّلُ في سجلّ التدقيق لمراجِعي الوثائق الممنوحين وحدَهم. لا وثائقَ مطلوبةً للتسجيلِ أو التوثيقِ (قرارُ 2026-11-02): التوثيقُ قرارٌ إداريٌّ على بياناتِ التسجيلِ المكتوبةِ أعلاه، وما رُفعَ هنا سجلٌّ تاريخيٌّ يُراجَعُ إن وُجدَ ولا يُشترَطُ.",
 )}
 ${section(
   "الرحلات المكتملة",
