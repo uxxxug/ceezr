@@ -15,6 +15,11 @@ import {
   ensureActiveCity,
   restoreCityBaseline,
 } from "../support/active-city.ts";
+import {
+  pinRequiredDocumentTypes,
+  type RequiredDocumentTypesSnapshot,
+  restoreRequiredDocumentTypes,
+} from "../support/required-documents-policy.ts";
 
 const DATABASE_URL = process.env.TEST_DATABASE_URL;
 
@@ -42,6 +47,7 @@ async function callJson(query: Promise<{ result: Payload }[]>): Promise<Payload>
 
 let sql: Sql;
 let cityHandle: ActiveCityHandle | undefined;
+let policyHandle: RequiredDocumentTypesSnapshot | undefined;
 let cityId = "";
 let adminUserId = "";
 let blockedAdminId = "";
@@ -56,6 +62,9 @@ beforeAll(async () => {
   sql = createSql({ connectionString: DATABASE_URL });
   cityHandle = await ensureActiveCity(sql, { prior: cityHandle });
   cityId = cityHandle.cityId;
+  // ADR 0302 — هذا الملفُّ يقيسُ مراجعةَ الوثائقِ تحتَ الإلزامِ، فالإلزامُ مكتوبٌ
+  // صريحًا لا موروثًا (الافتراضيُّ منذ 2026-11-02: `[]`).
+  policyHandle = await pinRequiredDocumentTypes(sql, cityId);
 
   const [types] = await sql<{ types: string[] }[]>`
     select driver_required_document_types(${cityId}::uuid)::text[] as types
@@ -132,6 +141,7 @@ afterAll(async () => {
     await sql`delete from users where id = ${id}`;
   }
   if (cityHandle !== undefined) await restoreCityBaseline(sql, cityHandle);
+  await restoreRequiredDocumentTypes(sql, policyHandle);
 });
 
 async function day(offset: number): Promise<string> {

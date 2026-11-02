@@ -24,6 +24,11 @@ alter table drivers
 comment on column drivers.verification_note is
   'سببُ قرارِ التوثيقِ الأخيرِ كما كتبَهُ المسؤولُ — يُعرضُ للسائقِ نفسِه (قرارُ المالكِ 2026-11-02، ADR 0302). يُمحى عندَ التوثيقِ أو العودةِ إلى المراجعةِ.';
 
+-- التوقيعُ تغيّرَ (4 وسائطَ) — `create or replace` لا يُبدِّلُ التحميلَ القديمَ
+-- بل يُنشئُ ثانيًا فيصيرَ النداءُ بثلاثٍ غامضًا («not unique»). يُحذَفُ القديمُ
+-- صريحةً: البديلُ الرباعيُّ يقبلُ النداءَ الثلاثيَّ (p_note افتراضيّةٌ null).
+drop function if exists admin_set_driver_verification(uuid, uuid, text);
+
 create or replace function admin_set_driver_verification(
   p_actor_user_id uuid,
   p_driver_id     uuid,
@@ -129,6 +134,12 @@ $$;
 
 comment on function admin_set_driver_verification(uuid, uuid, text, text) is
   'تعيينُ حالةِ توثيقِ سائقٍ معَ سببٍ مكتوبٍ يُعرَضُ للسائقِ — حارسُ F12-21 يمنعُ verified ما دامتْ وثائقُ مدينتِهِ تُلزِمُهُ بما لم يستوفِهِ. بدءُ التجربةِ تلقائيًّا (PD-040). الرفضُ بلا سببٍ يُردُّ NOTE_REQUIRED.';
+
+-- التحميلُ الجديدُ (4 وسائط) وُلدَ بالصلاحيةِ الافتراضيّةِ (EXECUTE لـPUBLIC)
+-- ولم يرثْ سحبَ التحميلِ القديمِ — يُسحَبُ صريحةً كما فعلتِ هجرةُ phase_2_7
+-- (وإلا كشفَها حاجزُ الفحصِ الهجومي: anon لا ينفذُ دالةً مملوكةً).
+revoke all on function admin_set_driver_verification(uuid, uuid, text, text)
+  from public, anon, authenticated;
 
 -- لوحُ وثائقِ السائقِ ينشرُ السببَ والأنواعَ الإلزاميّةَ المعلنةَ (لعرضِ
 -- «لا وثائقَ مطلوبةً» بصدقٍ لا لاجترارِ رفْعٍ لا يُطلَبُ).

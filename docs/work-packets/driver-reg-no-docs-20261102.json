@@ -34,7 +34,12 @@
     "tests/integration/driver-documents-approval-guard.test.ts",
     "tests/unit/admin-driver-detail.test.ts",
     "tests/unit/driver-dialog.test.ts",
-    "tests/unit/driver-documents-view.test.ts"
+    "tests/unit/driver-documents-view.test.ts",
+    "tests/support/required-documents-policy.ts",
+    "tests/integration/driver-onboarding-miniapp.test.ts",
+    "tests/integration/driver-offers.test.ts",
+    "tests/integration/driver-documents.test.ts",
+    "tests/integration/driver-document-review.test.ts"
   ],
   "state": ["docs/SYSTEM_STATE.md"],
   "roadmap": ["ROADMAP.md"],
@@ -53,6 +58,11 @@
       "kind": "integration",
       "command": "bun test tests/integration/driver-documents-approval-guard.test.ts",
       "result": "متوقع في CI على PostgreSQL حقيقي — لا TEST_DATABASE_URL محليًا؛ أُعيد بناؤه ليغطي الحارس تحت إلزام صريح (انحدار) والسياسة [] (تمرير التوثيق بلا وثائق، NOTE_REQUIRED، وصول السبب للوح، بقاء السجل التاريخي)"
+    },
+    {
+      "kind": "integration-ci-fixes",
+      "command": "جولتا CI على GitHub Actions (PostgreSQL حقيقي)",
+      "result": "الجولة 1 كشفت عطبين في الهجرات (value_type='string' يخالف قيد platform_settings_value_type_coherent، وتحميل زائد 4-وسائط جعل نداء 3-وسائط غامضًا «not unique»، والتحميل الجديد وُلد بصلاحية EXECUTE لـPUBLIC فكشفه الحاجز الهجومي)؛ أُصلحت من الجذر: value_type='array'، حذف التحميل القديم صريحةً، سحب الصلاحية صريحةً، واختبارات التكامل التي تقيس الحارس تحت الإلزام صار الإلزام فيها مثبتًا صريحًا (معين tests/support/required-documents-policy.ts) لا موروثًا من البذرة"
     }
   ],
   "production": {

@@ -1533,6 +1533,17 @@ export const ROLLBACK_DECLARATIONS: readonly RollbackDeclaration[] = [
     criticalPath: null,
     documentedIn: null,
   },
+  {
+    migration: "20261102210000_driver_verification_note.sql",
+    change: "drop_function:admin_set_driver_verification(3)",
+    why: "ADR 0302 (WR-28) — التوقيعُ اتّسعَ (وسيطٌ رابعٌ `p_note` افتراضيُّ `null`)، و`create or replace` لا يُبدِّلُ التحميلَ القديمَ بل يُنشئُ ثانيًا فيصيرُ النداءُ بثلاثِ وسائطَ غامضًا («not unique») — فحُذِفَ القديمُ صريحةً. لا فقدَ عقدٍ: البديلُ الرباعيُّ يقبلُ النداءَ الثلاثيَّ بالضبطِ (الافتراضيُّ `null` = بلا سببٍ كما كانَ يُرفضُ `rejected` سابقًا بـ`INCOMPLETE_DOCUMENTS` لا بـ`NOTE_REQUIRED`)، والصلاحياتُ تُسحَبُ من التحميلِ الجديدِ كما كانت للقديمِ. والعودةُ إعادةُ تطبيقِ نصِّ التحميلِ الثلاثيِّ من `20260930010000` — تراجعٌ سلوكيٌّ (فقدُ السببِ المكتوبِ) لا فقدُ عقدٍ ولا تضييقَ صلاحياتٍ جديد.",
+    breaksPreviousRelease: false,
+    rollbackPath: "code-only",
+    coupledDeploy: false,
+    owner: "منفّذ المستودع",
+    criticalPath: null,
+    documentedIn: null,
+  },
 ];
 
 /**

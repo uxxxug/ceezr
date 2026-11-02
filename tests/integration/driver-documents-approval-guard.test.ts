@@ -15,6 +15,12 @@ import {
   ensureActiveCity,
   restoreCityBaseline,
 } from "../support/active-city.ts";
+import {
+  LEGACY_REQUIRED_DOCUMENT_TYPES,
+  pinRequiredDocumentTypes,
+  type RequiredDocumentTypesSnapshot,
+  restoreRequiredDocumentTypes,
+} from "../support/required-documents-policy.ts";
 
 const DATABASE_URL = process.env.TEST_DATABASE_URL;
 
@@ -47,34 +53,14 @@ let adminUserId = "";
 let driverId = "";
 let driverUserId = "";
 let requiredTypes: readonly string[] = [];
-let originalPolicy: string | null = null;
+let policyHandle: RequiredDocumentTypesSnapshot | undefined;
 
 /**
- * الأنواعُ الستةُ التاريخيّةُ (إلزامُ ما قبلَ 2026-11-02) — تُزرَعُ **صريحةً**
- * في هذا الملفِ وحده لاختبارِ انحدارِ الحارسِ حينَ تعيدُ الإدارةُ الإلزامَ،
- * ثمَّ يُرَدُّ ما كانَ عليهِ الإعدادُ (سياسةُ `[]` بعدَ هجرةِ ADR 0302).
+ * الأنواعُ الستةُ التاريخيّةُ (إلزامُ ما قبلَ 2026-11-02) — مصدرٌ واحدٌ مشتركٌ
+ * (`tests/support/required-documents-policy.ts`) يُثبِّتُها هذا الملفُّ صريحةً
+ * لاختبارِ انحدارِ الحارسِ حينَ تعيدُ الإدارةُ الإلزامَ، ثمَّ يُرَدُّ ما كانَ
+ * عليهِ الإعدادُ (سياسةُ `[]` بعدَ هجرةِ ADR 0302).
  */
-const LEGACY_REQUIRED_TYPES = [
-  "driving_license",
-  "medical_exam",
-  "criminal_record",
-  "vehicle_registration",
-  "insurance",
-  "periodic_inspection",
-] as const;
-
-async function setCityPolicy(types: readonly string[]): Promise<void> {
-  await sql`
-    insert into platform_settings (city_id, key, value, value_type, description_ar)
-    values (
-      ${cityId}::uuid, 'driver_required_document_types',
-      ${JSON.stringify(types)}::jsonb, 'array',
-      'أنواع الوثائق الإلزامية لتسجيل السائق — اختبار الحارس'
-    )
-    on conflict (city_id, key) do update
-    set value = ${JSON.stringify(types)}::jsonb
-  `;
-}
 
 beforeAll(async () => {
   if (DATABASE_URL === undefined) return;
@@ -83,17 +69,11 @@ beforeAll(async () => {
   cityHandle = await ensureActiveCity(sql, { prior: cityHandle });
   cityId = cityHandle.cityId;
 
-  // لقطةُ الإعدادِ كما هو — وإليهِ يُرَدُّ في afterAll (لا تُتركُ المدينةُ مُلزِمةً).
-  const [setting] = await sql<{ value: unknown }[]>`
-    select value from platform_settings
-     where city_id = ${cityId}::uuid and key = 'driver_required_document_types'
-  `;
-  originalPolicy = setting === undefined ? null : JSON.stringify(setting.value);
-
   // اختبارُ الانحدارِ يقيسُ الحارسَ تحتَ إلزامٍ **معروفٍ** لا موروثٍ:
-  // أعدنا الأنواعَ الستةَ التاريخيّةَ صريحةً (سيناريو «أعادتِ الإدارةُ الإلزامَ»).
-  await setCityPolicy(LEGACY_REQUIRED_TYPES);
-  requiredTypes = LEGACY_REQUIRED_TYPES;
+  // الأنواعُ الستةُ التاريخيّةُ مثبَّتةٌ صريحةً (سيناريو «أعادتِ الإدارةُ الإلزامَ»)،
+  // والمعينُ يُعيدُ لقطةَ ما قبلَهُ حرفاً في afterAll.
+  policyHandle = await pinRequiredDocumentTypes(sql, cityId);
+  requiredTypes = LEGACY_REQUIRED_DOCUMENT_TYPES;
 
   // مسؤولٌ لإصدارِ أفعالِ اللوحةِ
   const [admin] = await sql<{ id: string }[]>`
@@ -124,12 +104,7 @@ beforeAll(async () => {
 afterAll(async () => {
   if (DATABASE_URL === undefined) return;
   // ردُّ سياسةِ المدينةِ كما كانت (بعدَ هجرةِ 2026-11-02: `[]`) — لا تُورَّث.
-  if (originalPolicy !== null) {
-    await sql`
-      update platform_settings set value = ${originalPolicy}::jsonb
-       where city_id = ${cityId}::uuid and key = 'driver_required_document_types'
-    `;
-  }
+  await restoreRequiredDocumentTypes(sql, policyHandle);
   if (driverId !== "") {
     await sql`delete from audit_log where entity_id = ${driverId} or actor_user_id = ${driverUserId}`;
     await sql`delete from driver_documents where driver_id = ${driverId}`;
@@ -248,7 +223,7 @@ describeIf("F12-21 — حارسُ اعتمادِ السائقِ", () => {
  */
 describeIf("ADR 0302 — سياسة لا وثائق مطلوبة", () => {
   it("السياسةُ `[]` تُمِرُّ التوثيقَ بلا وثائقَ واحدةٍ — لا حجبَ بلا إلزامٍ", async () => {
-    await setCityPolicy([]);
+    await pinRequiredDocumentTypes(sql, cityId, []);
     // السائقُ عندهُ ستُّ وثائقَ مقبولةٍ من ملفِّ الانحدارِ — أفرِغها كلَّها.
     await sql`delete from driver_documents where driver_id = ${driverId}`;
     const result = await setVerification("verified");
