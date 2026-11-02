@@ -1,0 +1,39 @@
+{
+  "id": "wr-27-haproxy-trusted-networks-20261102",
+  "goal": "§27 تجهيزُ التجربةِ الميدانيّةِ المغلقة: تضييقُ «الشبكاتِ الموثوقةِ» في HAProxy (ADR 0295) من 172.16.0.0/12 (كلُّ حاوياتِ المضيفِ أياً كانَ تطبيقُها — وعلى المضيفِ الحيِّ immich وjellyfin وollama وemulatorjs وsyncthing تستطيعُ انتحالَ مرورِ حافّةِ Cloudflare) إلى نطاقَي شبكاتِ wasla نفسِها المقيسَينِ حيًّا (internal=172.21.0.0/16 وegress=172.22.0.0/16) معَ loopback وعنوانِ المضيفِ — فلا ينكسرُ كلامُ cloudflared (جسرُ egress بعدَ NAT) ولا اتصالُ حاوياتِ wasla. ومعَهُ تحقُّقُ حالةِ الإنتاجِ بالقراءةِ فقط عبرَ النفقِ المسمّى: البوّابتانِ 78841453 صحّيحتان وMini App 387d235a متوافقةٌ وDRIVER_DOCUMENT_UPLOADS=enabled مقيسًا حيًّا (حُسمَ تناقضُ لقطةِ AGENTS.md المتقادمة).",
+  "canonical_source": [
+    "docs/roadmap/execution/ORDER-20261012.md",
+    "docs/adr/0295-casaos-haproxy-fixed-domain.md"
+  ],
+  "implementation": [
+    "deploy/casaos/haproxy.cfg",
+    "deploy/casaos/compose.gateways.yml",
+    "deploy/casaos/tests/haproxy-trusted-acl-test.sh",
+    ".github/workflows/haproxy-trusted-acl.yml"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [
+    "deploy/casaos/README.md",
+    "AGENTS.md",
+    "docs/roadmap/execution/STATUS.md",
+    "docs/evidence/production/WR-27-state-verification-20261102.md",
+    "docs/work-packets/wr-27-haproxy-trusted-networks-20261102.json",
+    "docs/evidence/archive/wr-27-product-paths-20261102/run.txt"
+  ],
+  "decision": "لا قرارَ معماريًّا جديدًا — ADR 0295 نافذٌ ولم يُمسّ (النطاقُ الثابتُ ولوحةُ الإدارةِ وراءَ HAProxy وcloudflared). القرارُ تنفيذيٌّ: تحديدُ «الشبكاتِ الموثوقةِ» بنطاقَي شبكاتِ wasla الفعليّينِ المقيسَينِ على الخادمِ (docker network inspect) بدلَ العِمِّ الواسعِ، وتوثيقُ تثبيتِهما في compose ليصيرَ التطابقُ حتميًّا. مسارُ الإنتاجِ لم يُنشرْ بعدُ — النشرُ خطوةُ مالكٍ بموافقةٍ صريحة.",
+  "tests": [
+    "haproxy-trusted-acl-test.sh: الحالةُ السليمةُ + 4 طفراتٍ (عودةُ 172.16.0.0/12، إسقاطُ جسرِ egress، إسقاطُ حمايةِ admin_front، انحرافُ compose عن الـACL) — 5/5",
+    "سيرُ CI الجديدُ haproxy-trusted-acl: pass",
+    "CI الكاملُ على رأسِ الطلبِ بعدَ الدفع",
+    "مساراتُ المنتجِ الجوهريةُ (تكليفُ §5) محليًّا على PostgreSQL حقيقي (postgis 17-3.5 + هجرات 300): 215/215 ناجحٌ عبرَ 20 ملفًا — الرحلةُ والتوصيلةُ والطلبُ والعروضُ والقبولُ والمحادثةُ والإشعاراتُ والحالاتُ والتقييمُ ومنعُ تعديلِ بياناتِ الغيرِ ووثائقُ السائقِ والتسجيلُ والجلساتُ + تعافي العاملِ F11-02 (دليل: docs/evidence/archive/wr-27-product-paths-20261102/run.txt)"
+  ],
+  "evidence": "docs/evidence/production/WR-27-state-verification-20261102.md",
+  "constraints": [
+    "لا كتابةَ على خادمِ CasaOS ولا إعادةَ تشغيلَ ولا استعلامَ قاعدةِ الإنتاجِ مباشرةً — القراءةُ فقط (grep/ls/docker inspect/network inspect/list-timers/journalctl)",
+    "لا Drive ولا OAuth ولا رفعٌ خارجيٌّ ولا تفعيلٌ ليليٌّ",
+    "لا مسَّ لسكربتاتِ النسخِ (على الخادمِ عندَ 9b8c3b1b) ولا لحقيبةِ اللابتوب",
+    "تجميدُ الميزاتِ قائمٌ — لا ميزةً جديدةً ولا تجميلًا"
+  ],
+  "limitations": "النشرُ على الخادمِ (نسخُ haproxy.cfg وتثبيتُ النطاقَينِ في compose ثمّ up -d lb) لم يُنفَّذْ — ينتظرُ موافقةَ المالكِ الصريحةَ (حدودُ §11). رحلةُ تيليجرامَ الحقيقيّةُ ورفعُ وثائقِ السائقِ من Mini App واختبارُ الاستعادةِ وربطُ Drive وأوّلُ رفعٍ وتفعيلٌ ليليٌّ: من خطواتِ المالكِ في دليلِ التجربةِ (PR #719)."
+}

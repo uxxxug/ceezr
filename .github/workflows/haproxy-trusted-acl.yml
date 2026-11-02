@@ -1,0 +1,29 @@
+# الغرض: حارسُ «الشبكاتِ الموثوقةِ» في haproxy.cfg (ADR 0295): الواجهتانِ العامّةُ والإداريّةُ
+#   لا تثقانِ إلّا بـloopback وعنوانِ المضيفِ ونطاقَي شبكاتِ wasla نفسِها — لا بـ172.16.0.0/12
+#   التي تثقُ بكلِّ حاوياتِ المضيفِ أياً كانَ تطبيقُها. الاختبارُ يُثبِتُ التطابقَ مع compose،
+#   ويُسقِطُ طفراتِ العَودةِ إلى العِمِّ الواسعِ أو كسرِ جسرِ cloudflared.
+# ينتمي إلى: deploy/casaos/tests/haproxy-trusted-acl-test.sh
+name: haproxy-trusted-acl
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - deploy/casaos/haproxy.cfg
+      - deploy/casaos/compose.gateways.yml
+      - deploy/casaos/tests/haproxy-trusted-acl-test.sh
+      - .github/workflows/haproxy-trusted-acl.yml
+permissions:
+  contents: read
+jobs:
+  acl:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: trusted-networks guard
+        run: bash deploy/casaos/tests/haproxy-trusted-acl-test.sh out-acl
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: haproxy-acl-test
+          path: out-acl/
+          retention-days: 30

@@ -58,3 +58,10 @@
     mem_limit: 64m
     cpus: 0.25
     healthcheck: {test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/index.html"], interval: 30s, timeout: 5s, retries: 3}
+# ويُضافُ إلى قسمِ `networks:` الأعلى في compose.yml تثبيتُ النطاقَينِ — لتُطابِقَ «الشبكاتُ
+# الموثوقةُ» في haproxy.cfg شبكاتِ wasla وحدها (لا كلَّ جسورِ Docker على المضيف، ADR 0295):
+#   internal:
+#     ipam: {config: [{subnet: 172.21.0.0/16}]}
+#   egress:
+#     ipam: {config: [{subnet: 172.22.0.0/16}]}
+# (النطاقانِ هما الفعليّانِ على الخادمِ اليوم؛ التثبيتُ يجعلُ التطابقَ حتميًّا لا مصادفةَ تخصيص.)

@@ -90,6 +90,8 @@ bun run ci          # lint + typecheck + build + الحواجز + الاختبا
 | بلاغاتُ SOS | أربعةٌ بلا قرار: `open` × 1 (منذ 2026-09-30) و`received` × 3 — قرارُ المشرفين، ولا تُغلَقُ آليًّا | `select status, count(*) from safety_incidents group by 1` |
 | `AGENT_CORE_ENABLED` | **غيرُ مُتحقَّقٍ منه**: ليسَ في `render.yaml`، وقراءةُ متغيّراتِ Render تكشفُ أسرارًا | قرارُ المالك |
 
+**تصحيحٌ لما تقادمَ من اللقطةِ أعلاه (2026-11-02، قياسٌ حيٌّ بالقراءةِ فقط):** الإنتاجُ انتقلَ من Render إلى CasaOS. البوّابتانِ `wasla/gateway:78841453` خلفَ HAProxy، وMini App عندَ `387d235a`، و`/ready` العامّ 200، والعاملُ في `gateway-1` وحدها. **رفعُ وثائقِ السائقين مفعَّلٌ** (`DRIVER_DOCUMENT_UPLOADS=enabled` مقيسًا حيًّا في النسختَين — فُتحَ بنشرِ `25932d35` في 2026-10-30 بعدَ `drill-PASS`). والنسخُ الليليُّ إلى الخادمِ `active` ويشملُ بايتاتِ Storage. التفاصيلُ: `docs/evidence/production/WR-27-state-verification-20261102.md`.
+
 ## 5. عندَ كلِّ تغيير — ما يُحدَّثُ وأين
 
 0. **كلُّ تغييرٍ تنفيذيٍّ يُعلِنُ بندَه من خارطةِ التنفيذ** في وصفِ PR (`بنود الخارطة: WR-NN`، أو `WR-NONE: سبب`)، ويُحدِّثُ صفَّه في `docs/roadmap/execution/STATUS.md` في الطلبِ نفسِه بحالةٍ لا تتجاوزُ دليلَها. والمتطلّبُ المكتشَفُ يُضافُ صفًّا في الطلبِ الذي يعالجُه. ويفرضُه `scripts/check-execution-roadmap.ts --range`.
