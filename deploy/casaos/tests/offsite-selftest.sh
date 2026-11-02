@@ -50,7 +50,7 @@ cat > "$T/fakebin/ssh" <<'EOF'
 # كـssh الحقيقيّ: دونَ -n يقرأُ stdin كلَّه (فيبتلعُ ما بعدَه من مدخلاتِ المالك)؛ مع -n لا يقرأُ شيئاً.
 n=0; while [ $# -gt 0 ]; do case "$1" in -n) n=1; shift;; -o) shift 2;; -*) shift;; *) break;; esac; done
 shift; [ $n = 1 ] && exec bash -c "$*" < /dev/null
-i=$(mktemp); cat > "$i"; bash -c "$*" < "$i"; r=$?; rm -f "$i"; exit $r
+i=$(mktemp); cat > "$i"; [ -n "${SSH_STDIN_COPY:-}" ] && cp "$i" "$SSH_STDIN_COPY"; bash -c "$*" < "$i"; r=$?; rm -f "$i"; exit $r
 EOF
 chmod 755 "$T/fakebin/ssh"
 
@@ -225,21 +225,25 @@ check "restore-test: host key not pinned ⇒ refuses" 1 $rc "$L/rt-nohost" 'مف
 [ ! -s "$T/ssh-calls" ] && ok "host-key negatives made no ssh call" || bad "host-key negatives ssh calls" "$(cat "$T/ssh-calls")"
 HKFP=$(sed -n "s/^WASLA_HOST_FP='\(.*\)'$/\1/p" "$H/laptop/wasla-laptop-lib.sh")
 mkfifo "$T/in"
-WASLA_TEST_OAUTH_BASE=http://127.0.0.1:18080 WASLA_OFFSITE_TEST_ENDPOINTS=1 \
+WASLA_TEST_OAUTH_BASE=http://127.0.0.1:18080 WASLA_OFFSITE_TEST_ENDPOINTS=1 SSH_STDIN_COPY="$T/link-section" \
   bash "$H/laptop/wasla-offsite-connect.sh" < "$T/in" > "$L/connect" 2>&1 & CON=$!
 exec 7> "$T/in"; printf '%s\n1-test.apps.googleusercontent.com\n%s\n' "${HKFP: -8}" "$CSEC" >&7; exec 7>&-
 for _ in $(seq 60); do U=$(grep -o 'http://127.0.0.1:53682/auth?state=[A-Za-z0-9_-]*' "$L/connect" | head -1); [ -n "$U" ] && break; sleep 0.5; done
 [ -n "${U:-}" ] && curl -s --noproxy '*' -L -o /dev/null "$U"
 wait "$CON"; rc=$?
-check "connect: OAuth via temp config + reconnect, then install fails cleanly when Drive is unreachable" 1 $rc "$L/connect" 'setup-FAIL'
+check "connect: OAuth via temp config + reconnect, then link fails cleanly when Drive is unreachable (ADR 0300)" 1 $rc "$L/connect" 'link-FAIL'
 grep -q 'grant=authorization_code' "$L/mock.log" && ok "connect: authorization code exchanged with (mock) token endpoint" || bad "connect: code exchange" "$(cat "$L/mock.log")"
 [ -s "$T/laptop/.wasla/allowed_signers" ] && grep -q '^wasla-backup namespaces="wasla-offsite-backup" ssh-ed25519 ' "$T/laptop/.wasla/allowed_signers" &&
   ok "connect: server signing key pinned in laptop allowed_signers" || bad "connect: allowed_signers"
 [ "$(stat -c %a "$T/laptop/.wasla/known_hosts" 2>/dev/null)" = 600 ] && grep -q '^wasla-casaos ssh-ed25519 ' "$T/laptop/.wasla/known_hosts" &&
   grep -q 'تطابق. ثُبِّتَ مفتاحُ الخادم' "$L/connect" && ok "connect: host key verified by owner suffix, pinned in ~/.wasla/known_hosts (600) before signer" || bad "connect: known_hosts"
 [ "$(stat -c %a "$WASLA_ETC/backup-signing.key")" = 600 ] && ok "server signing key mode 600" || bad "signing key mode"
-[ "$(stat -c %a "$WASLA_ETC/rclone.conf" 2>/dev/null)" = 600 ] && grep -q MOCK-REFRESH "$WASLA_ETC/rclone.conf" && ok "install wrote rclone.conf (600) from stdin section" || bad "install rclone.conf"
-[ ! -e "$WASLA_ETC/offsite.env" ] && ok "install left no offsite.env after Drive failure (nightly stays offsite-skip)" || bad "offsite.env written on failure"
+[ ! -e "$WASLA_ETC/rclone.conf" ] && [ ! -e "$WASLA_ETC/offsite-pending.env" ] && [ -z "$(find "$WASLA_ETC" -name '.rclone-link-*')" ] &&
+  ok "failed link (account check) saved no rclone.conf, no link record, no candidate" || bad "failed link side effects" "$(ls -A "$WASLA_ETC")"
+[ ! -e "$WASLA_ETC/offsite.env" ] && ok "failed link left no offsite.env (nightly stays offsite-skip)" || bad "offsite.env written on failure"
+# لحالاتِ تحديثِ الرمزِ التالية: القسمُ نفسُه الذي استلمَه الخادمُ عبرَ stdin، بالمتحقِّقِ نفسِه.
+python3 "$H/offsite-tool.py" rclone-section "$WASLA_ETC/rclone.conf" --allow-test-endpoints < "$T/link-section" && rm -f "$T/link-section"
+[ "$(stat -c %a "$WASLA_ETC/rclone.conf" 2>/dev/null)" = 600 ] && grep -q MOCK-REFRESH "$WASLA_ETC/rclone.conf" && ok "received section validated into rclone.conf (600)" || bad "section → rclone.conf"
 [ -z "$(find "$T/ltmp" -mindepth 1)" ] && ok "connect: laptop temp config removed" || bad "connect: laptop temp left"
 # تحديثُ الرمز: انتهاءُ access_token ⇒ rclone يحدّثُه من token_url ويحفظُه، والملفُّ يبقى 600.
 expire(){ python3 - "$WASLA_ETC/rclone.conf" <<'PY'
@@ -249,7 +253,16 @@ m = re.search(r"^token = (.*)$", s, re.M); t = json.loads(m.group(1)); t["expiry
 open(p, "w").write(s.replace(m.group(0), "token = " + json.dumps(t)))
 PY
 }
-expire; printf 'AGE_RECIPIENT=%s\nRCLONE_REMOTE=wasla-gdrive\nDRIVE_ROOT=WASLA-Backups\n' "$("$REAL_BIN/age-keygen" -y "$T/laptop/.wasla/wasla-backup.agekey")" > "$WASLA_ETC/offsite.env"
+# bind_nightly RECIPIENT REMOTE ROOT ⇒ حالةُ «مفعَّل» متّسقةٌ (ADR 0300/0301) لاختبارِ خطِّ الرفعِ الليليّ نفسِه: سجلُّ ربطٍ
+#   وسجلُّ أوّلِ رفعٍ وoffsite.env بمعرّفِ الربطِ نفسِه وبصمةِ اعتمادِ rclone.conf الحاليّة. (المراحلُ نفسُها في offsite-stages-test.sh.)
+bind_nightly(){ local lid fp z; lid=$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n'); z=$(printf '0%.0s' $(seq 64))
+  fp=$(python3 "$H/offsite-tool.py" cred-fp "$WASLA_ETC/rclone.conf" "$2") || { echo "bind_nightly: cred-fp failed" >&2; return 1; }
+  printf 'AGE_RECIPIENT=%s\nRCLONE_REMOTE=%s\nDRIVE_ROOT=%s\nLINK_ID=%s\nLINKED_AT=20260101T000000Z\nCRED_FP=%s\n' "$1" "$2" "$3" "$lid" "$fp" > "$WASLA_ETC/offsite-pending.env"
+  printf 'FO_LINK_ID=%s\nFO_TS=%s\nFO_NAME=wasla-%s.tar.age\nFO_BYTES=1\nFO_SHA256=%s\nFO_MANIFEST_SHA256=%s\nFO_RECIPIENT=%s\nFO_REMOTE=%s\nFO_ROOT=%s\nFO_CRED_FP=%s\nFO_AT=20260101T000000Z\n' \
+    "$lid" "$TS1" "$TS1" "$z" "$z" "$1" "$2" "$3" "$fp" > "$WASLA_ETC/offsite-first-ok"
+  printf 'AGE_RECIPIENT=%s\nRCLONE_REMOTE=%s\nDRIVE_ROOT=%s\nLINK_ID=%s\nCRED_FP=%s\n' "$1" "$2" "$3" "$lid" "$fp" > "$WASLA_ETC/offsite.env"
+  chmod 600 "$WASLA_ETC/offsite-pending.env" "$WASLA_ETC/offsite-first-ok" "$WASLA_ETC/offsite.env"; }
+expire; bind_nightly "$("$REAL_BIN/age-keygen" -y "$T/laptop/.wasla/wasla-backup.agekey")" wasla-gdrive WASLA-Backups
 bash "$H/offsite-backup.sh" "$TS1" > "$L/oauth-refresh" 2>&1; rc=$?
 check "backup with expired access token: refresh ok, Drive unreachable ⇒ fail at upload" 1 $rc "$L/oauth-refresh" 'offsite-fail stage=upload:wasla-'
 grep -q 'grant=refresh_token' "$L/mock.log" && grep -q 'MOCK-ACCESS-2' "$WASLA_ETC/rclone.conf" && ok "refreshed token persisted by rclone" || bad "token refresh persisted"
@@ -261,7 +274,7 @@ check "backup with revoked/expired refresh token (invalid_grant) ⇒ fail at upl
 leftovers "oauth-invalid"
 sed -i '/^token = /d' "$WASLA_ETC/rclone.conf"
 bash "$H/offsite-backup.sh" "$TS1" > "$L/oauth-missing" 2>&1; rc=$?
-check "backup with missing token ⇒ fail at upload, no prompt" 1 $rc "$L/oauth-missing" 'offsite-fail stage=upload:'
+check "backup with missing token ⇒ refused before any Drive call (ADR 0301 credential_changed), no prompt" 1 $rc "$L/oauth-missing" 'offsite-fail stage=credential_changed'
 leftovers "oauth-missing"
 bash "$H/offsite-fetch.sh" latest > "$L/fetch-noconn" 2>&1; rc=$?; [ "$rc" != 0 ] && ok "fetch fails cleanly when Drive is unreachable" || bad "fetch no conn" "rc=$rc"
 kill "$MOCK_PID"; wait "$MOCK_PID" 2>/dev/null; MOCK_PID=""
@@ -273,7 +286,7 @@ else ok "no secret in any process argv/environ during connect+install+refresh (s
 # ======================= D) Drive محلّيّ: نسخةٌ وتحقّقٌ واستعادةٌ وحالاتٌ سلبيّة =======================
 printf '[testdrive]\ntype = local\n' > "$WASLA_ETC/rclone.conf"; chmod 600 "$WASLA_ETC/rclone.conf"
 PUB=$("$REAL_BIN/age-keygen" -y "$T/laptop/.wasla/wasla-backup.agekey")
-printf 'AGE_RECIPIENT=%s\nRCLONE_REMOTE=testdrive\nDRIVE_ROOT=%s\n' "$PUB" "$T/drive" > "$WASLA_ETC/offsite.env"
+bind_nightly "$PUB" testdrive "$T/drive"
 bash "$H/offsite-backup.sh" "$TS1" > "$L/offsite1" 2>&1
 check "offsite-backup: encrypt + sign + upload + md5/sha256 verify" 0 $? "$L/offsite1" 'offsite-ok .*signed=yes drive_md5=ok drive_sha256=ok'
 n=$(ls "$T/drive/daily" | wc -l); [ "$n" = 3 ] && ok "remote daily has ciphertext + manifest + signature" || bad "remote daily files" "$n"
@@ -375,13 +388,13 @@ check "drill direct: no manifest/signature ⇒ refuses" 1 $? "$L/drill-nosig" 's
 leftovers "drill direct"
 
 # ======================= E) امتلاءُ المساحة (quota) =======================
+bind_nightly "$PUB" testdrive "$T/q"
 unshare -m bash -c "
   mkdir -p '$T/q' && mount -t tmpfs -o size=16k tmpfs '$T/q' || exit 9
-  printf 'AGE_RECIPIENT=%s\nRCLONE_REMOTE=testdrive\nDRIVE_ROOT=%s\n' '$PUB' '$T/q' > '$WASLA_ETC/offsite.env'
   bash '$H/offsite-backup.sh' '$TS1'; rc=\$?
   echo remote_files=\$(find '$T/q' -type f | wc -l)
   exit \$rc" > "$L/quota" 2>&1; rc=$?
-printf 'AGE_RECIPIENT=%s\nRCLONE_REMOTE=testdrive\nDRIVE_ROOT=%s\n' "$PUB" "$T/drive" > "$WASLA_ETC/offsite.env"
+bind_nightly "$PUB" testdrive "$T/drive"
 check "quota exceeded on remote ⇒ fail at upload, partial remote removed" 1 $rc "$L/quota" 'offsite-fail stage=upload:.*' 
 grep -q '^remote_files=0' "$L/quota" && ok "quota: no partial file left on remote" || bad "quota remote leftovers" "$(grep remote_files "$L/quota")"
 leftovers "quota"

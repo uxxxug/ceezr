@@ -1,0 +1,89 @@
+# GitHub Actions run https://github.com/uxxxug/ceezr/actions/runs/41359848472 job stages-linux (ubuntu-latest), commit 42efbb75
+# offsite stages test (ADR 0300) 2026-11-01T22:59:58Z Linux 7.0.0-1017-azure bash=5.2.21(1)-release age=v1.3.2 rclone v1.75.2 python=3.12.3 ssh=OpenSSH_9.6p1 Ubuntu-3ubuntu13.20
+PASS  server signing key created (--signing-key)
+PASS  baseline: backup.sh local-only before any link
+PASS  baseline: stage=unlinked, zero rclone calls
+PASS  test 7: enable refused when not linked
+PASS  first upload refused when not linked
+PASS  baseline refusals left no offsite.env and no remote file
+PASS  old --install refused (exit 2, no side effects)
+PASS  argv sampler positive control detects a marker in argv
+PASS  link: kit connect (host pin → signer → OAuth → --link) rc=0
+PASS  test 1: link did not create offsite.env
+PASS  test 3: link created no folder and no remote backup (fake Drive empty)
+PASS  test 2: link made exactly one rclone call: about (read-only quota) — no upload/mkdir/copy
+PASS  link: kit sent only --status/--signing-key/--link (no backup, no enable)
+PASS  link: rclone.conf saved (600) with refresh token
+PASS  link: offsite-pending.env (600) holds recipient + LINK_ID only
+PASS  link: stage=linked and owner told nothing was uploaded
+PASS  link: laptop temp config removed
+PASS  link: OAuth code exchanged with (mock) token endpoint by real rclone
+PASS  test 4: backup.sh after link stays local-only
+PASS  test 4: zero rclone calls from nightly backup after link
+PASS  test 9: restart sim (fresh env ×2, stale lock) ⇒ still linked, nothing uploaded
+PASS  test 7: enable refused after link but before first upload
+PASS  test 7: no offsite.env after refusal
+PASS  kit enable refused at stage=linked (no prompt, no server call)
+PASS  relink: without typing RELINK ⇒ cancelled
+PASS  relink cancel: no --link, state unchanged
+PASS  test 10: re-running link (RELINK) rc=0
+PASS  test 10: relink ⇒ no upload, no folder, not enabled
+PASS  relink: new LINK_ID, previous rclone.conf kept as .bak
+PASS  link with failing account check ⇒ link-FAIL, rc=1
+PASS  failed link keeps previous config, no candidate left, no writes
+PASS  kit first-upload without typing UPLOAD ⇒ cancelled
+PASS  first-upload cancel: no backup call, zero rclone calls
+PASS  test 6: first upload with injected failure (copyto:manifest.sig) ⇒ rc=1
+PASS  test 6: after failure (copyto:manifest.sig): no first-ok, no offsite.env, uploads removed, stage=linked
+PASS  test 6: first upload with injected failure (md5sum:tar.age) ⇒ rc=1
+PASS  test 6: after failure (md5sum:tar.age): no first-ok, no offsite.env, uploads removed, stage=linked
+PASS  test 6/7: enable refused after a failed first upload
+PASS  first upload without signing key ⇒ refuses (no unsigned upload)
+PASS  first upload while another offsite op holds the lock ⇒ refused
+PASS  test 5: kit first-upload (UPLOAD, CRLF-tolerant) rc=0
+PASS  test 5: exactly one server call offsite-backup.sh --first (ssh -n)
+PASS  test 5: exactly one backup = 3 files in daily/ (no weekly/monthly seeding, no remote delete)
+PASS  test 5: first upload did NOT enable nightly (no offsite.env, stage=first-ok)
+PASS  first-ok record (600) bound to TS 20261101T230001Z
+PASS  test 8 (before enable): backup.sh after first upload still local-only
+PASS  test 8 (before enable): zero rclone calls from nightly
+PASS  test 12: signature (pinned signer), ciphertext sha256, recipient, age -d, check-tar, check-inner, rowstats+dump identical
+PASS  test 12: tampered ciphertext rejected (sha256)
+PASS  test 12: edited manifest rejected (signature)
+PASS  test 7: enable refused with a TS that is not the verified first upload
+PASS  test 7: enable refused when the first upload is no longer complete on Drive
+PASS  test 7: enable refused when ciphertext size on Drive differs from the signed size
+PASS  test 7: enable refused when first-ok record is not 600
+PASS  kit enable: lowercase/other word ⇒ cancelled
+PASS  every refused/cancelled enable left no offsite.env
+PASS  test 9: restart sim at first-ok ⇒ unchanged, still not enabled
+PASS  kit enable (ENABLE) after verified first upload rc=0
+PASS  enable: kit passed the first-upload TS reported by the server
+PASS  enable: offsite.env regular file, 600, 4 strict keys, no temp left (atomic)
+PASS  enable itself uploaded nothing (read-only lsf check only)
+PASS  enable is idempotent (already_enabled)
+PASS  first upload refused once nightly is enabled
+PASS  test 8: after explicit enable, backup.sh calls the upload
+PASS  test 8: nightly uploaded a second daily backup (9 copyto incl. tiers)
+PASS  test 9: restart sim after enable ⇒ still enabled, state files byte-identical
+PASS  relink while enabled rc=0
+PASS  relink while enabled: offsite.env untouched, zero writes, first-ok invalidated
+PASS  kit disable (DISABLE) rc=0
+PASS  after disable: no offsite.env, nightly back to local-only
+PASS  after relink, enabling needs a new first upload
+PASS  malformed offsite.env (cmdsubst) ⇒ rejected, not executed, no rclone call
+PASS  malformed offsite.env (cmdsubst-value) ⇒ rejected, not executed, no rclone call
+PASS  malformed offsite.env (semicolon) ⇒ rejected, not executed, no rclone call
+PASS  malformed offsite.env (unknown-key) ⇒ rejected, not executed, no rclone call
+PASS  malformed offsite.env (duplicate) ⇒ rejected, not executed, no rclone call
+PASS  malformed offsite.env (bad-recipient) ⇒ rejected, not executed, no rclone call
+PASS  malformed offsite.env (traversal) ⇒ rejected, not executed, no rclone call
+PASS  malformed offsite.env (mode644) ⇒ rejected, not executed, no rclone call
+PASS  malformed offsite.env (symlink) ⇒ rejected, not executed, no rclone call
+PASS  test 11: no OAuth secret/token/age key in any process argv/environ during link/first/enable/nightly (sampled /proc every 50ms)
+PASS  test 11: no secret marker in any log, rclone call log or ssh call log
+PASS  test 11: no token field names in logs
+PASS  test 11: secrets only in rclone.conf(+.bak) on the server and the age key file on the laptop
+PASS  server state files are 600 (except the public signing key)
+PASS  static: exactly one writer of offsite.env — offsite-setup.sh --enable-nightly (write_state)
+# offsite stages test pass=86 fail=0

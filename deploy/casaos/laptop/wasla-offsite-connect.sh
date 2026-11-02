@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-# الغرض: يُشغَّلُ مرّةً واحدةً على لابتوبِ المالك (ADR 0297 · ADR 0298) — مفتاحُ age (إن غاب)، وتثبيتُ مفتاحِ
-#   توقيعِ الخادم، وربطُ Google Drive بعميلِ OAuth خاصٍّ بالمالك، ثمّ ضبطُ الخادمِ وأوّلُ نسخةٍ مشفّرة.
+# الغرض: **المرحلة أ — الربطُ فقط** (ADR 0300). على لابتوبِ المالك: مفتاحُ age (إن غاب)، وتثبيتُ مفتاحِ توقيعِ الخادم،
+#   وربطُ Google Drive بعميلِ OAuth خاصٍّ بالمالك، ثمّ حفظُ الربطِ على الخادمِ والتحقّقُ من الحساب.
+#   **لا يرفعُ شيئاً ولا يفعّلُ الرفعَ الليليّ.** بعدَه، كلٌّ في خطوةٍ منفصلةٍ وبموافقةٍ صريحة:
+#   wasla-offsite-first-upload.sh (أوّلُ رفع) ثمّ wasla-offsite-enable-nightly.sh (التفعيل).
 # المتطلّبات: bash وage وrclone وssh وssh-keygen، ومُضيفٌ اسمُه `wasla` في ~/.ssh/config، وwasla-laptop-lib.sh
 #   بجانبِه. يعملُ على Linux وmacOS وWindows (Git Bash). انظر README-AR.md في الحقيبة.
 # الترتيب (ADR 0299): مفتاحُ SSH للخادمِ يُتحقَّقُ منه تحقّقاً مستقلّاً ويُثبَّتُ **قبلَ أيِّ اتصال**، ومفتاحُ توقيعِ
@@ -37,7 +39,18 @@ fi
 printf 'wasla-backup namespaces="wasla-offsite-backup" %s\n' "$SIGPUB" > "$ALLOWED"; chmod 600 "$ALLOWED"
 echo "ثُبِّتَ مفتاحُ توقيعِ الخادم: $(host_fp_of "$SIGPUB")"
 
-# 2) عميلُ OAuth وربطُ Drive.
+# 2) حالةُ الخادم (قراءةٌ فقط) قبلَ طلبِ أيِّ سرّ: خادمٌ أقدمُ من ADR 0300 ⇒ توقُّفٌ هنا.
+remote_stage || exit 1
+# ADR 0301: إعادةُ الربطِ تحتَ رفعٍ ليليٍّ مفعَّلٍ كانت ستغيّرُ حسابَ وجهتِه ⇒ توقُّفٌ هنا قبلَ أيِّ سرّ (والخادمُ يرفضُها أيضاً).
+if [ "$STAGE" = enabled ]; then
+  echo "الرفعُ الليليُّ مفعَّلٌ على الخادم؛ لا تُعادُ الربطُ وهو مفعَّل كي لا تتغيّرَ وجهةُ النسخِ دونَ موافقتِك. لم يُرسَلْ شيء."
+  echo "إن أردتَ حساباً آخر: bash wasla-offsite-enable-nightly.sh --disable ثمّ أعِدْ هذا السكربت، ثمّ أوّلَ رفعٍ جديد، ثمّ التفعيل."; exit 1
+fi
+if [ "$STAGE" != unlinked ]; then
+  confirm RELINK "الخادمُ مربوطٌ مسبقاً (stage=$STAGE). إعادةُ الربطِ تستبدلُ الرمزَ وتُبطِلُ سجلَّ أوّلِ رفع؛ ولا ترفعُ شيئاً، والرفعُ الليليُّ غيرُ مفعَّل." || exit 1
+fi
+
+# 3) عميلُ OAuth وربطُ Drive.
 IFS= read -rp "Google OAuth Client ID: " CID
 [[ "$CID" =~ ^[0-9A-Za-z.-]+\.apps\.googleusercontent\.com$ ]] || { echo "Client ID لا ينتهي بـ.apps.googleusercontent.com"; exit 2; }
 IFS= read -rsp "Google OAuth Client secret (لن يظهر): " CSEC; echo
@@ -55,6 +68,7 @@ echo "سيفتحُ المتصفّح: سجّلْ دخولَك بحسابِ Google
 rclone config reconnect wasla-gdrive: --config "$CP" --auto-confirm
 grep -q '^token = .*refresh_token' "$C" || { echo "لم يُرجِعْ Google رمزَ تحديث (refresh_token)"; exit 1; }
 
-# 3) ضبطُ الخادم: القسمُ عبرَ stdin لـSSH وحدَه.
-"${SSH[@]}" "$HOST" "$RP/offsite-setup.sh --install $PUB ${WASLA_SETUP_EXTRA:-}" < "$C"
-echo "تمّ. للتحقّقِ الفعليّ من الاستعادة: bash wasla-offsite-restore-test.sh"
+# 4) حفظُ الربطِ على الخادم: القسمُ عبرَ stdin لـSSH وحدَه. الخادمُ يتحقّقُ بقراءةٍ (about) ولا يرفع.
+"${SSH[@]}" "$HOST" "$RP/offsite-setup.sh --link $PUB" < "$C" || { echo "فشلَ الربط. لم يُرفَعْ شيء، والرفعُ الليليُّ غيرُ مفعَّل."; exit 1; }
+echo "انتهى الربط: لم يُرفَعْ أيُّ ملفّ، والرفعُ الليليُّ غيرُ مفعَّل."
+echo "الخطوةُ التالية (حين تقرّر): bash wasla-offsite-first-upload.sh"

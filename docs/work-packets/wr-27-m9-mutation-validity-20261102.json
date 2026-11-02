@@ -1,0 +1,41 @@
+{
+  "id": "wr-27-m9-mutation-validity-20261102",
+  "goal": "§27 النشرُ والتحقّق: إغلاقُ فجوةِ صلاحيةِ اختبارِ الطفرةِ M9 في PR #717 — ملاحظةُ المالكِ (2026-11-02): الاستدعاءُ المباشرُ لِ--link كانَ لا يمرّرُ WASLA_OFFSITE_TEST_ENDPOINTS=1 فكانَ المحلّلُ يرفضُ مدخلَ rc.other (section-reject unknown_key) قبلَ الوصولِ إلى شرطِ nightly_enabled، فتُكشَفُ الطفرةُ لسببٍ أجنبيٍّ لا للعيبِ المُستهدَفِ (سماحُ إعادةِ الربطِ أثناءَ تفعيلِ الرفعِ). الإصلاحُ في الاختبارِ وحدَه: إثباتُ صلاحيةِ المدخلِ فحصًا مستقلًّا + تمريرُ الرايةِ في الاستدعاءِ المباشرِ وحدَه. دونَ مساسٍ بسكربتاتِ الإنتاجِ أو الحقيبةِ أو CasaOS.",
+  "canonical_source": [
+    "docs/roadmap/execution/ORDER-20261012.md",
+    "docs/adr/0300-casaos-offsite-stage-separation.md",
+    "docs/adr/0301-casaos-offsite-relink-binding-and-enable-integrity.md"
+  ],
+  "implementation": ["deploy/casaos/tests/offsite-stages-test.sh"],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [
+    "docs/roadmap/execution/STATUS.md",
+    "docs/evidence/production/WR-27-m9-mutation-validity-20261102.md",
+    "docs/evidence/archive/WR-27-m9-mutation-validity-20261102/SHA256SUMS",
+    "docs/evidence/archive/WR-27-m9-mutation-validity-20261102/stages-test-r3.txt",
+    "docs/evidence/archive/WR-27-m9-mutation-validity-20261102/selftest-r3.txt",
+    "docs/evidence/archive/WR-27-m9-mutation-validity-20261102/kit-test-linux-r3.txt",
+    "docs/evidence/archive/WR-27-m9-mutation-validity-20261102/mutation-results-r3.txt",
+    "docs/evidence/archive/WR-27-m9-mutation-validity-20261102/mutation-run-r3.sh.txt",
+    "docs/evidence/archive/WR-27-m9-mutation-validity-20261102/m9-link-enabled-direct.txt",
+    "docs/work-packets/wr-27-m9-mutation-validity-20261102.json"
+  ],
+  "decision": "لا قرارَ معماريًّا جديدًا — ADR 0301 نافذٌ ولم يُمسّ. القرارُ تنفيذيٌّ في الاختبارِ: فحصُ صلاحيةِ المدخلِ (rclone-section --allow-test-endpoints) مستقلًّا عن الحارسِ، وتمريرُ رايةِ نقاطِ الاختبارِ في الاستدعاءِ المباشرِ كما تمرّرُها حقيبةُ اللابتوب. مسارُ الإنتاجِ غيرُ متأثرٍ.",
+  "tests": [
+    "offsite-stages-test.sh (خطُّ الأساس، بأدواتِ CI: age v1.3.2 وrclone v1.75.2): pass=134 fail=0 (+1 فحصُ صلاحيةِ المدخلِ الجديد)",
+    "طفرةُ M9: مُكتشفةٌ للسببِ الصحيحِ (rc=0 want=1: linked=yes first_upload=none nightly=on — سماحُ إعادةِ الربطِ وظهورُ آثارِهِ على ملفاتِ الحالة)",
+    "طفراتٌ M9–M23 (15): كلُّها كُشفَت (15/15)",
+    "offsite-selftest.sh: pass=131 fail=2 — العطلانِ (اختبارُ الحصةِ) يتطلّبانِ unshare -m وهو محجوبٌ في sandbox الجلسةِ؛ لا صلةَ للتغييرِ بمساراتِ selftest",
+    "offsite-kit-windows-test.sh على الحقيبةِ المبنيّةِ (Linux): pass=30 fail=0، وبصمةُ الحقيبةِ لم تتغيّر (18dc3f74…0545)",
+    "CI الكاملُ على رأسِ الطلبِ بعدَ الدفع"
+  ],
+  "evidence": "docs/evidence/production/WR-27-m9-mutation-validity-20261102.md",
+  "constraints": [
+    "لا اتّصالَ بخادمِ CasaOS ولا تغييرَ عليه",
+    "لا Drive ولا OAuth حقيقيّ، ولا رفعَ خارجيّ، ولا تفعيل",
+    "لم تُمسَّ سكربتاتُ الإنتاجِ (offsite-setup.sh وoffsite-backup.sh وoffsite-lib.sh وoffsite-tool.py) ولا سكربتاتُ الحقيبة",
+    "render.yaml بلا مساس"
+  ],
+  "limitations": "Google Drive وOAuth الحقيقيّان، والتثبيتُ على CasaOS، وتفعيلُ الرفعِ الليليّ: NOT TESTED وتنتظرُ تفويضَ المالكِ المنفصلَ. اختبارُ الحصةِ (quota) في selftest تعذّرَ في sandbox الجلسةِ (unshare -m محجوب) — مغطّى بدليلِ r2 السابقِ وCI. هدفُ 2_000 متزامنٍ خارجُ نطاقِ هذا التغييرِ."
+}

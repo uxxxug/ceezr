@@ -19,5 +19,5 @@ C=$O/drive/daily/$NAME
   echo "inner_manifest_sha256=$(sha256sum "$P/MANIFEST.sha256" | cut -d' ' -f1)"; } > "$O/drive/daily/wasla-$TS.manifest"
 ssh-keygen -q -Y sign -f "$O/signing.key" -n wasla-offsite-backup "$O/drive/daily/wasla-$TS.manifest"
 sha256sum "$O/plain.tar" | cut -d' ' -f1 > "$O/plain.sha256"; rm -f "$O/plain.tar" "$O/signing.key" "$O/signing.key.pub"
-echo "daily/$NAME" > "$O/latest"
+echo "daily/$NAME" > "$O/latest"; echo "$TS" > "$O/ts"
 ls -l "$O" "$O/drive/daily"

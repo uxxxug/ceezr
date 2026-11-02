@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+R=/home/user/workspace/repo/deploy/casaos
+base(){ d=/tmp/mut3/M0-baseline; rm -rf "$d"; mkdir -p "$d"; PATH=/tmp/m9/realbin2:$PATH timeout 900 bash "$R/tests/offsite-stages-test.sh" "$d/out" > "$d/run.txt" 2>&1; echo "## M0-baseline rc=$? $(tail -1 "$d/out/stages-summary.txt")"; grep '^FAIL' "$d/out/stages-summary.txt" | head -6; }
+mut(){ local n=$1 d=/tmp/mut3/$1; shift; rm -rf "$d"; mkdir -p "$d"; cp -a "$R" "$d/casaos"
+  while [ $# -ge 3 ]; do
+    python3 -c "import sys;p=sys.argv[1];s=open(p,encoding='utf-8').read();o,n=sys.argv[2],sys.argv[3];assert o in s,('nomatch',p,o[:60]);open(p,'w',encoding='utf-8').write(s.replace(o,n,1))" "$d/casaos/$1" "$2" "$3" || { echo "## $n MUTATION-APPLY-FAILED"; return; }
+    shift 3; done
+  PATH=/tmp/m9/realbin2:$PATH timeout 900 bash "$d/casaos/tests/offsite-stages-test.sh" "$d/out" > "$d/run.txt" 2>&1; echo "## $n rc=$? $(tail -1 "$d/out/stages-summary.txt")"; grep '^FAIL' "$d/out/stages-summary.txt" | cut -c1-220 | head -6; }
+base
+mut M9-server-link-allowed-while-enabled offsite-setup.sh 'if [ -e "$OFFSITE_ENV" ] || [ -L "$OFFSITE_ENV" ]; then' 'if false; then'
+mut M10-kit-connect-no-enabled-stop laptop/wasla-offsite-connect.sh 'if [ "$STAGE" = enabled ]; then' 'if false; then'
+mut M11-reviewer-bug-both-link-layers-removed offsite-setup.sh 'if [ -e "$OFFSITE_ENV" ] || [ -L "$OFFSITE_ENV" ]; then' 'if false; then' laptop/wasla-offsite-connect.sh 'if [ "$STAGE" = enabled ]; then' 'if false; then' offsite-backup.sh '    [ "$DRIVE_ROOT" = "$E_ROOT" ] && [ "$CRED_FP" = "$E_FP" ] || {' '    [ "$DRIVE_ROOT" = "$E_ROOT" ] && [ "$CRED_FP" = "$E_FP" ] || true || {' offsite-backup.sh '[ "$FO_CRED_FP" = "$E_FP" ] ||' '[ "$FO_CRED_FP" = "$E_FP" ] || true ||' offsite-backup.sh '[ "$(cred_fp 2>/dev/null)" = "$E_FP" ] ||' 'true ||'
+mut M12-nightly-ignores-link-record offsite-backup.sh '    [ "$DRIVE_ROOT" = "$E_ROOT" ] && [ "$CRED_FP" = "$E_FP" ] || {' '    [ "$DRIVE_ROOT" = "$E_ROOT" ] && [ "$CRED_FP" = "$E_FP" ] || true || {'
+mut M13-nightly-ignores-first-ok-record offsite-backup.sh '[ "$FO_CRED_FP" = "$E_FP" ] ||' '[ "$FO_CRED_FP" = "$E_FP" ] || true ||'
+mut M14-nightly-ignores-credential offsite-backup.sh '[ "$(cred_fp 2>/dev/null)" = "$E_FP" ] ||' 'true ||'
+mut M15-nightly-accepts-unbound-config offsite-backup.sh '[ -n "$E_LID" ] && [ -n "$E_FP" ] ||' 'true ||'
+mut M16-cred-fp-ignores-refresh-token offsite-tool.py 'h.update(b"refresh_token=" + rt.encode("utf-8") + b"\0")' 'pass'
+mut M17-enable-skips-ciphertext-sha offsite-setup.sh '[ "$csha" = "$FO_SHA256" ] ||' 'true ||'
+mut M18-enable-skips-manifest-sha offsite-setup.sh '[ "$(sha256sum < "$V/m" | cut -d'"' '"' -f1)" = "$FO_MANIFEST_SHA256" ] ||' 'true ||'
+mut M19-enable-skips-signature offsite-setup.sh 'ssh-keygen -Y verify -f "$V/allowed" -I "$SIG_ID" -n "$SIG_NS" -s "$V/s" < "$V/m" >/dev/null 2>&1 ||' 'true ||'
+mut M20-enable-skips-manifest-fields offsite-setup.sh '[ "$(mf age_recipient)" = "$AGE_RECIPIENT" ] || {' '[ "$(mf age_recipient)" = "$AGE_RECIPIENT" ] || true || {'
+mut M21-enable-skips-credential offsite-setup.sh '[ "$(cred_fp 2>/dev/null)" = "$CRED_FP" ] || { echo "enable-FAIL' 'true || { echo "enable-FAIL'
+mut M22-reviewer-bug-size-only-check offsite-setup.sh '[ "$csha" = "$FO_SHA256" ] ||' 'true ||' offsite-setup.sh '[ "$(sha256sum < "$V/m" | cut -d'"' '"' -f1)" = "$FO_MANIFEST_SHA256" ] ||' 'true ||' offsite-setup.sh 'ssh-keygen -Y verify -f "$V/allowed" -I "$SIG_ID" -n "$SIG_NS" -s "$V/s" < "$V/m" >/dev/null 2>&1 ||' 'true ||' offsite-setup.sh '[ "$(mf age_recipient)" = "$AGE_RECIPIENT" ] || {' '[ "$(mf age_recipient)" = "$AGE_RECIPIENT" ] || true || {'
+mut M23-first-skips-credential offsite-backup.sh '[ "$(cred_fp 2>/dev/null)" = "$CRED_FP" ] || { echo "first-FAIL' 'true || { echo "first-FAIL'
