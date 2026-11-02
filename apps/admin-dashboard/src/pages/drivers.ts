@@ -11,6 +11,31 @@
 import { EMPTY_CELL, formatDateTime, formatNumber, formatStars } from "../format.ts";
 import { type BadgeTone, badge, escapeHtml, section, table } from "../layout.ts";
 
+/**
+ * FT-VERIFY-NOTICE — رموزُ نتيجةِ فعلِ التوثيقِ كما تُعرَضُ للمسؤولِ بعدَ التحويل.
+ * كانَ المسارُ يحوّلُ بلا إشعارٍ أياً كانتِ النتيجةُ (نجاحاً أو رفضاً)، فوقعت في
+ * التجربةِ المغلقةِ 2026-11-02: عشرونَ ضغطةَ «توثيق» على سائقٍ بلا وثائقٍ والرفضُ
+ * يُسجَّلُ في السجلِّ (`INCOMPLETE_DOCUMENTS`) واللوحةُ صامتةٌ لا تعرضُ شيئاً.
+ */
+const VERIFICATION_NOTICE: Readonly<Record<string, string>> = {
+  ok: "تمّ توثيقُ السائق — يبدأُ الشهرُ المجانيُّ تلقائيًّا إن لم يكن له اشتراكٌ سارٍ.",
+  INCOMPLETE_DOCUMENTS:
+    "رُفضَ التوثيقُ: وثائقُ السائقِ غيرُ مكتملةٍ أو غيرُ معتمدة. على السائقِ رفعُ وثائقِهِ المطلوبةِ من التطبيقِ ثمّ تُعتمَدُ من صفحةِ السائقِ (قسمُ الوثائقِ) قبلَ التوثيق.",
+  NOT_ADMIN: "هذا الحسابُ لا يملكُ صلاحيةَ التوثيق.",
+  DRIVER_NOT_FOUND: "لا سائقَ بهذا المعرّف.",
+  INVALID_STATUS: "حالةُ التوثيقِ غيرُ صالحة.",
+};
+
+/** نتيجةُ التوثيقِ كما تُعرَضُ للمسؤولِ بعدَ التحويل. الرمزُ المجهولُ «تعذّر» لا صدى. */
+export function verificationNotice(code: string): {
+  readonly kind: "ok" | "error";
+  readonly text: string;
+} {
+  const text = VERIFICATION_NOTICE[code];
+  if (text === undefined) return { kind: "error", text: "تعذّرَ حفظُ حالةِ التوثيق. أعدِ المحاولة." };
+  return { kind: code === "ok" ? "ok" : "error", text };
+}
+
 export interface DriverSubscription {
   readonly plan: string;
   readonly status: string;

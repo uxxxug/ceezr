@@ -571,3 +571,92 @@ describe("PD-042 · مسار مراجعة الوثيقة", () => {
     expect(calls).toHaveLength(0);
   });
 });
+
+/**
+ * FT-VERIFY-NOTICE — عطبُ التجربةِ المغلقةِ (2026-11-02): عشرونَ ضغطةَ «توثيق» على
+ * سائقٍ بلا وثائقٍ والرفضُ يُسجَّلُ (`INCOMPLETE_DOCUMENTS`) واللوحةُ صامتةٌ —
+ * المسارُ كان يحوّلُ بلا إشعارٍ أياً كانتِ النتيجة. يُثبتُ هنا أنّ الرفضَ يصلُ
+ * إلى المسؤولِ نصًّا مقروءًا، وأنّ النجاحَ كذلك يُخبَرُ لا يُمرَّرُ مرور الكرام.
+ */
+describe("FT-VERIFY-NOTICE · مسار توثيق السائق — النتيجة تُعرض لا تُبتلع", () => {
+  function verificationHarness(result: Record<string, unknown>) {
+    const sql = ((strings: TemplateStringsArray, ...values: readonly unknown[]) => {
+      if (strings.join("?").includes("admin_set_driver_verification")) {
+        void values;
+        return Promise.resolve([{ result }]);
+      }
+      return Promise.resolve([]);
+    }) as never;
+    const app = createAdminUiRoutes({
+      sql,
+      auth: authDouble(),
+      codeSender: { send: async () => true },
+    });
+    return { app };
+  }
+
+  async function postVerification(
+    app: ReturnType<typeof createAdminUiRoutes>,
+    status = "verified",
+  ): Promise<Response> {
+    const body = new FormData();
+    body.set("csrf", csrfTokenFor(SESSION_HASH));
+    body.set("status", status);
+    return app.request(`/drivers/${DRIVER_ID}/verification`, {
+      method: "POST",
+      body,
+      headers: { cookie: `${ADMIN_SESSION_COOKIE}=${SESSION_TOKEN}` },
+    });
+  }
+
+  it("رفض حارس الوثائق يصل إلى المسؤول: التحويل يحمل الرمز والصفحة تعرضه نصًّا", async () => {
+    const { app } = verificationHarness({ ok: false, error: "INCOMPLETE_DOCUMENTS" });
+
+    const response = await postVerification(app);
+
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe("/admin/drivers?verify=INCOMPLETE_DOCUMENTS");
+    const page = await app.request("/drivers?verify=INCOMPLETE_DOCUMENTS", {
+      headers: { cookie: `${ADMIN_SESSION_COOKIE}=${SESSION_TOKEN}` },
+    });
+    const html = await page.text();
+    expect(page.status).toBe(200);
+    expect(html).toContain("رُفضَ التوثيقُ: وثائقُ السائقِ غيرُ مكتملةٍ");
+    expect(html).toContain("قسمُ الوثائقِ");
+  });
+
+  it("النجاح يُخبَر أيضًا: verify=ok وإشعار بدء الشهر المجاني", async () => {
+    const { app } = verificationHarness({ ok: true, changed: true });
+
+    const response = await postVerification(app);
+
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe("/admin/drivers?verify=ok");
+    const page = await app.request("/drivers?verify=ok", {
+      headers: { cookie: `${ADMIN_SESSION_COOKIE}=${SESSION_TOKEN}` },
+    });
+    const html = await page.text();
+    expect(page.status).toBe(200);
+    expect(html).toContain("الشهرُ المجانيُّ تلقائيًّا");
+  });
+
+  it("رمز مجهول لا يُعرض صدىً خامًا بل «تعذّر»", async () => {
+    const { app } = verificationHarness({ ok: true });
+
+    const page = await app.request("/drivers?verify=WEIRD_CODE", {
+      headers: { cookie: `${ADMIN_SESSION_COOKIE}=${SESSION_TOKEN}` },
+    });
+
+    expect(page.status).toBe(200);
+    const html = await page.text();
+    expect(html).toContain("تعذّرَ حفظُ حالةِ التوثيق");
+  });
+
+  it("قيمة حالة غير صالحة تُردّ بـ 422 قبل مسّ القاعدة", async () => {
+    const { app } = verificationHarness({ ok: true, changed: true });
+
+    const response = await postVerification(app, "yalla");
+
+    expect(response.status).toBe(422);
+  });
+});
