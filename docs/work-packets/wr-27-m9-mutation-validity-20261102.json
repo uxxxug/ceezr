@@ -6,9 +6,7 @@
     "docs/adr/0300-casaos-offsite-stage-separation.md",
     "docs/adr/0301-casaos-offsite-relink-binding-and-enable-integrity.md"
   ],
-  "implementation": [
-    "deploy/casaos/tests/offsite-stages-test.sh"
-  ],
+  "implementation": ["deploy/casaos/tests/offsite-stages-test.sh"],
   "state": ["docs/SYSTEM_STATE.md"],
   "roadmap": ["ROADMAP.md"],
   "affected_docs": [
