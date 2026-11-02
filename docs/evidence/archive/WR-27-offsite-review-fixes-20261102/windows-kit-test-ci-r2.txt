@@ -1,0 +1,34 @@
+# CI run 41366978188 job 125029216494 (windows-latest, Git Bash) — commit ae347c7c — extracted from job log
+# windows kit test 2026-11-02T00:25:04Z MINGW64_NT-10.0-26100 3.6.10-5a1665c8.x86_64
+PASS  HOME contains a space (like C:/Users/Ahmed Ali)
+PASS  kit: sha256sum -c SHA256SUMS (7 OK)
+PASS  kit: no CRLF after PowerShell Expand-Archive
+PASS  kit: bash -n on all scripts
+PASS  host_kit_ok with Git ssh-keygen
+PASS  host_kit_ok with native Windows ssh-keygen (OpenSSH_for_Windows_9.5p2, LibreSSL 3.8.2)
+PASS  connect: wrong suffix ⇒ stop, no ssh call, nothing pinned
+PASS  connect: full run rc=0 (host pin → signer → status → native rclone OAuth → --link via stdin)
+PASS  stage A: connect only linked (no upload call, no enable call, no --install)
+PASS  stage A: owner told nothing was uploaded and nightly is off
+PASS  known_hosts pinned under spaced HOME
+PASS  allowed_signers = server signing key
+PASS  rclone (native Windows) exchanged the code with the token endpoint
+PASS  server received rclone section via stdin (client_id, drive.file, refresh token)
+PASS  laptop temp rclone config removed
+PASS  no-input ssh calls use -n
+PASS  ssh got the spaced known_hosts path quoted (ssh splits unquoted values at spaces)
+PASS  client secret not in logs or ~/.wasla
+PASS  stage C refused before first upload (no enable call)
+PASS  stage B: wrong confirmation word ⇒ cancelled, no upload call
+PASS  stage B: UPLOAD (CRLF) ⇒ exactly one --first call (ssh -n), nightly not enabled
+PASS  stage C: ENABLE ⇒ --enable-nightly with the server-reported TS (CR stripped)
+PASS  stage B refused once enabled
+PASS  relink while enabled (ADR 0301) ⇒ connect stops at --status, no RELINK prompt, no OAuth, no --link
+PASS  disable (DISABLE) ⇒ --disable-nightly
+PASS  after disable: relink asks RELINK; 'no' ⇒ cancelled before OAuth, no --link
+PASS  old server (no --status) ⇒ connect stops before OAuth, nothing sent
+PASS  restore-test: signature (Linux-signed) verified, sha256, native age -d, binary pipe intact ⇒ PASS
+PASS  restore-test: tampered ciphertext ⇒ FAIL before decrypt
+PASS  restore-test: edited known_hosts ⇒ refuse, no ssh
+PASS  no age secret in logs
+# windows kit test pass=31 fail=0

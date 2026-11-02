@@ -30,14 +30,16 @@
     "docs/evidence/archive/WR-27-offsite-review-fixes-20261102/selftest-r2.txt",
     "docs/evidence/archive/WR-27-offsite-review-fixes-20261102/kit-test-linux-r2.txt",
     "docs/evidence/archive/WR-27-offsite-review-fixes-20261102/mutation-results-r2.txt",
-    "docs/evidence/archive/WR-27-offsite-review-fixes-20261102/mutation-run-r2.sh.txt"
+    "docs/evidence/archive/WR-27-offsite-review-fixes-20261102/mutation-run-r2.sh.txt",
+    "docs/evidence/archive/WR-27-offsite-review-fixes-20261102/windows-kit-test-ci-r2.txt",
+    "docs/evidence/archive/WR-27-offsite-review-fixes-20261102/stages-linux-ci-r2.txt"
   ],
   "decision": "ADR 0301 (يحلُّ محلَّ أجزاءٍ من 0300): --link مرفوضٌ ما دامَ offsite.env موجوداً؛ CRED_FP (sha256 لقسمِ الوجهةِ بلا access_token) في الربطِ وأوّلِ الرفعِ وoffsite.env؛ --nightly لا يلمسُ Drive إلّا بتطابقِ الأربعة؛ --enable-nightly: الأسماءُ الثلاثةُ وحدَها ← sha256 الأرشيف ← sha256 البيان ← ssh-keygen -Y verify ← حقولُ البيان.",
   "tests": [
     "offsite-stages-test.sh: pass=133 fail=0 (18 حالةً سلبيّةً للتفعيل، و8 night_reject، وإعادةُ الربطِ والتفعيلُ قائم)",
     "طفراتٌ 15 (M9–M23، منها عيبا المراجعِ كما وُصفا M11 وM22): كلُّها كُشفَت (15/15)",
     "offsite-selftest.sh: pass=133 fail=0",
-    "offsite-kit-windows-test.sh على الحقيبةِ المبنيّة: pass=30 fail=0؛ وعلى windows-latest Git Bash في CI",
+    "offsite-kit-windows-test.sh على الحقيبةِ المبنيّة: pass=30 fail=0 محلّيّاً؛ وpass=31 fail=0 على windows-latest Git Bash في CI (run 41366978188)",
     "bun run lint · check-state-sync · check-docs-hygiene · check-evidence-manifests · check-execution-roadmap · check-roadmap"
   ],
   "evidence": "docs/evidence/production/WR-27-offsite-review-fixes-20261102.md",

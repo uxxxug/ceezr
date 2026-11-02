@@ -98,7 +98,15 @@
 
 ## ٤) CI
 
-يُحدَّثُ بعدَ تشغيلِ CI على هذا الالتزام (الملحقُ أدناه).
+على الالتزام `ae347c7c` ([run 41366978188](https://github.com/uxxxug/ceezr/actions/runs/41366978188)):
+
+| الوظيفة | النتيجة | الخام |
+|---|---|---|
+| `windows-git-bash` (windows-latest، MINGW64، والمسارُ فيه مسافة) | **PASS 31/0**: حالاتُ Linux الثلاثون، وتحقّقٌ واحدٌ بـ`ssh-keygen` الأصليّ في Windows | `windows-kit-test-ci-r2.txt` |
+| `stages-linux` | **PASS 133/0** | `stages-linux-ci-r2.txt` |
+| `build-kit`، `verify`، `roadmap`، `execution-roadmap`، والبقيّة | PASS | — |
+
+الملفّانِ مستخرَجانِ من سجلِّ الوظيفة، لأنّ تنزيلَ الـartifact يعيدُ 401.
 
 ## ٥) ما بقيَ خارجَ هذا الدليل
 
