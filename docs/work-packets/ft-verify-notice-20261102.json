@@ -8,12 +8,12 @@
   "implementation": [
     "apps/admin-dashboard/src/pages/drivers.ts",
     "apps/admin-dashboard/src/index.ts",
-    "apps/gateway/src/routes/admin-ui.ts"
+    "apps/gateway/src/routes/admin-ui.ts",
+    "tests/unit/admin-driver-detail.test.ts"
   ],
   "state": ["docs/SYSTEM_STATE.md"],
   "roadmap": ["ROADMAP.md"],
   "affected_docs": [
-    "tests/unit/admin-driver-detail.test.ts",
     "docs/roadmap/execution/STATUS.md",
     "docs/evidence/production/FT-verify-notice-20261102.md",
     "docs/work-packets/ft-verify-notice-20261102.json",
