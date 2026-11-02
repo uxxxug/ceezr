@@ -792,6 +792,7 @@ interface DriverProfileSqlRow {
   city_code: string;
   city_name_ar: string;
   verification_status: string;
+  verification_note: string | null;
   is_blocked: boolean;
   vehicle_type: string | null;
   plate_number: string | null;
@@ -848,6 +849,7 @@ export async function driverDetail(sql: Sql, driverId: string): Promise<DriverDe
              u.language_code, u.is_blocked,
              c.code as city_code, c.name_ar as city_name_ar,
              d.verification_status::text as verification_status,
+             d.verification_note,
              d.vehicle_type::text as vehicle_type, d.plate_number, d.national_id,
              d.vehicle_photo_file_id,
              d.preferred_area_label,
@@ -997,6 +999,7 @@ export async function driverDetail(sql: Sql, driverId: string): Promise<DriverDe
       cityCode: row.city_code,
       cityNameAr: row.city_name_ar,
       verificationStatus: row.verification_status,
+      verificationNote: row.verification_note,
       isBlocked: row.is_blocked,
       isAvailable: row.is_available,
       availabilityChangedAt:
@@ -1874,10 +1877,12 @@ export async function setDriverVerification(
   actorUserId: string,
   driverId: string,
   status: string,
+  /** ADR 0302 — سببُ القرارِ كما كتبَهُ المسؤولُ: إلزاميٌّ للرفضِ (`NOTE_REQUIRED`). */
+  note: string | null,
 ): Promise<WriteOutcome> {
   const rows = await sql<{ result: unknown }[]>`
     select admin_set_driver_verification(
-      ${actorUserId}::uuid, ${driverId}::uuid, ${status}::text
+      ${actorUserId}::uuid, ${driverId}::uuid, ${status}::text, ${note}::text
     ) as result
   `;
   return readWrite(rows[0]?.result);

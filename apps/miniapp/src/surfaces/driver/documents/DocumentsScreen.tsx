@@ -336,7 +336,23 @@ export function DocumentsScreen({
       ) : null}
       <p className="dd__headline">{t(summary.headlineKey)}</p>
 
-      {summary.blockLines.length === 0 ? null : (
+      {/**
+       * ADR 0302 — سياسةُ «لا وثائقَ مطلوبةً»: الشاشةُ تقولُ للسائقِ إنَّ
+       * تسجيلَهُ ببياناتِهِ المكتوبةِ ومراجعةِ الإدارةِ، لا خطواتِ رفعٍ. وسببُ
+       * الرفضِ إن وُجدَ يُعرَضُ ههنا أيضًا حتى لا يُفتَشَ عنهُ في العروضِ.
+       */}
+      {summary.noneRequired ? (
+        <>
+          <p className="dd__none-required">{t("driver.documents.noneRequired.body")}</p>
+          {summary.verificationNote !== null ? (
+            <p className="dd__note">
+              {t("driver.offers.verificationNote").replace("{note}", summary.verificationNote)}
+            </p>
+          ) : null}
+        </>
+      ) : null}
+
+      {summary.noneRequired ? null : summary.blockLines.length === 0 ? null : (
         <ul className="dd__blocks" aria-label={t("driver.documents.blocksLabel")}>
           {summary.blockLines.map((line) => {
             const fixDocType = line.docType;
@@ -362,144 +378,146 @@ export function DocumentsScreen({
         </ul>
       )}
 
-      <ul className="dd__list">
-        {summary.cards.map((card: DocumentCardModel) => {
-          const row = rows[card.docType] ?? { kind: "idle" };
-          // الشارةُ تُقرأُ من الجدولِ **قبلَ** العرضِ كي يكونَ الإحلالُ
-          // `badge.modifier` — تعبيراً يُحَلُّ ساكناً لحاجزِ الأنماطِ (القاعدة ٣).
-          const badge = TONE_BADGE[card.tone];
-          return (
-            <li className="dd__item" id={card.docType} key={card.docType} tabIndex={-1}>
-              <div className="dd__item-head">
-                <span className="dd__label">{t(card.labelKey)}</span>
-                <span className={`dd__badge ${badge.modifier}`}>{t(card.statusKey)}</span>
-              </div>
-
-              {card.expiresAt === null ? null : (
-                <p className="dd__expiry">
-                  {t("driver.documents.expiresAt")} {card.expiresAt}
-                  {card.daysLeft === null
-                    ? null
-                    : ` · ${t("driver.documents.daysLeft")} ${card.daysLeft}`}
-                </p>
-              )}
-
-              {card.reviewNote === null ? null : <p className="dd__note">{card.reviewNote}</p>}
-
-              {card.canUpload ? (
-                <div className="dd__upload">
-                  <label className="dd__field" htmlFor={`${formId}-${card.docType}-expiry`}>
-                    {t("driver.documents.expiryLabel")}
-                    <input
-                      id={`${formId}-${card.docType}-expiry`}
-                      className="dd__input"
-                      type="date"
-                      value={expiry[card.docType] ?? ""}
-                      onChange={(event) =>
-                        setExpiry((current) => ({
-                          ...current,
-                          [card.docType]: event.target.value,
-                        }))
-                      }
-                    />
-                  </label>
-                  <label className="dd__field" htmlFor={`${formId}-${card.docType}-file`}>
-                    {card.replaces
-                      ? t("driver.documents.replaceLabel")
-                      : t("driver.documents.fileLabel")}
-                    <input
-                      id={`${formId}-${card.docType}-file`}
-                      className="dd__input"
-                      type="file"
-                      accept="image/jpeg,image/png,application/pdf"
-                      disabled={row.kind === "busy"}
-                      onChange={(event) => {
-                        const file = event.target.files?.[0];
-                        if (file !== undefined) void handleUpload(card.docType, file);
-                      }}
-                    />
-                  </label>
-                  {capturePhoto !== undefined ? (
-                    <button
-                      type="button"
-                      className="dd__camera"
-                      disabled={row.kind === "busy"}
-                      onClick={() => {
-                        void capturePhoto().then((file) => {
-                          if (file !== null) void handleUpload(card.docType, file);
-                        });
-                      }}
-                    >
-                      {t("driver.documents.camera")}
-                    </button>
-                  ) : null}
+      {summary.noneRequired ? null : (
+        <ul className="dd__list">
+          {summary.cards.map((card: DocumentCardModel) => {
+            const row = rows[card.docType] ?? { kind: "idle" };
+            // الشارةُ تُقرأُ من الجدولِ **قبلَ** العرضِ كي يكونَ الإحلالُ
+            // `badge.modifier` — تعبيراً يُحَلُّ ساكناً لحاجزِ الأنماطِ (القاعدة ٣).
+            const badge = TONE_BADGE[card.tone];
+            return (
+              <li className="dd__item" id={card.docType} key={card.docType} tabIndex={-1}>
+                <div className="dd__item-head">
+                  <span className="dd__label">{t(card.labelKey)}</span>
+                  <span className={`dd__badge ${badge.modifier}`}>{t(card.statusKey)}</span>
                 </div>
-              ) : null}
 
-              {card.replaces ? (
-                <button
-                  type="button"
-                  className="dd__view"
-                  disabled={viewing === card.docType}
-                  onClick={() => void handleView(card.docType)}
-                >
-                  {viewing === card.docType
-                    ? t("driver.documents.viewing")
-                    : t("driver.documents.view")}
-                </button>
-              ) : null}
-
-              {row.kind === "busy" ? (
-                <>
-                  {(() => {
-                    // D8: موضعُ الخطوةِ الحقيقيّةِ (إذنٌ ← رفعٌ ← تسجيل) — `ui-stp`.
-                    const position = uploadStepPosition(row.stepKey);
-                    return position === null ? null : (
-                      <UiStepper
-                        current={position.current}
-                        total={position.total}
-                        text={uploadStepText(position, t)}
-                      />
-                    );
-                  })()}
-                  <p className="dd__step" role="status">
-                    {t(row.stepKey)}
+                {card.expiresAt === null ? null : (
+                  <p className="dd__expiry">
+                    {t("driver.documents.expiresAt")} {card.expiresAt}
+                    {card.daysLeft === null
+                      ? null
+                      : ` · ${t("driver.documents.daysLeft")} ${card.daysLeft}`}
                   </p>
-                  {row.stepKey === "driver.documents.step.uploading" &&
-                  row.progress !== undefined ? (
-                    <div
-                      className="dd__progress"
-                      role="progressbar"
-                      aria-valuenow={row.progress ?? undefined}
-                      aria-valuemin={0}
-                      aria-valuemax={100}
-                    >
-                      <div
-                        className="dd__progress-bar"
-                        style={{ width: `${row.progress ?? 0}%` }}
+                )}
+
+                {card.reviewNote === null ? null : <p className="dd__note">{card.reviewNote}</p>}
+
+                {card.canUpload ? (
+                  <div className="dd__upload">
+                    <label className="dd__field" htmlFor={`${formId}-${card.docType}-expiry`}>
+                      {t("driver.documents.expiryLabel")}
+                      <input
+                        id={`${formId}-${card.docType}-expiry`}
+                        className="dd__input"
+                        type="date"
+                        value={expiry[card.docType] ?? ""}
+                        onChange={(event) =>
+                          setExpiry((current) => ({
+                            ...current,
+                            [card.docType]: event.target.value,
+                          }))
+                        }
                       />
-                      <span className="dd__progress-text">
-                        {row.progress !== null ? `${row.progress}%` : "…"}
-                      </span>
-                    </div>
-                  ) : null}
-                </>
-              ) : null}
-              {row.kind === "failed" ? (
-                <p className="dd__error" role="status">
-                  {t(row.key)}
-                  {row.maxBytes === undefined ? null : ` (${row.maxBytes})`}
-                </p>
-              ) : null}
-              {row.kind === "done" ? (
-                <p className="dd__ok" role="status">
-                  {t("driver.documents.uploaded")}
-                </p>
-              ) : null}
-            </li>
-          );
-        })}
-      </ul>
+                    </label>
+                    <label className="dd__field" htmlFor={`${formId}-${card.docType}-file`}>
+                      {card.replaces
+                        ? t("driver.documents.replaceLabel")
+                        : t("driver.documents.fileLabel")}
+                      <input
+                        id={`${formId}-${card.docType}-file`}
+                        className="dd__input"
+                        type="file"
+                        accept="image/jpeg,image/png,application/pdf"
+                        disabled={row.kind === "busy"}
+                        onChange={(event) => {
+                          const file = event.target.files?.[0];
+                          if (file !== undefined) void handleUpload(card.docType, file);
+                        }}
+                      />
+                    </label>
+                    {capturePhoto !== undefined ? (
+                      <button
+                        type="button"
+                        className="dd__camera"
+                        disabled={row.kind === "busy"}
+                        onClick={() => {
+                          void capturePhoto().then((file) => {
+                            if (file !== null) void handleUpload(card.docType, file);
+                          });
+                        }}
+                      >
+                        {t("driver.documents.camera")}
+                      </button>
+                    ) : null}
+                  </div>
+                ) : null}
+
+                {card.replaces ? (
+                  <button
+                    type="button"
+                    className="dd__view"
+                    disabled={viewing === card.docType}
+                    onClick={() => void handleView(card.docType)}
+                  >
+                    {viewing === card.docType
+                      ? t("driver.documents.viewing")
+                      : t("driver.documents.view")}
+                  </button>
+                ) : null}
+
+                {row.kind === "busy" ? (
+                  <>
+                    {(() => {
+                      // D8: موضعُ الخطوةِ الحقيقيّةِ (إذنٌ ← رفعٌ ← تسجيل) — `ui-stp`.
+                      const position = uploadStepPosition(row.stepKey);
+                      return position === null ? null : (
+                        <UiStepper
+                          current={position.current}
+                          total={position.total}
+                          text={uploadStepText(position, t)}
+                        />
+                      );
+                    })()}
+                    <p className="dd__step" role="status">
+                      {t(row.stepKey)}
+                    </p>
+                    {row.stepKey === "driver.documents.step.uploading" &&
+                    row.progress !== undefined ? (
+                      <div
+                        className="dd__progress"
+                        role="progressbar"
+                        aria-valuenow={row.progress ?? undefined}
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                      >
+                        <div
+                          className="dd__progress-bar"
+                          style={{ width: `${row.progress ?? 0}%` }}
+                        />
+                        <span className="dd__progress-text">
+                          {row.progress !== null ? `${row.progress}%` : "…"}
+                        </span>
+                      </div>
+                    ) : null}
+                  </>
+                ) : null}
+                {row.kind === "failed" ? (
+                  <p className="dd__error" role="status">
+                    {t(row.key)}
+                    {row.maxBytes === undefined ? null : ` (${row.maxBytes})`}
+                  </p>
+                ) : null}
+                {row.kind === "done" ? (
+                  <p className="dd__ok" role="status">
+                    {t("driver.documents.uploaded")}
+                  </p>
+                ) : null}
+              </li>
+            );
+          })}
+        </ul>
+      )}
 
       {summary.canSubmit ? (
         <button

@@ -397,6 +397,10 @@ border:1px solid var(--line);background:var(--field);color:var(--text);font-fami
 form.inline{display:inline-flex;gap:6px;align-items:center;margin:0}
 form.inline input[type=text],form.inline input[type=number]{padding-block:5px;padding-inline:8px;border-radius:6px;
 border:1px solid var(--line);background:var(--field);color:var(--text);min-inline-size:110px;font-family:inherit}
+/* ADR 0302 — نموذجُ الرفضِ: سببٌ مكتوبٌ يراهُ السائقُ */
+form.inline.reject{flex-wrap:wrap}
+form.inline.reject .reject-note{display:inline-flex;gap:6px;align-items:center;color:var(--muted);font-size:12px}
+form.inline.reject .reject-note input{min-inline-size:220px}
 .search-results{margin-block:0;margin-inline:18px;background:var(--panel);border:1px solid var(--line);
 border-radius:10px;padding:12px}
 .search-results:focus{outline:2px solid var(--focus)}

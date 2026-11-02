@@ -338,8 +338,23 @@ export class PostgresDriverDocumentStore implements DriverDocumentStore {
     if (payload.ok !== true) return err(rejectionFrom(payload));
 
     const verificationStatus = readText(payload.verification_status);
+    const verificationNote = readText(payload.verification_note);
     const warningDays = readInteger(payload.warning_days);
     const blocks = readBlockReasons(payload.block_reasons);
+    // ADR 0302 — الأنواعُ الإلزاميّةُ المعلنةُ: عنصرٌ لا يُعرَفُ اسمُه يُسقِطُ
+    // اللوحَ كلَّهُ لا يُحذَفُ صامتًا (فلوحٌ ناقصُ اسمٍ يزعمُ «لا مطلوبَ» زورًا).
+    const requiredTypes: DriverDocumentType[] = [];
+    if (Array.isArray(payload.required_document_types)) {
+      for (const raw of payload.required_document_types) {
+        const name = readText(raw);
+        if (name === null || !isDriverDocumentType(name)) {
+          return err(failed("MALFORMED_RESULT"));
+        }
+        requiredTypes.push(name);
+      }
+    } else {
+      return err(failed("MALFORMED_RESULT"));
+    }
     if (
       verificationStatus === null ||
       warningDays === null ||
@@ -362,7 +377,9 @@ export class PostgresDriverDocumentStore implements DriverDocumentStore {
 
     return ok({
       verificationStatus,
+      verificationNote,
       warningDays,
+      requiredDocumentTypes: requiredTypes,
       documents,
       blockReasons: blocks.reasons,
       unreadableBlockReasons: blocks.unreadable,

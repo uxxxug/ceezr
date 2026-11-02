@@ -3393,6 +3393,14 @@ a.sys__action {
   font-weight: 800;
 }
 
+/* ADR 0302 — حالةُ «لا وثائقَ مطلوبةً»: جسمٌ هادئٌ تحتَ العنوانِ لا قائمةَ رفعٍ. */
+.dd__none-required {
+  margin: 0.5rem 0 0;
+  font-size: 0.95rem;
+  line-height: 1.7;
+  color: var(--tg-subtitle-text-color);
+}
+
 .dd__loading {
   margin: 0;
   font-size: 0.95rem;
@@ -3718,6 +3726,14 @@ a.sys__action {
   font-size: 1.0625rem;
   line-height: 1.6;
   font-weight: 800;
+}
+
+/* ADR 0302 — سببُ قرارِ التوثيقِ تحتَ العنوانِ: جسمٌ هادئٌ يفسِّرُهُ. */
+.dof__verification-note {
+  margin: 0.375rem 0 0;
+  font-size: 0.95rem;
+  line-height: 1.7;
+  color: var(--tg-subtitle-text-color);
 }
 
 .dof__loading {

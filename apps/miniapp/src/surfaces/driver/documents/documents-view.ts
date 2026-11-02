@@ -263,19 +263,33 @@ export interface BoardSummary {
   readonly blockLines: readonly BlockLine[];
   readonly cards: readonly DocumentCardModel[];
   readonly canSubmit: boolean;
+  /**
+   * ADR 0302 — سياسةُ «لا وثائقَ مطلوبةً» معلنةً لمدينةِ السائقِ: الشاشةُ
+   * تعرضُ حالةَ «لا مطلوبَ» لا خطواتِ رفعٍ لا يُطلَبُ منها شيءٌ.
+   */
+  readonly noneRequired: boolean;
+  /** سببُ قرارِ التوثيقِ الأخيرِ إن وُجدَ — يُعرَضُ للسائقِ نفسِهِ. */
+  readonly verificationNote: string | null;
 }
 
 export function toBoardSummary(response: DriverDocumentsResponse): BoardSummary {
   const cards = response.documents.map(toDocumentCard);
+  // ADR 0302 — الإلزامُ **المعلَنُ** هو الحاكمُ: لا وثائقَ مطلوبةً = حالةُ
+  // «لا مطلوبَ» حتى لو بقيَ في الجدولِ سجلٌّ تاريخيٌّ مرفوعٌ سابقًا.
+  const noneRequired = response.required_document_types.length === 0;
   const headlineKey = response.is_blocked
     ? "driver.documents.headline.blocked"
-    : cards.some((card) => card.tone === "expiring")
-      ? "driver.documents.headline.expiring"
-      : "driver.documents.headline.clear";
+    : noneRequired
+      ? "driver.documents.headline.noneRequired"
+      : cards.some((card) => card.tone === "expiring")
+        ? "driver.documents.headline.expiring"
+        : "driver.documents.headline.clear";
   return {
     headlineKey,
     blockLines: toBlockLines(response.block_reasons, response.unreadable_block_reasons),
     cards,
     canSubmit: canSubmitForReview(response.documents),
+    noneRequired,
+    verificationNote: response.verification_note,
   };
 }

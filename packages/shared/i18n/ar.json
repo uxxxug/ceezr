@@ -113,7 +113,7 @@
   "driver.subscription_upgraded": "تمّت ترقية خطّتك إلى {plan}. وتاريخ انتهاء الدورة كما هو: {until}.",
   "driver.trial_not_started": "لم تبدأ التجربة المجانية: {reason}",
   "driver.trial_started": "بدأت تجربتك المجانية لمدة {days#يوم واحد|يومين|أيام|يوماً}.",
-  "driver.trial_reason.not_verified": "حسابك لم يوثَّق بعد — ارفع وثائقك من تطبيق وَصلة (حسابي ← ملف العمل ← وثائقي) وستعتمدها الإدارة.",
+  "driver.trial_reason.not_verified": "حسابك لم يوثَّق بعد — بياناتك المكتوبة قيد المراجعة الإدارية، وسترى قرارها في تطبيق وَصلة.",
   "driver.trial_reason.already_used": "استُهلكت تجربة مجانية سابقة لهذا الحساب.",
   "driver.trial_reason.city_not_active": "مدينتك غير مفعّلة حالياً.",
   "driver.trial_reason.unknown": "راجع الدعم.",

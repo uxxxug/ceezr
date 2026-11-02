@@ -247,7 +247,10 @@ export function createDriverDocumentRoutes(deps: DriverDocumentRouteDependencies
     return c.json({
       ok: true,
       verification_status: board.verificationStatus,
+      // ADR 0302 — سببُ القرارِ يُعرَضُ للسائقِ، والأنواعُ المعلنةُ تحكمُ عرضَ الشاشة.
+      verification_note: board.verificationNote,
       warning_days: board.warningDays,
+      required_document_types: board.requiredDocumentTypes,
       documents: board.documents.map((row) => ({
         doc_type: row.docType,
         submitted: row.submitted,

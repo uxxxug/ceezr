@@ -47,6 +47,34 @@ let adminUserId = "";
 let driverId = "";
 let driverUserId = "";
 let requiredTypes: readonly string[] = [];
+let originalPolicy: string | null = null;
+
+/**
+ * الأنواعُ الستةُ التاريخيّةُ (إلزامُ ما قبلَ 2026-11-02) — تُزرَعُ **صريحةً**
+ * في هذا الملفِ وحده لاختبارِ انحدارِ الحارسِ حينَ تعيدُ الإدارةُ الإلزامَ،
+ * ثمَّ يُرَدُّ ما كانَ عليهِ الإعدادُ (سياسةُ `[]` بعدَ هجرةِ ADR 0302).
+ */
+const LEGACY_REQUIRED_TYPES = [
+  "driving_license",
+  "medical_exam",
+  "criminal_record",
+  "vehicle_registration",
+  "insurance",
+  "periodic_inspection",
+] as const;
+
+async function setCityPolicy(types: readonly string[]): Promise<void> {
+  await sql`
+    insert into platform_settings (city_id, key, value, value_type, description_ar)
+    values (
+      ${cityId}::uuid, 'driver_required_document_types',
+      ${JSON.stringify(types)}::jsonb, 'array',
+      'أنواع الوثائق الإلزامية لتسجيل السائق — اختبار الحارس'
+    )
+    on conflict (city_id, key) do update
+    set value = ${JSON.stringify(types)}::jsonb
+  `;
+}
 
 beforeAll(async () => {
   if (DATABASE_URL === undefined) return;
@@ -55,13 +83,17 @@ beforeAll(async () => {
   cityHandle = await ensureActiveCity(sql, { prior: cityHandle });
   cityId = cityHandle.cityId;
 
-  const [types] = await sql<{ types: string[] }[]>`
-    select driver_required_document_types(${cityId}::uuid)::text[] as types
+  // لقطةُ الإعدادِ كما هو — وإليهِ يُرَدُّ في afterAll (لا تُتركُ المدينةُ مُلزِمةً).
+  const [setting] = await sql<{ value: unknown }[]>`
+    select value from platform_settings
+     where city_id = ${cityId}::uuid and key = 'driver_required_document_types'
   `;
-  requiredTypes = types?.types ?? [];
-  if (requiredTypes.length === 0) {
-    throw new Error("تعذّر الزرعُ: لا أنواعَ إلزاميّةً في إعداداتِ المدينةِ");
-  }
+  originalPolicy = setting === undefined ? null : JSON.stringify(setting.value);
+
+  // اختبارُ الانحدارِ يقيسُ الحارسَ تحتَ إلزامٍ **معروفٍ** لا موروثٍ:
+  // أعدنا الأنواعَ الستةَ التاريخيّةَ صريحةً (سيناريو «أعادتِ الإدارةُ الإلزامَ»).
+  await setCityPolicy(LEGACY_REQUIRED_TYPES);
+  requiredTypes = LEGACY_REQUIRED_TYPES;
 
   // مسؤولٌ لإصدارِ أفعالِ اللوحةِ
   const [admin] = await sql<{ id: string }[]>`
@@ -91,6 +123,13 @@ beforeAll(async () => {
 
 afterAll(async () => {
   if (DATABASE_URL === undefined) return;
+  // ردُّ سياسةِ المدينةِ كما كانت (بعدَ هجرةِ 2026-11-02: `[]`) — لا تُورَّث.
+  if (originalPolicy !== null) {
+    await sql`
+      update platform_settings set value = ${originalPolicy}::jsonb
+       where city_id = ${cityId}::uuid and key = 'driver_required_document_types'
+    `;
+  }
   if (driverId !== "") {
     await sql`delete from audit_log where entity_id = ${driverId} or actor_user_id = ${driverUserId}`;
     await sql`delete from driver_documents where driver_id = ${driverId}`;
@@ -113,10 +152,10 @@ afterAll(async () => {
   }
 });
 
-function setVerification(status: string): Promise<Payload> {
+function setVerification(status: string, note: string | null = null): Promise<Payload> {
   return callJson(sql<{ result: Payload }[]>`
     select admin_set_driver_verification(
-      ${adminUserId}::uuid, ${driverId}::uuid, ${status}
+      ${adminUserId}::uuid, ${driverId}::uuid, ${status}, ${note}::text
     ) as result
   `);
 }
@@ -197,5 +236,79 @@ describeIf("F12-21 — حارسُ اعتمادِ السائقِ", () => {
     // أصلِح الوثيقةَ
     const future = await futureDate(400);
     await acceptDocument(docType, future);
+  });
+});
+
+/**
+ * ADR 0302 — سياسةُ 2026-11-02: **لا وثائقَ مطلوبةً** للتسجيل.
+ *
+ * الحارسُ نفسُهُ (`F12-21`) لم يُمسَّ: حينَ تُلزِمُ المدينةُ وثائقَ يظلُّ يحجبُ
+ * (اختُبِرَ أعلاهُ)، وحينَ تكونُ السياسةُ `[]` صريحةً يمرُّ التوثيقُ بلا وثيقةٍ
+ * واحدةٍ — والسجلُّ التاريخيُّ المرفوعُ سابقًا **لا يُفقدُ ولا يُحجبُ**.
+ */
+describeIf("ADR 0302 — سياسة لا وثائق مطلوبة", () => {
+  it("السياسةُ `[]` تُمِرُّ التوثيقَ بلا وثائقَ واحدةٍ — لا حجبَ بلا إلزامٍ", async () => {
+    await setCityPolicy([]);
+    // السائقُ عندهُ ستُّ وثائقَ مقبولةٍ من ملفِّ الانحدارِ — أفرِغها كلَّها.
+    await sql`delete from driver_documents where driver_id = ${driverId}`;
+    const result = await setVerification("verified");
+    expect(result.ok).toBe(true);
+    expect(result.changed).toBe(true);
+    expect(result.status).toBe("verified");
+  });
+
+  it("اللوحُ والسباقُ يُعلِنانِ «لا مطلوبَ» لا حجبًا — والإعدادُ المعلَنُ `[]`", async () => {
+    const [dashboard] = await sql<{ result: Payload }[]>`
+      select driver_document_dashboard(${driverUserId}::bigint) as result
+    `;
+    const board = dashboard?.result;
+    if (board === undefined) throw new Error("لا ردَّ من لوحِ الوثائقِ");
+    expect(board.ok).toBe(true);
+    expect(board.required_document_types).toEqual([]);
+    expect(board.block_reasons).toEqual([]);
+    expect(board.is_blocked).toBe(false);
+
+    const [offers] = await sql<{ result: Payload }[]>`
+      select driver_offer_board(${driverUserId}::bigint) as result
+    `;
+    const offersBoard = offers?.result;
+    if (offersBoard === undefined) throw new Error("لا ردَّ من سباقِ العروضِ");
+    expect(offersBoard.ok).toBe(true);
+    expect(offersBoard.verification_status).toBe("verified");
+  });
+
+  it("الرفضُ بلا سببٍ مكتوبٍ يُردُّ NOTE_REQUIRED — والسببُ يصلُ السائقَ", async () => {
+    const refused = await setVerification("rejected");
+    expect(refused.ok).toBe(false);
+    expect(refused.error).toBe("NOTE_REQUIRED");
+
+    const note = "بيانات المركبة غير مكتملة في الملف";
+    const accepted = await setVerification("rejected", note);
+    expect(accepted.ok).toBe(true);
+    expect(accepted.changed).toBe(true);
+
+    const [offers] = await sql<{ result: Payload }[]>`
+      select driver_offer_board(${driverUserId}::bigint) as result
+    `;
+    const offersBoard = offers?.result;
+    if (offersBoard === undefined) throw new Error("لا ردَّ من سباقِ العروضِ");
+    expect(offersBoard.verification_status).toBe("rejected");
+    expect(offersBoard.verification_note).toBe(note);
+
+    const [driver] = await sql<{ note: string | null }[]>`
+      select verification_note as note from drivers where id = ${driverId}::uuid
+    `;
+    expect(driver?.note).toBe(note);
+  });
+
+  it("الوثائقُ التاريخيّةُ لا تُفقدُ: السجلُّ يُقرأُ والسياسةُ `[]` لا تحذفُهُ", async () => {
+    // سجلٌّ تاريخيٌّ واحدٌ يبقى (رفعَهُ السائقُ سابقًا) — لا حذفَ ولا حجبَ.
+    await acceptDocument("driving_license", await futureDate(400));
+    const [rows] = await sql<{ count: number }[]>`
+      select count(*)::int as count from driver_documents where driver_id = ${driverId}
+    `;
+    expect(rows?.count).toBe(1);
+    const result = await setVerification("verified");
+    expect(result.ok).toBe(true);
   });
 });

@@ -1834,11 +1834,18 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
       return c.text("INVALID_STATUS", HTML_UNPROCESSABLE);
     }
 
+    /**
+     * ADR 0302 — سببُ القرارِ يُقرأُ من النموذجِ ويُمرَّرُ للقاعدةِ: إلزاميٌّ
+     * للرفضِ (تردُّهُ `NOTE_REQUIRED`) واختياريٌّ لغيرِه.
+     */
+    const note = formText(checked.form, "note");
+
     const outcome = await setDriverVerification(
       deps.sql,
       c.get("admin").userId,
       c.req.param("id"),
       status,
+      note,
     );
     log("admin.driver_verification_changed", { ok: outcome.ok, error: outcome.error });
     /**
