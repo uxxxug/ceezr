@@ -93,3 +93,8 @@
 - `stages-linux` (ubuntu-latest): **PASS** 86/0 — `stages-linux.txt`.
 - `build-kit`: **PASS**.
 - ملاحظة: هذا runner سحابيّ، لا جهازُ المالكِ Windows 11 Pro؛ يبقى ذلك NOT TESTED.
+
+
+## ملحق: ملاحظاتُ المراجعة (2026-11-02)
+
+أُصلِحت ملاحظتا مراجعةِ PR #717 (P1: إعادةُ الربطِ تحتَ رفعٍ مفعَّل، وP2: التفعيلُ يفحصُ الحجمَ وحدَه) في [ADR 0301](../../adr/0301-casaos-offsite-relink-binding-and-enable-integrity.md). الدليل: [`WR-27-offsite-review-fixes-20261102.md`](WR-27-offsite-review-fixes-20261102.md). ما فوقَ هذا الملحقِ باقٍ كما سُجِّل.

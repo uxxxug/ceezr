@@ -12,6 +12,8 @@ offsite-backup.sh وoffsite-setup.sh وoffsite-restore-drill.sh وstorage-restor
   check-storage-tar TAR           أرشيفُ بايتاتِ المخزن: ملفّاتٌ ومجلّداتٌ تحتَ ./ فقط.
   check-config TGZ                أرشيفُ الإعداد: المسموحُ حصراً، والأساسيُّ موجود.
   manifest-get FILE KEY [NAME]    يتحقّقُ من صيغةِ البيانِ الموقَّعِ كلِّها ثمّ يطبعُ قيمةَ KEY.
+  cred-fp RCLONE_CONF REMOTE      بصمةُ اعتمادِ القسم REMOTE (ADR 0301): sha256 لمفاتيحِه (عدا token) ولـrefresh_token.
+                                  لا يطبعُ إلّا التجزئة؛ وأيُّ نقصٍ ⇒ 1.
   rclone-section OUT [--allow-test-endpoints]
                                   يقرأُ قسمَ [wasla-gdrive] من stdin، يتحقّقُ منه، ويكتبُه ذرّيّاً بصلاحيّة 600.
   compare-rowstats EXPECTED GOT   تطابقٌ تامٌّ لكلِّ جدول (العددُ والبصمة)، وإلّا 1.
@@ -165,6 +167,34 @@ def parse_manifest(path, want_name=None):
     return kv
 
 
+def cred_fp(path, remote):
+    """بصمةُ قسمِ REMOTE: كلُّ مفاتيحِه ما عدا token، ثمّ refresh_token وحدَه من token (لا access_token ولا expiry).
+    فتجديدُ access_token لا يغيّرُها، وأيُّ حسابٍ أو عميلٍ أو وجهةٍ أخرى تغيّرُها. drive بلا refresh_token ⇒ رفض."""
+    cp = configparser.RawConfigParser(strict=True, interpolation=None)
+    try:
+        with open(path, encoding="utf-8") as fh:
+            cp.read_file(fh)
+        s = dict(cp[remote])
+    except (OSError, KeyError, UnicodeDecodeError, configparser.Error):
+        die("cred-reject unreadable")
+    if not s.get("type"):
+        die("cred-reject incomplete")
+    rt = ""
+    if "token" in s:
+        try:
+            tok = json.loads(s["token"])
+        except ValueError:
+            die("cred-reject token_not_json")
+        rt = tok.get("refresh_token", "") if isinstance(tok, dict) else ""
+    if s["type"] == "drive" and (not rt or not s.get("client_id")):
+        die("cred-reject incomplete")
+    h = hashlib.sha256(b"wasla-cred-v1\0" + remote.encode("utf-8") + b"\0")
+    for k in sorted(k for k in s if k != "token"):
+        h.update(k.encode("utf-8") + b"=" + s[k].encode("utf-8") + b"\0")
+    h.update(b"refresh_token=" + rt.encode("utf-8") + b"\0")
+    print(h.hexdigest())
+
+
 def rclone_section(out, allow_test):
     data = sys.stdin.read(65536)
     cp = configparser.RawConfigParser(strict=True, interpolation=None)
@@ -277,6 +307,8 @@ def main(a):
         if args[1] not in kv:
             die("manifest-reject unknown_key", 2)
         print(kv[args[1]])
+    elif cmd == "cred-fp" and len(args) == 2:
+        cred_fp(*args)
     elif cmd == "rclone-section" and len(args) in (1, 2):
         rclone_section(args[0], args[1:] == ["--allow-test-endpoints"])
     elif cmd == "compare-rowstats" and len(args) == 2:

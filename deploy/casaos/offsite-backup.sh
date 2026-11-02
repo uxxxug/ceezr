@@ -6,6 +6,9 @@
 #   offsite-backup.sh --first [TS]      ⇒ المرحلة ب: أوّلُ رفعٍ يدويٍّ واحدٍ بإعدادِ الربط (offsite-pending.env)،
 #       يرفضُ إن كان الليليُّ مفعَّلاً، ويرفعُ إلى daily/ فقط (3 ملفّات؛ لا weekly/monthly ولا حذفَ بعيد)، وعند نجاحِه
 #       وحدَه يكتبُ سجلَّ offsite-first-ok. **لا يكتبُ offsite.env أبداً**؛ التفعيلُ أمرٌ منفصل (offsite-setup.sh --enable-nightly).
+#   الربطُ بالموافقة (ADR 0301): الليليُّ لا يلمسُ Drive إلّا إن طابقَ offsite.env الربطَ القائمَ (LINK_ID والمستلمُ والوجهة)
+#       وسجلَّ أوّلِ الرفعِ الموافَقِ عليه، وطابقتْ بصمةُ اعتمادِ rclone.conf الحاليّةُ CRED_FP التي فُعِّلَ بها. أيُّ اختلاف
+#       ⇒ offsite-fail stage=link_changed|credential_changed قبلَ أيِّ استدعاءٍ لـrclone. فلا يتغيّرُ حسابُ الوجهةِ دونَ موافقة.
 #
 # ما يحدث:
 #   1) يجمعُ نسخةَ الطابعِ TS (قاعدةُ التطبيقِ وrowstats، والمخزنُ إن وُجد، والإعداد) مع MANIFEST.sha256،
@@ -31,11 +34,20 @@ if [ "$MODE" = nightly ]; then
   [ -f "$OFFSITE_ENV" ] || { echo "offsite-skip no_config"; exit 0; }
   offsite_lock || exit 1
   offsite_cfg_load "$OFFSITE_ENV" || { olog "offsite-fail stage=config_rejected"; exit 1; }
+  E_REC=$AGE_RECIPIENT E_REM=$RCLONE_REMOTE E_ROOT=$DRIVE_ROOT E_LID=$LINK_ID E_FP=$CRED_FP
+  [ -n "$E_LID" ] && [ -n "$E_FP" ] || { olog "offsite-fail stage=link_changed reason=unbound_config"; exit 1; }
+  { [ -f "$OFFSITE_PENDING" ] && offsite_cfg_load "$OFFSITE_PENDING"; } 2>/dev/null &&
+    [ "$LINK_ID" = "$E_LID" ] && [ "$AGE_RECIPIENT" = "$E_REC" ] && [ "$RCLONE_REMOTE" = "$E_REM" ] &&
+    [ "$DRIVE_ROOT" = "$E_ROOT" ] && [ "$CRED_FP" = "$E_FP" ] || { olog "offsite-fail stage=link_changed reason=link_record"; exit 1; }
+  { [ -f "$OFFSITE_FIRST_OK" ] && first_ok_load; } 2>/dev/null && [ "$FO_LINK_ID" = "$E_LID" ] && [ "$FO_CRED_FP" = "$E_FP" ] ||
+    { olog "offsite-fail stage=link_changed reason=first_upload_record"; exit 1; }
+  [ -f "$RCLONE_CONFIG_FILE" ] && [ "$(cred_fp 2>/dev/null)" = "$E_FP" ] || { olog "offsite-fail stage=credential_changed"; exit 1; }
 else
   offsite_lock || exit 1
   [ ! -f "$OFFSITE_ENV" ] || { echo "first-FAIL nightly_already_enabled (الرفعُ الليليُّ مفعَّل؛ لا حاجةَ لأوّلِ رفع)"; exit 1; }
   [ -f "$RCLONE_CONFIG_FILE" ] && [ -f "$OFFSITE_PENDING" ] || { echo "first-FAIL not_linked (اربطْ Drive أوّلاً)"; exit 1; }
-  offsite_cfg_load "$OFFSITE_PENDING" && [ -n "$LINK_ID" ] || { echo "first-FAIL link_record_invalid"; exit 1; }
+  offsite_cfg_load "$OFFSITE_PENDING" && [ -n "$LINK_ID" ] && [ -n "$CRED_FP" ] || { echo "first-FAIL link_record_invalid"; exit 1; }
+  [ "$(cred_fp 2>/dev/null)" = "$CRED_FP" ] || { echo "first-FAIL credential_changed (اعتمادُ Drive ليس الذي رُبط؛ أعِدِ الربط)"; exit 1; }
   rm -f "$OFFSITE_FIRST_OK"   # لا يبقى سجلٌّ قديمٌ إن فشلَ هذا التشغيل
 fi
 D=$BACKUP_DIR; O=$D/offsite; install -d -m 700 "$O"
@@ -104,8 +116,9 @@ tiers=daily
 if [ "$MODE" = first ]; then
   # المرحلة ب: ملفّاتُ daily الثلاثةُ تحقّقت ⇒ سجلُّ أوّلِ رفعٍ مربوطٌ بهذا الربط. لا طبقاتٍ ولا حذفَ بعيد.
   ST=record
-  printf 'FO_LINK_ID=%s\nFO_TS=%s\nFO_NAME=%s\nFO_BYTES=%s\nFO_SHA256=%s\nFO_RECIPIENT=%s\nFO_REMOTE=%s\nFO_ROOT=%s\nFO_AT=%s\n' \
-    "$LINK_ID" "$TS" "$NAME" "$size" "$sha" "$AGE_RECIPIENT" "$RCLONE_REMOTE" "$DRIVE_ROOT" "$(date -u +%Y%m%dT%H%M%SZ)" |
+  printf 'FO_LINK_ID=%s\nFO_TS=%s\nFO_NAME=%s\nFO_BYTES=%s\nFO_SHA256=%s\nFO_MANIFEST_SHA256=%s\nFO_RECIPIENT=%s\nFO_REMOTE=%s\nFO_ROOT=%s\nFO_CRED_FP=%s\nFO_AT=%s\n' \
+    "$LINK_ID" "$TS" "$NAME" "$size" "$sha" "$(sha256sum < "$MAN" | cut -d' ' -f1)" "$AGE_RECIPIENT" "$RCLONE_REMOTE" "$DRIVE_ROOT" \
+    "$CRED_FP" "$(date -u +%Y%m%dT%H%M%SZ)" |
     write_state "$OFFSITE_FIRST_OK"
   UPLOADED=()
   for old in $(ls -1t "$O"/wasla-*.tar.age | tail -n +4); do rm -f "$old" "${old%.tar.age}.manifest" "${old%.tar.age}.manifest.sig"; done

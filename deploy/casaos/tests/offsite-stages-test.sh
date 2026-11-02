@@ -252,7 +252,9 @@ integrity(){ # integrity DIR ⇒ 0 إن صحَّ كلُّ شيء
   (cd "$X/x" && sha256sum -c --quiet MANIFEST.sha256) || { echo inner-sums; return 1; }
   cmp -s "$X/x/waslah-$TS1.rowstats" "$BACKUP_DIR/waslah-$TS1.rowstats" && cmp -s "$X/x/waslah-$TS1.dump" "$BACKUP_DIR/waslah-$TS1.dump" || { echo rowstats; return 1; }; }
 r=$(integrity "$DD") && ok "test 12: signature (pinned signer), ciphertext sha256, recipient, age -d, check-tar, check-inner, rowstats+dump identical" || bad "test 12 integrity" "$r"
-cp -r "$DD" "$T/tamper1"; printf 'X' | dd of="$T/tamper1/wasla-$TS1.tar.age" bs=1 seek=200 conv=notrunc 2>/dev/null
+# قلبُ بِتٍّ (لا كتابةُ حرفٍ ثابت: لو كان البايتُ نفسَه لما تغيّرَ الملفّ — فشلٌ عشوائيٌّ بنسبة 1/256 رُصِدَ في خطِّ الأساس)
+cp -r "$DD" "$T/tamper1"; python3 -c 'import sys; p=sys.argv[1]; b=bytearray(open(p,"rb").read()); b[200]^=1; open(p,"wb").write(b)' "$T/tamper1/wasla-$TS1.tar.age"
+cmp -s "$DD/wasla-$TS1.tar.age" "$T/tamper1/wasla-$TS1.tar.age" && bad "tamper ciphertext precondition" "file unchanged"
 r=$(integrity "$T/tamper1") ; [ "$r" = sha ] && ok "test 12: tampered ciphertext rejected (sha256)" || bad "tamper ciphertext" "$r"
 cp -r "$DD" "$T/tamper2"; sed -i 's/^ciphertext_bytes=/ciphertext_bytes=1/' "$T/tamper2/wasla-$TS1.manifest"
 r=$(integrity "$T/tamper2"); [ "$r" = sig ] && ok "test 12: edited manifest rejected (signature)" || bad "tamper manifest" "$r"
@@ -265,6 +267,54 @@ mv "$T/sig.bak" "$DD/wasla-$TS1.manifest.sig"
 cp "$DD/wasla-$TS1.tar.age" "$T/ct.bak"; head -c 100 "$T/ct.bak" > "$DD/wasla-$TS1.tar.age"; bash "$S/offsite-setup.sh" --enable-nightly "$TS1" > "$L/enable-size" 2>&1
 check "test 7: enable refused when ciphertext size on Drive differs from the signed size" 1 $? "$L/enable-size" 'first_upload_missing_on_drive'
 cp "$T/ct.bak" "$DD/wasla-$TS1.tar.age"
+# ---- ADR 0301: تحقّقُ التفعيلِ الكاملُ من المجموعةِ الثلاثيّة (الأرشيف، البيان، التوقيع). كلُّ حالةٍ تُستعادُ بعدَها.
+SK=$ETC/backup-signing.key; M=$DD/wasla-$TS1.manifest; C=$DD/wasla-$TS1.tar.age
+cp -p "$M" "$T/m.orig"; cp -p "$M.sig" "$T/s.orig"; cp -p "$C" "$T/c.orig"; cp -p "$ETC/offsite-first-ok" "$T/fo.orig"
+restore3(){ cp -p "$T/m.orig" "$M"; cp -p "$T/s.orig" "$M.sig"; cp -p "$T/c.orig" "$C"; cp -p "$T/fo.orig" "$ETC/offsite-first-ok"; rm -f "$DD/wasla-$TS1.manifest.sig.old"; }
+resign(){ rm -f "$1.sig"; ssh-keygen -q -Y sign -f "${2:-$SK}" -n "${3:-wasla-offsite-backup}" "$1" 2>/dev/null; }
+flip(){ python3 -c 'import sys; p=sys.argv[1]; b=bytearray(open(p,"rb").read()); b[int(sys.argv[2])]^=1; open(p,"wb").write(b)' "$1" "$2"; }
+ssh-keygen -q -t ed25519 -N '' -C attacker -f "$T/evil.key" </dev/null >/dev/null
+en_reject(){ # en_reject NAME REGEX ⇒ التفعيلُ يُرفَض، ولا offsite.env، ولا كتابةَ في Drive، ولا مجلّدَ تحقّقٍ متروك
+  : > "$FLOG"; bash "$S/offsite-setup.sh" --enable-nightly "$TS1" > "$L/enable-int-$1" 2>&1; local rc=$?
+  check "integrity (ADR 0301): $1 ⇒ enable refused ($2)" 1 $rc "$L/enable-int-$1" "enable-FAIL $2" 'enable-ok'
+  [ ! -e "$ETC/offsite.env" ] && [ "$(writes)" = 0 ] && [ -z "$(find "$ETC" -name '.enable-verify-*')" ] ||
+    bad "integrity $1 side effects" "env=$([ -e "$ETC/offsite.env" ] && echo yes) writes=$(writes)"
+  restore3; }
+# أ) الأرشيف
+flip "$C" 300; [ "$(stat -c %s "$C")" = "$(stat -c %s "$T/c.orig")" ] || bad "flip changed size"
+en_reject ciphertext-same-size-bitflip ciphertext_mismatch
+flip "$C" "$(( $(stat -c %s "$C") - 1 ))"; en_reject ciphertext-last-byte ciphertext_mismatch
+head -c 21 "$T/c.orig" > "$C"; head -c "$(( $(stat -c %s "$T/c.orig") - 21 ))" /dev/urandom >> "$C"
+en_reject ciphertext-replaced-same-size-same-age-header ciphertext_mismatch
+flip "$C" 500; sed -i "s/^ciphertext_sha256=.*/ciphertext_sha256=$(sha256sum < "$C" | cut -d' ' -f1)/" "$M"; resign "$M"
+en_reject ciphertext+manifest-rewritten-and-resigned-with-server-key ciphertext_mismatch
+# ب) البيان
+sed -i 's/^created_at=\(....\)/created_at=1999/' "$M"; en_reject manifest-edited-old-signature manifest_mismatch
+sed -i "s/^ciphertext_sha256=.*/ciphertext_sha256=$(printf '0%.0s' $(seq 64))/" "$M"; resign "$M"
+en_reject manifest-other-sha-resigned-with-server-key manifest_mismatch
+sed -i 's/^created_at=\(....\)/created_at=2000/' "$M"; resign "$M"; en_reject manifest-same-fields-other-bytes-resigned manifest_mismatch
+OTS=20200101T000000Z; sed -i "s/$TS1/$OTS/g" "$M"; resign "$M"; en_reject manifest-of-another-backup-resigned manifest_mismatch
+printf 'format=wasla-offsite-v1\n' > "$M"; resign "$M"; en_reject manifest-truncated-resigned manifest_mismatch
+# ج) التوقيع (البيانُ سليمٌ بايتاً بايتاً)
+printf 'not a signature\n' > "$M.sig"; en_reject signature-garbage manifest_signature_invalid
+: > "$M.sig"; en_reject signature-empty manifest_signature_invalid
+cp "$M" "$T/m2"; resign "$T/m2" "$T/evil.key"; cp "$T/m2.sig" "$M.sig"; en_reject signature-by-another-key manifest_signature_invalid
+cp "$M" "$T/m3"; resign "$T/m3" "$SK" other-namespace; cp "$T/m3.sig" "$M.sig"; en_reject signature-server-key-wrong-namespace manifest_signature_invalid
+printf 'other\n' > "$T/m4"; resign "$T/m4"; cp "$T/m4.sig" "$M.sig"; en_reject signature-server-key-over-other-content manifest_signature_invalid
+flip "$M.sig" 120; en_reject signature-bitflip manifest_signature_invalid
+# د) حقولُ البيانِ مقابلَ السجلّ: سجلٌّ معبوثٌ ليطابقَ بيانًا أُعيدَ توقيعُه بمستلمٍ آخر ⇒ يرفضُه فحصُ الحقول
+OTHERPUB=$(age-keygen 2>/dev/null | age-keygen -y 2>/dev/null); [[ "$OTHERPUB" =~ ^age1 ]] || OTHERPUB=$(age-keygen -y <(age-keygen 2>/dev/null))
+sed -i "s/^age_recipient=.*/age_recipient=$OTHERPUB/" "$M"; resign "$M"
+sed -i "s/^FO_MANIFEST_SHA256=.*/FO_MANIFEST_SHA256=$(sha256sum < "$M" | cut -d' ' -f1)/" "$ETC/offsite-first-ok"
+en_reject manifest-other-recipient-with-matching-record-hash manifest_mismatch
+# هـ) مجموعةٌ ليست الثلاثةَ بالضبط، واعتمادٌ ليس الذي رُبط
+cp "$M.sig" "$DD/wasla-$TS1.manifest.sig.old"; en_reject extra-file-in-set first_upload_missing_on_drive
+cp -p "$ETC/rclone.conf" "$T/rc.orig"; sed -i 's/MOCK-REFRESH-TOKEN-SECRET-MARKER/MOCK-REFRESH-TOKEN-SECRET-MARKER-OTHER-ACCOUNT/' "$ETC/rclone.conf"
+en_reject rclone-conf-swapped-to-other-account credential_changed
+cp -p "$ETC/rclone.conf" "$T/rc.other"; bash "$S/offsite-backup.sh" --first > "$L/first-credswap" 2>&1; rc=$?; cp -p "$T/rc.orig" "$ETC/rclone.conf"
+check "first upload refused when rclone.conf is not the linked credential" 1 $rc "$L/first-credswap" 'first-FAIL credential_changed'
+cmp -s "$M" "$T/m.orig" && cmp -s "$M.sig" "$T/s.orig" && cmp -s "$C" "$T/c.orig" && cmp -s "$ETC/offsite-first-ok" "$T/fo.orig" &&
+  ok "integrity cases restored: the original set is byte-identical before the real enable" || bad "restore3"
 chmod 644 "$ETC/offsite-first-ok"; bash "$S/offsite-setup.sh" --enable-nightly "$TS1" > "$L/enable-644" 2>&1
 check "test 7: enable refused when first-ok record is not 600" 1 $? "$L/enable-644" 'first_upload_record_invalid'
 chmod 600 "$ETC/offsite-first-ok"
@@ -283,9 +333,9 @@ S3=$(state); env -i PATH="$PATH" WASLA_ETC="$ETC" WASLA_OPT="$S" WASLA_BIN="$S/b
 check "kit enable (ENABLE) after verified first upload rc=0" 0 $? "$L/kit-enable" 'enable-ok'
 grep -qE -- "^ssh .* -n .*offsite-setup.sh --enable-nightly $TS1\$" "$T/ssh-calls" && ok "enable: kit passed the first-upload TS reported by the server" || bad "enable ssh" "$(tr '\n' ';' < "$T/ssh-calls")"
 [ "$(stat -c '%a %u' "$ETC/offsite.env")" = "600 $(id -u)" ] && [ ! -L "$ETC/offsite.env" ] &&
-  [ "$(grep -c . "$ETC/offsite.env")" = 4 ] && grep -qx "AGE_RECIPIENT=$PUB" "$ETC/offsite.env" &&
-  [ -z "$(find "$ETC" -name '.state-*')" ] && ok "enable: offsite.env regular file, 600, 4 strict keys, no temp left (atomic)" || bad "offsite.env after enable" "$(ls -la "$ETC")"
-[ "$(writes)" = 0 ] && [ "$(nfiles)" = 3 ] && ok "enable itself uploaded nothing (read-only lsf check only)" || bad "enable writes" "$(tr '\n' ';' < "$FLOG")"
+  [ "$(grep -c . "$ETC/offsite.env")" = 5 ] && grep -qx "AGE_RECIPIENT=$PUB" "$ETC/offsite.env" && grep -qE '^CRED_FP=[0-9a-f]{64}$' "$ETC/offsite.env" &&
+  [ -z "$(find "$ETC" -name '.state-*')" ] && ok "enable: offsite.env regular file, 600, 5 strict keys incl. CRED_FP, no temp left (atomic)" || bad "offsite.env after enable" "$(ls -la "$ETC")"
+[ "$(writes)" = 0 ] && [ "$(nfiles)" = 3 ] && ok "enable itself uploaded nothing (read-only lsf + full cat verification only)" || bad "enable writes" "$(tr '\n' ';' < "$FLOG")"
 bash "$S/offsite-setup.sh" --enable-nightly "$TS1" > "$L/enable-again" 2>&1
 check "enable is idempotent (already_enabled)" 0 $? "$L/enable-again" 'already_enabled'
 bash "$S/offsite-backup.sh" --first > "$L/first-enabled" 2>&1
@@ -299,22 +349,65 @@ check "test 8: after explicit enable, backup.sh calls the upload" 0 $? "$L/backu
 S4=$(state); rm -f "$ETC/.offsite.lock"
 for i in 1 2; do env -i PATH="$PATH" WASLA_ETC="$ETC" WASLA_BIN="$S/bin" bash "$S/offsite-setup.sh" --status > "$L/restart-enabled-$i" 2>&1; done
 [ "$(state)" = "$S4" ] && grep -qx 'stage=enabled' "$L/restart-enabled-2" && ok "test 9: restart sim after enable ⇒ still enabled, state files byte-identical" || bad "test 9 enabled"
-# ---- إعادةُ الربطِ بعدَ التفعيل: لا تُعطِّلُ ولا تُفعِّلُ ولا ترفع
+# ---- ADR 0301: إعادةُ الربطِ والرفعُ الليليُّ مفعَّل ⇒ رفضٌ قبلَ أيِّ سرٍّ وقبلَ أيِّ تغيير (الحقيبةُ والخادمُ كلاهما)
 python3 "$SRC/tests/mock-oauth.py" 18181 ok "$L/mock2.log" & MOCK_PID=$!; sleep 1
 export HTTPS_PROXY=http://127.0.0.1:1 NO_PROXY=127.0.0.1,localhost https_proxy=http://127.0.0.1:1 no_proxy=127.0.0.1,localhost
-ENV_BEFORE=$(sha256sum < "$ETC/offsite.env"); : > "$FLOG"; NF=$(nfiles)
+S5=$(state); : > "$FLOG"; : > "$T/ssh-calls"; NF=$(nfiles); FP0=$(sed -n 's/^CRED_FP=//p' "$ETC/offsite.env")
 connect connect-relink-enabled RELINK 1-test.apps.googleusercontent.com "$CSEC"; rc=$?
-check "relink while enabled rc=0" 0 $rc "$L/connect-relink-enabled" 'link-ok'
-[ "$(sha256sum < "$ETC/offsite.env")" = "$ENV_BEFORE" ] && [ "$(writes)" = 0 ] && [ "$(nfiles)" = "$NF" ] && [ ! -e "$ETC/offsite-first-ok" ] &&
-  ok "relink while enabled: offsite.env untouched, zero writes, first-ok invalidated" || bad "relink enabled side effects"
+check "relink while enabled: kit stops at --status (rc=1) before RELINK prompt and before Client ID" 1 $rc "$L/connect-relink-enabled" 'الرفعُ الليليُّ مفعَّلٌ على الخادم' 'link-ok|Client ID|اكتبْ RELINK'
+! grep -q -- '--link' "$T/ssh-calls" && [ "$(state)" = "$S5" ] && [ ! -s "$FLOG" ] && ! grep -q 'grant=' "$L/mock2.log" &&
+  ok "relink while enabled (kit): no --link sent, no OAuth, zero rclone calls, all 4 state files byte-identical" || bad "kit relink enabled" "$(tr '\n' ';' < "$T/ssh-calls")"
+bash "$S/offsite-setup.sh" --link "$PUB" < "$T/rc.other" > "$L/link-enabled-direct" 2>&1; rc=$?
+check "relink while enabled (server --link, other account on stdin) ⇒ link-FAIL nightly_enabled" 1 $rc "$L/link-enabled-direct" 'link-FAIL nightly_enabled' 'link-ok'
+[ "$(state)" = "$S5" ] && [ ! -s "$FLOG" ] && [ -z "$(find "$ETC" -name '.rclone-link-*')" ] && [ -e "$ETC/offsite-first-ok" ] &&
+  ok "server refusal: rclone.conf/pending/first-ok/offsite.env unchanged, not even the read-only about call" || bad "server relink enabled side effects" "$(state)"
 kill "$MOCK_PID"; wait "$MOCK_PID" 2>/dev/null; MOCK_PID=""; unset HTTPS_PROXY NO_PROXY https_proxy no_proxy
-# ---- التعطيل
+: > "$FLOG"; sleep 1; bash "$S/backup.sh" > "$L/backup-after-refused-relink" 2>&1
+check "nightly after refused relink: still uploads with the approved credential" 0 $? "$L/backup-after-refused-relink" '^offsite-ok '
+[ "$(sed -n 's/^CRED_FP=//p' "$ETC/offsite.env")" = "$FP0" ] && [ "$(sed -n 's/^CRED_FP=//p' "$ETC/offsite-pending.env")" = "$FP0" ] &&
+  ok "CRED_FP identical in offsite.env and pending (approved credential bound)" || bad "CRED_FP binding"
+# ---- ADR 0301: الرفعُ الليليُّ مربوطٌ بما وُوفِقَ عليه — تجاوزُ --link (نسخةٌ قديمة أو تعديلٌ يدويّ) ⇒ لا رفعَ ولا استدعاءَ لـrclone
+S6=$(state); cp -p "$ETC/offsite.env" "$T/env.orig"; cp -p "$ETC/offsite-pending.env" "$T/pend.orig"; cp -p "$ETC/offsite-first-ok" "$T/fo2.orig"
+night_reject(){ # night_reject NAME REGEX
+  : > "$FLOG"; bash "$S/offsite-backup.sh" --nightly "$(lastts)" > "$L/night-$1" 2>&1; local rc=$?
+  check "nightly binding (ADR 0301): $1 ⇒ refused" 1 $rc "$L/night-$1" "$2" 'offsite-ok'
+  [ ! -s "$FLOG" ] && ok "nightly binding: $1 ⇒ zero rclone calls" || bad "nightly $1 called rclone" "$(tr '\n' ';' < "$FLOG")"
+  cp -p "$T/rc.orig" "$ETC/rclone.conf"; cp -p "$T/env.orig" "$ETC/offsite.env"; cp -p "$T/pend.orig" "$ETC/offsite-pending.env"; cp -p "$T/fo2.orig" "$ETC/offsite-first-ok"; }
+cp -p "$T/rc.other" "$ETC/rclone.conf"; night_reject rclone-conf-replaced-by-other-account 'offsite-fail stage=credential_changed'
+rm -f "$ETC/rclone.conf"; night_reject rclone-conf-missing 'offsite-fail stage=credential_changed'
+sed -i "s/^LINK_ID=.*/LINK_ID=$(printf 'f%.0s' $(seq 32))/" "$ETC/offsite-pending.env"; night_reject pending-relinked-out-of-band 'stage=link_changed reason=link_record'
+sed -i "s/^CRED_FP=.*/CRED_FP=$(printf 'e%.0s' $(seq 64))/" "$ETC/offsite-pending.env"; night_reject pending-cred-fp-changed 'stage=link_changed reason=link_record'
+rm -f "$ETC/offsite-pending.env"; night_reject pending-missing 'stage=link_changed reason=link_record'
+rm -f "$ETC/offsite-first-ok"; night_reject first-ok-missing 'stage=link_changed reason=first_upload_record'
+grep -v '^CRED_FP=' "$T/env.orig" > "$ETC/offsite.env"; chmod 600 "$ETC/offsite.env"; night_reject offsite-env-without-cred-fp 'stage=link_changed reason=unbound_config'
+grep -v '^LINK_ID=' "$T/env.orig" > "$ETC/offsite.env"; chmod 600 "$ETC/offsite.env"; night_reject offsite-env-without-link-id 'stage=link_changed reason=unbound_config'
+[ "$(state)" = "$S6" ] && cmp -s "$ETC/offsite.env" "$T/env.orig" && cmp -s "$ETC/rclone.conf" "$T/rc.orig" && ok "binding cases restored" || bad "binding restore"
+# ---- التعطيل، ثمّ إعادةُ الربط (مسموحةٌ الآن)، ثمّ أوّلُ رفعٍ جديدٌ وتفعيلٌ صريح
 printf 'DISABLE\n' | "${LAPTOP_ENV[@]}" bash "$KIT/wasla-offsite-enable-nightly.sh" --disable > "$L/kit-disable" 2>&1
 check "kit disable (DISABLE) rc=0" 0 $? "$L/kit-disable" 'disable-ok'
 : > "$FLOG"; bash "$S/backup.sh" > "$L/backup-disabled" 2>&1
 [ ! -e "$ETC/offsite.env" ] && [ ! -s "$FLOG" ] && ok "after disable: no offsite.env, nightly back to local-only" || bad "after disable"
+python3 "$SRC/tests/mock-oauth.py" 18181 ok "$L/mock3.log" & MOCK_PID=$!; sleep 1
+export HTTPS_PROXY=http://127.0.0.1:1 NO_PROXY=127.0.0.1,localhost https_proxy=http://127.0.0.1:1 no_proxy=127.0.0.1,localhost
+OLDLID2=$(sed -n 's/^LINK_ID=//p' "$ETC/offsite-pending.env"); : > "$FLOG"; NF=$(nfiles)
+connect connect-relink-disabled RELINK 1-test.apps.googleusercontent.com "$CSEC"; rc=$?
+check "after disable: relink (RELINK) rc=0" 0 $rc "$L/connect-relink-disabled" 'link-ok'
+[ "$(writes)" = 0 ] && [ "$(nfiles)" = "$NF" ] && [ ! -e "$ETC/offsite.env" ] && [ ! -e "$ETC/offsite-first-ok" ] &&
+  [ "$(sed -n 's/^LINK_ID=//p' "$ETC/offsite-pending.env")" != "$OLDLID2" ] && [ "$(stage)" = linked ] &&
+  ok "relink after disable: new LINK_ID, first-ok invalidated, not enabled, zero writes" || bad "relink after disable" "$(stage)"
+kill "$MOCK_PID"; wait "$MOCK_PID" 2>/dev/null; MOCK_PID=""; unset HTTPS_PROXY NO_PROXY https_proxy no_proxy
+: > "$FLOG"; bash "$S/backup.sh" > "$L/backup-relinked" 2>&1
+check "after relink: nightly local-only (no approval yet for the new link)" 0 $? "$L/backup-relinked" '^backup-ok' 'offsite-ok|offsite-fail'
+[ ! -s "$FLOG" ] || bad "nightly called rclone after relink"
 bash "$S/offsite-setup.sh" --enable-nightly "$TS1" > "$L/enable-after-relink" 2>&1
 check "after relink, enabling needs a new first upload" 1 $? "$L/enable-after-relink" 'no_first_upload'
+TS2=$(lastts); printf 'UPLOAD\n' | "${LAPTOP_ENV[@]}" bash "$KIT/wasla-offsite-first-upload.sh" > "$L/kit-first2" 2>&1
+check "new link: first upload (UPLOAD)" 0 $? "$L/kit-first2" "first-ok ts=$TS2"
+"${LAPTOP_ENV[@]}" bash "$KIT/wasla-offsite-enable-nightly.sh" <<< 'ENABLE' > "$L/kit-enable2" 2>&1
+check "new link: explicit enable (ENABLE) after full integrity check" 0 $? "$L/kit-enable2" 'enable-ok'
+: > "$FLOG"; sleep 1; bash "$S/backup.sh" > "$L/backup-enabled2" 2>&1
+check "new link: nightly uploads only after the new explicit approvals" 0 $? "$L/backup-enabled2" '^offsite-ok '
+printf 'DISABLE\n' | "${LAPTOP_ENV[@]}" bash "$KIT/wasla-offsite-enable-nightly.sh" --disable > "$L/kit-disable2" 2>&1 || bad "disable2"
 
 # ======================= D) offsite.env مُدخَلٌ يدويّاً أو معبوث ⇒ رفضٌ دونَ تنفيذ =======================
 LID=$(sed -n 's/^LINK_ID=//p' "$ETC/offsite-pending.env")

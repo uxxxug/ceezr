@@ -44,8 +44,8 @@ case "$cmd" in
     [ -n "${FAKE_OLD_SERVER:-}" ] && { echo "الاستعمال: offsite-setup.sh --signing-key | --install age1…"; exit 2; }
     st=$(cat "$OUT/stage" 2>/dev/null || echo unlinked); ft=none; [ "$st" = first-ok ] || [ "$st" = enabled ] && ft=$(cat "$FX/ts")
     printf 'stage=%s\r\nlinked=%s\r\nfirst_upload=%s\r\nnightly=%s\r\n' "$st" "$([ "$st" = unlinked ] && echo no || echo yes)" "$ft" "$([ "$st" = enabled ] && echo on || echo off)";;
-  *"offsite-setup.sh --link age1"*) cp "$IN" "$OUT/received.conf"; [ "$(cat "$OUT/stage" 2>/dev/null)" = enabled ] || echo linked > "$OUT/stage"
-    echo "link-ok (fake server) uploads=0";;
+  *"offsite-setup.sh --link age1"*) [ "$(cat "$OUT/stage" 2>/dev/null)" = enabled ] && { echo "link-FAIL nightly_enabled"; exit 1; }
+    cp "$IN" "$OUT/received.conf"; echo linked > "$OUT/stage"; echo "link-ok (fake server) uploads=0";;
   *"offsite-backup.sh --first")
     case "$(cat "$OUT/stage" 2>/dev/null)" in linked|first-ok) echo first-ok > "$OUT/stage"; echo "first-ok ts=$(cat "$FX/ts") files=3 nightly=off";;
       *) echo "first-FAIL"; exit 1;; esac;;
@@ -115,10 +115,14 @@ kill "$MOCK_PID" 2>/dev/null
 : > "$OUT/ssh-calls"; printf 'UPLOAD\n' | bash ./wasla-offsite-first-upload.sh > "$OUT/first-enabled.txt" 2>&1; rc=$?
 [ $rc = 1 ] && ! grep -q 'offsite-backup' "$OUT/ssh-calls" && ok "stage B refused once enabled" || bad "first when enabled" "rc=$rc"
 : > "$OUT/ssh-calls"; printf 'no\n' | bash ./wasla-offsite-connect.sh > "$OUT/relink-cancel.txt" 2>&1; rc=$?
-[ $rc = 1 ] && grep -q 'أُلغي' "$OUT/relink-cancel.txt" && ! grep -q -- '--link' "$OUT/ssh-calls" && ! grep -q 'Client ID' "$OUT/relink-cancel.txt" &&
-  ok "relink without RELINK ⇒ cancelled before OAuth, no --link" || bad "relink cancel" "rc=$rc $(tail -2 "$OUT/relink-cancel.txt")"
+[ $rc = 1 ] && grep -q 'الرفعُ الليليُّ مفعَّلٌ على الخادم' "$OUT/relink-cancel.txt" && ! grep -q -- '--link' "$OUT/ssh-calls" &&
+  ! grep -q 'Client ID' "$OUT/relink-cancel.txt" && ! grep -q 'RELINK' "$OUT/relink-cancel.txt" && [ "$(cat "$OUT/stage")" = enabled ] &&
+  ok "relink while enabled (ADR 0301) ⇒ connect stops at --status, no RELINK prompt, no OAuth, no --link" || bad "relink while enabled" "rc=$rc $(tail -2 "$OUT/relink-cancel.txt")"
 printf 'DISABLE\n' | bash ./wasla-offsite-enable-nightly.sh --disable > "$OUT/disable.txt" 2>&1; rc=$?
 [ $rc = 0 ] && grep -q 'disable-ok' "$OUT/disable.txt" && ok "disable (DISABLE) ⇒ --disable-nightly" || bad "disable" "rc=$rc"
+: > "$OUT/ssh-calls"; printf 'no\n' | bash ./wasla-offsite-connect.sh > "$OUT/relink-cancel2.txt" 2>&1; rc=$?
+[ $rc = 1 ] && grep -q 'أُلغي' "$OUT/relink-cancel2.txt" && ! grep -q -- '--link' "$OUT/ssh-calls" && ! grep -q 'Client ID' "$OUT/relink-cancel2.txt" &&
+  ok "after disable: relink asks RELINK; 'no' ⇒ cancelled before OAuth, no --link" || bad "relink cancel after disable" "rc=$rc $(tail -2 "$OUT/relink-cancel2.txt")"
 : > "$OUT/ssh-calls"; FAKE_OLD_SERVER=1 bash ./wasla-offsite-connect.sh < /dev/null > "$OUT/old-server.txt" 2>&1; rc=$?
 [ $rc = 1 ] && grep -q 'ADR 0300' "$OUT/old-server.txt" && ! grep -qE -- '--link|--install' "$OUT/ssh-calls" && ! grep -q 'Client ID' "$OUT/old-server.txt" &&
   ok "old server (no --status) ⇒ connect stops before OAuth, nothing sent" || bad "old server" "rc=$rc $(tail -2 "$OUT/old-server.txt")"
@@ -129,7 +133,7 @@ export WASLA_LOG_DIR=$OUT; bash ./wasla-offsite-restore-test.sh > "$OUT/rt.txt" 
 [ $rc = 0 ] && grep -q 'provenance-ok' "$OUT/rt.txt" && grep -q 'decrypt-ok' "$OUT/rt.txt" && grep -q 'offsite-drill-PASS' "$OUT/rt.txt" && grep -q 'النتيجة: PASS' "$OUT/rt.txt" &&
   ok "restore-test: signature (Linux-signed) verified, sha256, native age -d, binary pipe intact ⇒ PASS" || bad "restore-test" "rc=$rc $(tail -4 "$OUT/rt.txt")"
 # نصٌّ مشفّرٌ معدَّل ⇒ رفض
-cp -r "$FX" "$HOME/fx-bad"; f=$(ls "$HOME/fx-bad/drive/daily/"*.tar.age); printf 'X' | dd of="$f" bs=1 seek=100 conv=notrunc 2>/dev/null
+cp -r "$FX" "$HOME/fx-bad"; f=$(ls "$HOME/fx-bad/drive/daily/"*.tar.age); "$PY" -c 'import sys; p=sys.argv[1]; b=bytearray(open(p,"rb").read()); b[100]^=1; open(p,"wb").write(b)' "$f"  # قلبُ بِتٍّ مضمونُ التغيير
 FX=$HOME/fx-bad bash ./wasla-offsite-restore-test.sh > "$OUT/rt-bad.txt" 2>&1; rc=$?
 [ $rc = 1 ] && grep -q 'sha256 لا يطابقُ الموقَّع' "$OUT/rt-bad.txt" && ok "restore-test: tampered ciphertext ⇒ FAIL before decrypt" || bad "tampered" "rc=$rc $(tail -2 "$OUT/rt-bad.txt")"
 # known_hosts معدَّل ⇒ رفضٌ دونَ اتصال

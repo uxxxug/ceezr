@@ -1,0 +1,51 @@
+{
+  "id": "wr-27-offsite-review-fixes-20261102",
+  "goal": "§27 النشرُ والتحقّق: إصلاحُ ملاحظتَي مراجعةِ PR #717 — (P1) لا تتغيّرُ وجهةُ النسخِ الليليّةِ بإعادةِ ربطٍ دونَ موافقةٍ صريحة: --link يُرفَضُ والليليُّ مفعَّل، والحقيبةُ تتوقّفُ قبلَ أيِّ سرّ، و--nightly مربوطٌ ببصمةِ الاعتماد CRED_FP وسجلِّ الربطِ وأوّلِ الرفع؛ (P2) --enable-nightly يتحقّقُ من sha256 الأرشيفِ كاملاً، وsha256 البيان، والتوقيع، ومطابقةِ الحقول، مع اختباراتٍ سلبيّةٍ للملفّاتِ المعدّلةِ والمستبدلة. دونَ اتّصالٍ بـCasaOS ودونَ Drive حقيقيّ.",
+  "canonical_source": [
+    "docs/roadmap/execution/ORDER-20261012.md",
+    "docs/adr/0300-casaos-offsite-stage-separation.md",
+    "docs/adr/0301-casaos-offsite-relink-binding-and-enable-integrity.md"
+  ],
+  "implementation": [
+    "deploy/casaos/offsite-lib.sh",
+    "deploy/casaos/offsite-tool.py",
+    "deploy/casaos/offsite-setup.sh",
+    "deploy/casaos/offsite-backup.sh",
+    "deploy/casaos/laptop/wasla-offsite-connect.sh",
+    "deploy/casaos/tests/offsite-stages-test.sh",
+    "deploy/casaos/tests/offsite-selftest.sh",
+    "deploy/casaos/tests/offsite-kit-windows-test.sh"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [
+    "docs/roadmap/execution/STATUS.md",
+    "docs/adr/0301-casaos-offsite-relink-binding-and-enable-integrity.md",
+    "deploy/casaos/OFFSITE-BACKUP.md",
+    "deploy/casaos/laptop/README-AR.md",
+    "docs/evidence/production/WR-27-offsite-review-fixes-20261102.md",
+    "docs/evidence/production/WR-27-offsite-stage-separation-20261102.md",
+    "docs/evidence/archive/WR-27-offsite-review-fixes-20261102/SHA256SUMS",
+    "docs/evidence/archive/WR-27-offsite-review-fixes-20261102/stages-test-r2.txt",
+    "docs/evidence/archive/WR-27-offsite-review-fixes-20261102/selftest-r2.txt",
+    "docs/evidence/archive/WR-27-offsite-review-fixes-20261102/kit-test-linux-r2.txt",
+    "docs/evidence/archive/WR-27-offsite-review-fixes-20261102/mutation-results-r2.txt",
+    "docs/evidence/archive/WR-27-offsite-review-fixes-20261102/mutation-run-r2.sh.txt"
+  ],
+  "decision": "ADR 0301 (يحلُّ محلَّ أجزاءٍ من 0300): --link مرفوضٌ ما دامَ offsite.env موجوداً؛ CRED_FP (sha256 لقسمِ الوجهةِ بلا access_token) في الربطِ وأوّلِ الرفعِ وoffsite.env؛ --nightly لا يلمسُ Drive إلّا بتطابقِ الأربعة؛ --enable-nightly: الأسماءُ الثلاثةُ وحدَها ← sha256 الأرشيف ← sha256 البيان ← ssh-keygen -Y verify ← حقولُ البيان.",
+  "tests": [
+    "offsite-stages-test.sh: pass=133 fail=0 (18 حالةً سلبيّةً للتفعيل، و8 night_reject، وإعادةُ الربطِ والتفعيلُ قائم)",
+    "طفراتٌ 15 (M9–M23، منها عيبا المراجعِ كما وُصفا M11 وM22): كلُّها كُشفَت (15/15)",
+    "offsite-selftest.sh: pass=133 fail=0",
+    "offsite-kit-windows-test.sh على الحقيبةِ المبنيّة: pass=30 fail=0؛ وعلى windows-latest Git Bash في CI",
+    "bun run lint · check-state-sync · check-docs-hygiene · check-evidence-manifests · check-execution-roadmap · check-roadmap"
+  ],
+  "evidence": "docs/evidence/production/WR-27-offsite-review-fixes-20261102.md",
+  "constraints": [
+    "لا اتّصالَ بخادمِ CasaOS ولا تغييرَ عليه",
+    "لا Drive ولا OAuth حقيقيّ، ولا رفعَ خارجيّ، ولا تفعيل",
+    "لا دمجَ لـPR #717",
+    "render.yaml بلا مساس"
+  ],
+  "limitations": "Google Drive وOAuth الحقيقيّان وسلوكُ تدويرِ refresh_token، وSSH عبرَ cloudflared، وWindows 11 Pro المكتبيّ، وmacOS، وsystemd حقيقيّ: NOT TESTED. root يستطيعُ تعديلَ كلِّ ملفّاتِ الحالةِ معاً. التثبيتُ على CasaOS ينتظرُ موافقةَ المالك."
+}

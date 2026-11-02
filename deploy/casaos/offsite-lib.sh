@@ -83,11 +83,26 @@ kv_load(){ local f=$1 line k v allowed seen=" "; shift; allowed=" $* "
   local i; for i in "${!ks[@]}"; do printf -v "${ks[$i]}" '%s' "${vs[$i]}"; done; }
 
 # offsite_cfg_load FILE ⇒ إعدادُ الرفع (offsite.env أو offsite-pending.env): المستلمُ والوجهةُ صالحان.
-offsite_cfg_load(){ AGE_RECIPIENT=""; RCLONE_REMOTE=""; DRIVE_ROOT=""; LINK_ID=""; LINKED_AT=""
-  kv_load "$1" AGE_RECIPIENT RCLONE_REMOTE DRIVE_ROOT LINK_ID LINKED_AT || return 1
+#   CRED_FP (ADR 0301): بصمةُ اعتمادِ Drive الذي رُبطَ (cred_fp)، ويُنسَخُ إلى offsite.env عندَ التفعيل.
+offsite_cfg_load(){ AGE_RECIPIENT=""; RCLONE_REMOTE=""; DRIVE_ROOT=""; LINK_ID=""; LINKED_AT=""; CRED_FP=""
+  kv_load "$1" AGE_RECIPIENT RCLONE_REMOTE DRIVE_ROOT LINK_ID LINKED_AT CRED_FP || return 1
   [[ "$AGE_RECIPIENT" =~ ^age1[02-9ac-hj-np-z]{58}$ ]] && [[ "$RCLONE_REMOTE" =~ ^[A-Za-z0-9_-]+$ ]] &&
     [[ "$DRIVE_ROOT" =~ ^[A-Za-z0-9._/-]+$ ]] && [[ "$DRIVE_ROOT" != *..* ]] &&
-    { [ -z "$LINK_ID" ] || [[ "$LINK_ID" =~ ^[0-9a-f]{32}$ ]]; } || { echo "state-reject bad_value ${1##*/}" >&2; return 1; }; }
+    { [ -z "$LINK_ID" ] || [[ "$LINK_ID" =~ ^[0-9a-f]{32}$ ]]; } &&
+    { [ -z "$CRED_FP" ] || [[ "$CRED_FP" =~ ^[0-9a-f]{64}$ ]]; } || { echo "state-reject bad_value ${1##*/}" >&2; return 1; }; }
+
+# cred_fp [FILE [REMOTE]] ⇒ بصمةُ اعتمادِ القسمِ REMOTE (افتراضيّاً $RCLONE_REMOTE) في rclone.conf (ADR 0301): sha256 لمفاتيحِه
+#   (عدا token) ولـrefresh_token. ليست سرّاً (تجزئةٌ لرمزٍ عالي العشوائيّة)، ولا تتغيّرُ بتجديدِ access_token؛ وأيُّ حسابٍ أو
+#   عميلٍ أو وجهةٍ أخرى ⇒ بصمةٌ أخرى. (إن أصدرَ Google يوماً refresh_token جديداً فالليليُّ يتوقّفُ: credential_changed.)
+cred_fp(){ "${OFFSITE_TOOL[@]}" cred-fp "${1:-$RCLONE_CONFIG_FILE}" "${2:-$RCLONE_REMOTE}"; }
+
+# first_ok_load ⇒ سجلُّ أوّلِ رفعٍ ناجح (المرحلة ب). FO_MANIFEST_SHA256: بصمةُ البيانِ الموقَّعِ كما رُفعَ بالضبط.
+first_ok_load(){ FO_LINK_ID=""; FO_TS=""; FO_NAME=""; FO_BYTES=""; FO_SHA256=""; FO_MANIFEST_SHA256=""; FO_RECIPIENT=""
+  FO_REMOTE=""; FO_ROOT=""; FO_CRED_FP=""; FO_AT=""
+  kv_load "$OFFSITE_FIRST_OK" FO_LINK_ID FO_TS FO_NAME FO_BYTES FO_SHA256 FO_MANIFEST_SHA256 FO_RECIPIENT FO_REMOTE FO_ROOT FO_CRED_FP FO_AT || return 1
+  [[ "$FO_LINK_ID" =~ ^[0-9a-f]{32}$ ]] && [[ "$FO_TS" =~ ^[0-9]{8}T[0-9]{6}Z$ ]] && [ "$FO_NAME" = "wasla-$FO_TS.tar.age" ] &&
+    [[ "$FO_BYTES" =~ ^[1-9][0-9]*$ ]] && [[ "$FO_SHA256" =~ ^[0-9a-f]{64}$ ]] && [[ "$FO_MANIFEST_SHA256" =~ ^[0-9a-f]{64}$ ]] &&
+    [[ "$FO_CRED_FP" =~ ^[0-9a-f]{64}$ ]]; }
 
 # write_state FILE ⇒ يكتبُ stdin إلى FILE ذرّيّاً (مؤقّتٌ 600 في المجلّدِ نفسِه، fsync، ثمّ mv). لا ملفَّ نصفَ مكتوب.
 write_state(){ local f=$1 tmp; tmp=$(mktemp "$(dirname "$f")/.state-XXXXXX") || return 1
