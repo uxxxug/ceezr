@@ -2438,8 +2438,24 @@ async function completeRegistration(
       replies.push(reply(sender, tr("driver.trial_started", { days: settings.trialDays })));
     }
   } else if (trialResult.ok && trialResult.value.reason !== null) {
+    /**
+     * FT-DOCS-PATH — رمزُ الرفضِ الخامُّ (`DRIVER_NOT_VERIFIED`) كانَ يصلُ السائقَ
+     * صدىً إنجليزيًّا بلا تفسيرٍ ولا طريقٍ للإصلاح. صارَ يُعرَبُ ويوجَّهُ فيه إلى
+     * رفعِ الوثائقِ منَ التطبيق — فالسببُ الأرجحُ للسائقِ الجديدِ وثائقٌ لم تُرفعْ.
+     */
+    const TRIAL_REASON_KEYS: Readonly<Record<string, string>> = {
+      DRIVER_NOT_VERIFIED: "driver.trial_reason.not_verified",
+      TRIAL_ALREADY_USED: "driver.trial_reason.already_used",
+      CITY_NOT_ACTIVE: "driver.trial_reason.city_not_active",
+    };
+    const reasonKey = TRIAL_REASON_KEYS[trialResult.value.reason.toUpperCase()];
     replies.push(
-      reply(sender, tr("driver.trial_not_started", { reason: trialResult.value.reason })),
+      reply(
+        sender,
+        tr("driver.trial_not_started", {
+          reason: reasonKey === undefined ? tr("driver.trial_reason.unknown") : tr(reasonKey),
+        }),
+      ),
     );
   }
 

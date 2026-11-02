@@ -1,0 +1,42 @@
+{
+  "id": "ft-docs-path-20261102",
+  "goal": "عطبُ التجربةِ الميدانيّةِ المغلقةِ الثاني (2026-11-02 مساءً): «لا يوجدُ مكانٌ لرفعِ الوثائقِ سواءٌ في البدايةِ أو بعدَ التسجيل». شاشةُ الوثائقِ موجودةٌ في الكودِ وفي الحزمةِ المنشورةِ (تحقُّقٌ بتنزيلِ الحزمةِ بالقراءةِ فقط) لكنّها غيرُ قابلةٍ للاكتشافِ: المدخلُ الوحيدُ مدفونٌ (حسابي ← ملفُ العملِ ← وثائقي)، ولوحُ العروضِ يعرضُ للسائقِ غيرِ الموثّقِ عنوانًا سلبيًّا بلا زرِّ إجراءٍ، وأزرارُ «أصلح» لا تظهرُ إلا للوثيقةِ المنتهيةِ أو المرفوضةِ (لا لمن لم يرفعْ شيئًا)، ورسالةُ البوتِ بعدَ التسجيلِ لا تذكرُ الوثائقِ، ورمزُ رفضِ التجربةِ DRIVER_NOT_VERIFIED كانَ يصلُ السائقَ صدىً إنجليزيًّا. الهدفُ: طريقٌ واحدٌ واضحٌ إلى رفعِ الوثائقِ من كلِّ نقطةٍ يقفُ فيها السائقُ الجديدُ حائرًا.",
+  "canonical_source": [
+    "docs/evidence/production/FT-docs-path-20261102.md",
+    "apps/miniapp/src/surfaces/driver/offers/offers-view.ts"
+  ],
+  "implementation": [
+    "apps/miniapp/src/surfaces/driver/offers/OffersScreen.tsx",
+    "apps/miniapp/src/surfaces/driver/driver-root.test.tsx",
+    "packages/application/bots/driver-dialog.ts",
+    "packages/shared/i18n/ar.json",
+    "packages/shared/i18n/en.json",
+    "packages/shared/i18n/ur.json",
+    "packages/shared/i18n/miniapp/ar.json",
+    "packages/shared/i18n/miniapp/en.json",
+    "packages/shared/i18n/miniapp/ur.json",
+    "tests/unit/driver-dialog.test.ts"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [
+    "docs/roadmap/execution/STATUS.md",
+    "docs/evidence/production/FT-docs-path-20261102.md",
+    "docs/work-packets/ft-docs-path-20261102.json"
+  ],
+  "decision": "لا قرارَ معماريًّا جديدَ — النمطُ المعمولُ بهِ في السطحِ (زرٌّ يفتحُ شاشةً عبرَ مستقبِلِ معالجٍ حقيقيٍّ، لا رابطَ تجزئةٍ ميّتًا) ونمطُ الترجمةِ في الحوارِ (قاموسٌ لا نصٌّ مضمَّنٌ) وُسِّعا إلى الموضعَينِ الناقصَينِ: زرٌّ في لوحِ العروضِ عندَ عنوانِ عدمِ التوثيقِ (مستقبِلُ onOpenDocuments القائمُ نفسُه، بمفتاحِ وثيقةٍ اختياريٍّ)، وإعرابُ رموزِ رفضِ التجربةِ عبرَ خريطةِ مفاتيحِ ترجمةٍ (الرمزُ المجهولُ يقعُ على «راجعِ الدعم» لا على صدىً خام).",
+  "tests": [
+    "tests/unit/driver-dialog.test.ts: 115/115 — منها اختبارٌ جديدٌ: سببُ DRIVER_NOT_VERIFIED يوجِّهُ السائقَ إلى رفعِ وثائقهِ (يحوي «وثائقي»)، وتحديثُ اختبارِ التجربةِ المستهلكةِ إلى الرمزِ الحقيقيّ TRIAL_ALREADY_USED",
+    "apps/miniapp/src/surfaces/driver/driver-root.test.tsx: 28/28 — منها اختبارُ FT-DOCS-PATH: الزرُّ مقيَّدٌ بعنوانِ عدمِ التوثيقِ وموجودٌ في القواميسِ الثلاثةِ بلا عناصرِ إحلالٍ متبقّية",
+    "فحوصُ i18n (key-usage/shared/translation/privacy): 71/71",
+    "typecheck + biome: نظيفان، ومجموعةُ الوحدةِ الكاملةُ بلا فشلٍ جديدٍ (26 فشلًا مُثبَتٌ أثرًا بيئيًّا موجودًا قبلَ التغييرِ على main النظيفِ)",
+    "سيرُ CI الكاملُ على رأسِ الطلبِ"
+  ],
+  "evidence": "docs/evidence/production/FT-docs-path-20261102.md",
+  "constraints": [
+    "لا كتابةَ على الإنتاجِ ولا بياناتٍ — تحقُّقُ الحزمةِ المنشورةِ بتنزيلِ ملفِّ JS عبرَ curl بالقراءةِ فقط",
+    "لا مسَّ بحارسِ F12-21 ولا بمنطقِ الرفضِ — العرضُ والترشيدُ وحدهما تغيّرا",
+    "تجميدُ الميزاتِ قائمٌ — هذا إصلاحُ عطبٍ لا ميزة"
+  ],
+  "limitations": "غيرُ منشورٍ على CasaOS — الإنتاجُ على 78841453 وMini App على 387d235a؛ النشرُ يحتاجُ بناءَ Mini App جديدةٍ ونشرَها بموافقةِ المالكِ الصريحةِ (حدودُ §11). المسارُ الفوريُّ على النسخةِ المنشورةِ: حسابي ← ملفُ العملِ ← وثائقي."
+}

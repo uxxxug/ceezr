@@ -95,7 +95,7 @@ export interface OffersScreenProps {
    * `#/driver/documents` ولا موجِّهَ عناوينَ يقرؤه — فعلٌ لا يفعلُ شيئاً. بلا هذا
    * المستقبِلِ لا يُرسَمُ زرُّ الإصلاحِ، والسببُ يبقى نصّاً.
    */
-  readonly onOpenDocuments?: (docType: string) => void;
+  readonly onOpenDocuments?: (docType?: string) => void;
   /**
    * مدخلُ «مَهمّتي» (`F3-03`) — **زيادةٌ لا تغييرٌ** (`ح-8`): غيابُه يُعيدُ هذه
    * الشاشةَ إلى سلوكِها قبلَ `F3-03` حرفاً. وسائقٌ يُغلِقُ التطبيقَ وهوَ في
@@ -499,6 +499,19 @@ export function OffersScreen({
         </h1>
       ) : null}
       <p className="dof__headline">{t(board.headlineKey)}</p>
+
+      {/**
+       * FT-DOCS-PATH — عطلُ التجربةِ المغلقةِ (2026-11-02): «لا يوجد مكانٌ لرفعِ
+       * الوثائق» — الشاشةُ كانت تقولُ «حسابُكَ لم يوثَّقْ» سلبًا بلا طريقٍ للإصلاح،
+       * والرفعُ مدفونٌ في حسابي ← ملفِ العملِ ← وثائقي. هنا يُفتَحُ الطريقُ منَ
+       * الرسالةِ نفسِها: زرٌّ يفتحُ شاشةَ الوثائقِ حيثُ الوثائقُ المطلوبةُ والرفعُ.
+       */}
+      {board.headlineKey === "driver.offers.headline.notVerified" &&
+      onOpenDocuments !== undefined ? (
+        <button type="button" className="dof__block-fix" onClick={() => onOpenDocuments()}>
+          {t("driver.documents.completeAction")}
+        </button>
+      ) : null}
 
       <div
         className={`dof__availability${
