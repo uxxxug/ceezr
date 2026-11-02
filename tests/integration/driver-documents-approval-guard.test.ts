@@ -168,8 +168,13 @@ describeIf("F12-21 — حارسُ اعتمادِ السائقِ", () => {
     expect(result.changed).toBe(true);
   });
 
-  it("يقبلُ `rejected` بلا وثائقَ — فالرفضُ لا يشترطُ وثائقَ", async () => {
-    const result = await setVerification("rejected");
+  it("يقبلُ `rejected` بلا وثائقَ — وبلا سببٍ مكتوبٍ لا يُقبلُ (ADR 0302: NOTE_REQUIRED)", async () => {
+    // الرفضُ لا يشترطُ وثائقَ كما كانَ — لكنّهُ صارَ يشترطُ سببًا مكتوبًا
+    // يصلُ السائقَ: قرارُ المالكِ 2026-11-02 (ADR 0302).
+    const refused = await setVerification("rejected");
+    expect(refused.ok).toBe(false);
+    expect(refused.error).toBe("NOTE_REQUIRED");
+    const result = await setVerification("rejected", "سببٌ تجريبيٌّ مكتوبٌ");
     expect(result.ok).toBe(true);
     expect(result.changed).toBe(true);
   });
@@ -222,10 +227,16 @@ describeIf("F12-21 — حارسُ اعتمادِ السائقِ", () => {
  * واحدةٍ — والسجلُّ التاريخيُّ المرفوعُ سابقًا **لا يُفقدُ ولا يُحجبُ**.
  */
 describeIf("ADR 0302 — سياسة لا وثائق مطلوبة", () => {
+  // الدالتانِ (اللوحُ والسباقُ) تقرآنِ **معرّفَ تيليجرامَ** bigint لا معرّفَ
+  // المستخدمِ uuid — والسائقُ المزروعُ أعلاه رقمُهُ 900_000_402.
+  const DRIVER_TG = 900_000_402;
   it("السياسةُ `[]` تُمِرُّ التوثيقَ بلا وثائقَ واحدةٍ — لا حجبَ بلا إلزامٍ", async () => {
     await pinRequiredDocumentTypes(sql, cityId, []);
     // السائقُ عندهُ ستُّ وثائقَ مقبولةٍ من ملفِّ الانحدارِ — أفرِغها كلَّها.
     await sql`delete from driver_documents where driver_id = ${driverId}`;
+    // انقلْهُ أولًا إلى `rejected` بسبّبٍ مكتوبٍ كي تكونَ عودةُ `verified`
+    // تغييرًا حقيقيًّا — لا «لا عمليةً» لأنّ الحالةَ سبقتِ الحكمَ (changed=false).
+    await setVerification("rejected", "تمهيدٌ لاختبارِ العودةِ");
     const result = await setVerification("verified");
     expect(result.ok).toBe(true);
     expect(result.changed).toBe(true);
@@ -234,7 +245,7 @@ describeIf("ADR 0302 — سياسة لا وثائق مطلوبة", () => {
 
   it("اللوحُ والسباقُ يُعلِنانِ «لا مطلوبَ» لا حجبًا — والإعدادُ المعلَنُ `[]`", async () => {
     const [dashboard] = await sql<{ result: Payload }[]>`
-      select driver_document_dashboard(${driverUserId}::bigint) as result
+      select driver_document_dashboard(${DRIVER_TG}::bigint) as result
     `;
     const board = dashboard?.result;
     if (board === undefined) throw new Error("لا ردَّ من لوحِ الوثائقِ");
@@ -244,7 +255,7 @@ describeIf("ADR 0302 — سياسة لا وثائق مطلوبة", () => {
     expect(board.is_blocked).toBe(false);
 
     const [offers] = await sql<{ result: Payload }[]>`
-      select driver_offer_board(${driverUserId}::bigint) as result
+      select driver_offer_board(${DRIVER_TG}::bigint) as result
     `;
     const offersBoard = offers?.result;
     if (offersBoard === undefined) throw new Error("لا ردَّ من سباقِ العروضِ");
@@ -263,7 +274,7 @@ describeIf("ADR 0302 — سياسة لا وثائق مطلوبة", () => {
     expect(accepted.changed).toBe(true);
 
     const [offers] = await sql<{ result: Payload }[]>`
-      select driver_offer_board(${driverUserId}::bigint) as result
+      select driver_offer_board(${DRIVER_TG}::bigint) as result
     `;
     const offersBoard = offers?.result;
     if (offersBoard === undefined) throw new Error("لا ردَّ من سباقِ العروضِ");

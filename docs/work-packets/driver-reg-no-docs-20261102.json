@@ -39,7 +39,9 @@
     "tests/integration/driver-onboarding-miniapp.test.ts",
     "tests/integration/driver-offers.test.ts",
     "tests/integration/driver-documents.test.ts",
-    "tests/integration/driver-document-review.test.ts"
+    "tests/integration/driver-document-review.test.ts",
+    "scripts/lib/rollback-registry.ts",
+    "tests/integration/admin-dashboard.test.ts"
   ],
   "state": ["docs/SYSTEM_STATE.md"],
   "roadmap": ["ROADMAP.md"],

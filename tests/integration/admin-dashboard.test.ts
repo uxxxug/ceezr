@@ -25,6 +25,11 @@ import { createSupportResolutionPort } from "../../packages/infrastructure/dispu
 import { createMemorySessionRevocationStore } from "../../packages/infrastructure/identity/memory-session-revocation-store.ts";
 import { createRatingFlagPort } from "../../packages/infrastructure/reputation/rating-adapters.ts";
 import { createTrackingTokenRpc } from "../../packages/infrastructure/tracking/tracking-token-adapters.ts";
+import {
+  pinRequiredDocumentTypes,
+  type RequiredDocumentTypesSnapshot,
+  restoreRequiredDocumentTypes,
+} from "../support/required-documents-policy.ts";
 import { seedAcceptedDocuments } from "../support/seed-driver-documents.ts";
 
 const DATABASE_URL = process.env.TEST_DATABASE_URL;
@@ -38,6 +43,7 @@ let auth: AdminAuthPort;
 let app: Hono;
 let cityId: string;
 let cityGroupsId: string;
+let policyHandle: RequiredDocumentTypesSnapshot | undefined;
 let adminUserId: string;
 let sentCodes: { chatId: string; text: string }[];
 /** PD-042: ما طلبَه البابُ من المُوقِّع — المسارُ والمدّة — لا رابطٌ حقيقيّ. */
@@ -125,6 +131,10 @@ describeIf("لوحة الإدارة على قاعدة حقيقية", () => {
     const cityGroupsRecord = cityGroups[0]?.id;
     if (cityGroupsRecord === undefined) throw new Error("لم تُطبَّق هجرة بذر مدينة مكة");
     cityGroupsId = cityGroupsRecord;
+    // ADR 0302 — هذا الملفُّ يزرعُ وثائقِ سائقٍ للمراجعةِ (PD-042) فيقرأُ نوعَها
+    // الإلزاميَّ الأولَ من السياسةِ — فالإلزامُ مكتوبٌ صريحًا لا موروثًا
+    // (الافتراضيُّ منذ 2026-11-02: `[]` فيكونُ النوعُ الأولُ خاليًا).
+    policyHandle = await pinRequiredDocumentTypes(sql, cityId);
     auth = createAdminAuthPort(sql);
   });
 
@@ -132,6 +142,7 @@ describeIf("لوحة الإدارة على قاعدة حقيقية", () => {
     // تنظيفٌ نهائي: الـbeforeEach يمسح قبل كل اختبار لكن لا شيء يمسح بعد الأخير
     // فيبقى سائق/راكب هذا الملف يلوّث الملفات المتوازية اللاحقة
     // (CI-01 — خارطة استكمال CAP-RUN-20261016، المرحلة 9). قبل sql.end عمدًا.
+    await restoreRequiredDocumentTypes(sql, policyHandle);
     await sql`truncate table agent_outcomes, agent_decisions, audit_log, attendance_log, ratings, support_tickets,
                              unsubscribed_claims, unsubscribed_negotiations, order_offers, orders,
                              subscriptions, driver_capabilities, driver_availability,
