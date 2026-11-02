@@ -47,6 +47,8 @@ sudo docker compose -f /opt/wasla/compose.yml up -d --remove-orphans
 
 - نفقُ Cloudflare المسمّى (تطبيقُ CasaOS `cloudflared`، شبكةُ المضيف) يوجّه: `app.waslareev.dpdns.org` و`api.waslareev.dpdns.org` ← `http://192.168.0.135:8443`، و`admin.waslareev.dpdns.org` ← `http://192.168.0.135:8444`. **`http://` لا `https://`**: المنفذانِ يتكلّمانِ HTTP، وTLS عند Cloudflare.
 - `8443` و`8444` منشورانِ على `0.0.0.0`، وHAProxy يرفضُ (403) كلَّ مصدرٍ غيرِ المضيفِ (`acl from_host`) قبلَ فحصِ `Cf-Connecting-Ip`.
+- «الشبكاتُ الموثوقةُ» في `from_host` هيَ loopback وعنوانُ المضيفِ المحلّيّ ونطاقا شبكاتِ wasla نفسِها (`172.21.0.0/16` لـinternal و`172.22.0.0/16` لـegress، يُثبِّتُهما مقطعُ `networks:` أعلاه في compose.gateways.yml) — **لا `172.16.0.0/12`** التي كانت تثقُ بكلِّ حاوياتِ المضيفِ أياً كانَ تطبيقُها. حارسٌ ثابتٌ في CI: `tests/haproxy-trusted-acl-test.sh` (سيرُ `haproxy-trusted-acl`).
+- نشرُ التضييقِ (بعدَ دمجِه): تثبيتُ النطاقَينِ في قسمِ `networks:` بـ`/opt/wasla/compose.yml` كما في التعليقِ أعلى compose.gateways.yml، ونسخُ `haproxy.cfg` المحدَّثِ إلى `/opt/wasla/haproxy.cfg`، ثمّ `sudo docker compose -f /opt/wasla/compose.yml up -d lb` — لا يُمسُّ سوى `lb`. والتحقّقُ بعدها: `https://api.waslareev.dpdns.org/ready` = 200 (كلامُ cloudflared عبرَ جسرِ egress لم يَنكسِر).
 - `admin_front` (`:8444`) لا يمرّرُ إلّا `/admin`، و`/` ← `/admin`، وما سواهما 404. الدخولُ: `/admin/login` برمزٍ يصلُ إلى حسابِ المسؤولِ في تيليجرام.
 - `/etc/wasla/ingress.env` بسطر `PUBLIC_BASE_URL=https://app.waslareev.dpdns.org` يجعلُ `wasla-tunnel-sync` يكتبُ النطاقَ الثابتَ بدلَ رابطِ النفقِ السريع. بعدَ تغييرِه: `systemctl start wasla-tunnel-sync.service`.
 
