@@ -1042,7 +1042,7 @@ describe("السجلُّ الحقيقيُّ — أرقامٌ مقيسةٌ مُث
     // `wr-35-unsubscribed-group-links-20261103`): 223 — `wr-35-unsubscribed-group-links.test.ts`
     // (خمسَ عشرةَ حالةً) و`wr-35-no-docs-driver-cycle.test.ts` (خمسُ حالاتٍ) على PostgreSQL
     // حقيقيٍّ في وظيفةِ التكاملِ.
-        // زيادةٌ (WR-34 · وسائطُ المحادثة · 2026-11-03 · حزمةُ `wr-34-chat-media`): 224 —
+    // زيادةٌ (WR-34 · وسائطُ المحادثة · 2026-11-03 · حزمةُ `wr-34-chat-media`): 224 —
     // `wr-34-chat-media.test.ts` (أربعَ عشرةَ حالةً: المسارُ الكاملُ رفعاً وتخزيناً واسترجاعاً
     // على PostgreSQL حقيقيٍّ) في وظيفةِ التكاملِ.
     expect(SKIP_REGISTRY).toHaveLength(224);

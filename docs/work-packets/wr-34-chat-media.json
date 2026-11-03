@@ -1,9 +1,7 @@
 {
   "id": "wr-34-chat-media",
   "goal": "WR-34 (WR-NONE: طلب المالك — استثناء معتمد على تجميد PRD-010): الصور والرسائل الصوتية في محادثة الطلب بين الراكب والسائق في الاتجاهين — رفع عبر البوابة بفحص البصمة ونزع EXIF/GPS، دلو خاص مستقل order-chat-media (لا driver-documents)، روابط موقعة 300 ث لطرفي الطلب وحدهما، إعادة محاولة بلا تكرار بـ client_message_id، تنبيه سلامة للسائق وإقرار ذاتي قبل الوسائط بلا ادعاء معرفة التوقف، وإعادة تصميم واجهة المحادثة (RTL، textarea متعدد الأسطر، فقاعات، الأقدم، الجديد).",
-  "canonical_source": [
-    "docs/adr/0305-order-chat-image-voice-media.md"
-  ],
+  "canonical_source": ["docs/adr/0305-order-chat-image-voice-media.md"],
   "implementation": [
     ".env.example",
     "apps/gateway/src/index.ts",
@@ -60,17 +58,13 @@
     "tests/fixtures/chat-media/voice.webm",
     "tests/integration/order-chat.test.ts",
     "tests/integration/wr-34-chat-media.test.ts",
+    "tests/unit/check-migration-matrix.test.ts",
     "tests/unit/content-security-policy.test.ts",
     "tests/unit/skip-audit.test.ts",
     "tests/unit/wr-34-chat-media.test.ts"
   ],
-  "state": [
-    "docs/SYSTEM_STATE.md"
-  ],
-  "roadmap": [
-    "ROADMAP.md",
-    "docs/ROADMAP-MASTER.md"
-  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md", "docs/ROADMAP-MASTER.md"],
   "affected_docs": [
     "ROADMAP.md",
     "docs/ROADMAP-MASTER.md",
