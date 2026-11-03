@@ -1475,7 +1475,7 @@ export function buildWorkerContainer(
                 });
                 if (!report.ok) throw new Error(report.error.detail);
                 const value = report.value;
-                return `claimed=${value.claimed} sent=${value.sent} failed=${value.failed} retried=${value.retried}`;
+                return `claimed=${value.claimed} sent=${value.sent} failed=${value.failed} retried=${value.retried} no_group_link=${value.withoutGroupLink}`;
               },
             },
           ] as JobDefinition[]

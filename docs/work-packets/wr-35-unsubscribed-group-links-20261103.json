@@ -1,0 +1,65 @@
+{
+  "id": "wr-35-unsubscribed-group-links-20261103",
+  "title": "رابط قروب سائقي المدينة غير المشتركين عند انتهاء الاشتراك المجاني + تحقق دورة السائق بلا وثائق (WR-35)",
+  "date": "2026-11-03",
+  "roadmap_items": [
+    "WR-35"
+  ],
+  "goal": "طلبُ المالكِ (استثناءٌ معتمَدٌ على تجميدِ PRD-010): عندَ انتهاءِ الاشتراكِ المجانيِّ يصلُ السائقَ رابطُ قروبِ سائقي مدينتِه غيرِ المشتركين بالروابطِ الخمسةِ المعتمَدة، بصياغةٍ لا توحي بأنّ الانضمامَ يعيدُ التجربةَ أو يفعّلُ الحساب؛ وتحقّقٌ من أن لا شرطَ مخفيًّا يحجبُ السائقَ بلا وثائقَ بعدَ WR-28.",
+  "implementation": [
+    "supabase/migrations/20261103163500_wr_35_unsubscribed_group_links.sql",
+    "packages/application/subscription/deliver-notices.ts",
+    "packages/application/subscription/notice-ports.ts",
+    "apps/workers/src/container.ts",
+    "packages/shared/i18n/ar.json",
+    "packages/shared/i18n/en.json",
+    "packages/shared/i18n/ur.json",
+    "scripts/lib/execution-roadmap.ts",
+    "scripts/lib/rollback-registry.ts",
+    "scripts/lib/skip-registry.ts",
+    "tests/unit/wr-35-group-link-notice.test.ts",
+    "tests/integration/wr-35-unsubscribed-group-links.test.ts",
+    "tests/integration/wr-35-no-docs-driver-cycle.test.ts"
+  ],
+  "state": [
+    "docs/SYSTEM_STATE.md"
+  ],
+  "roadmap": [
+    "ROADMAP.md"
+  ],
+  "affected_docs": [
+    "docs/evidence/subscription/WR-35-unsubscribed-group-links-20261103.md",
+    "docs/roadmap/execution/STATUS.md"
+  ],
+  "decision": "البذرُ يكتبُ فوقَ الإعدادِ الغائبِ أو الفارغِ فقط ويُعلِنُ (raise warning) أيَّ قيمةٍ غيرِ فارغةٍ مختلفةٍ دونَ طمسِها. claim_subscription_notices يُلغي (canceled) إشعارَ المحظورِ الآنَ (RECIPIENT_BLOCKED) وإشعارَ النهايةِ الذي تجاوزه اشتراكٌ ساري (SUPERSEDED_BY_RENEWAL)، ويقرأُ الرابطَ من إعدادِ مدينةِ الإشعارِ لحظةَ الحجزِ، ويقبلُه فقط رابطَ t.me سليمًا لسائقٍ verified، ويحفظُ group_link_status واسمَ المدينة. التطبيقُ يكرّرُ حارسَ الشكلِ ويعدُّ ما خرجَ بلا رابطٍ (no_group_link في ملخّصِ المهمّة).",
+  "tests": [
+    {
+      "kind": "unit",
+      "command": "bun test tests/unit/wr-35-group-link-notice.test.ts",
+      "result": "6/6"
+    },
+    {
+      "kind": "integration",
+      "command": "bun test tests/integration/wr-35-unsubscribed-group-links.test.ts",
+      "result": "15/15 على PostgreSQL حقيقي؛ وعلى قاعدةٍ بلا الدالّةِ الجديدةِ 7 فشلٍ متوقَّع (شاهدٌ سلبيّ)"
+    },
+    {
+      "kind": "integration",
+      "command": "bun test tests/integration/wr-35-no-docs-driver-cycle.test.ts",
+      "result": "5/5"
+    },
+    {
+      "kind": "integration",
+      "command": "bun test tests/integration",
+      "result": "1721 pass / 0 fail محليًا (PostgreSQL 18 + PostGIS 3)"
+    }
+  ],
+  "evidence": "docs/evidence/subscription/WR-35-unsubscribed-group-links-20261103.md",
+  "constraints": [
+    "لا تغييرَ لسياسةِ الاشتراكِ أو مدّتِه أو سعرِه — المدّةُ من trial_days والتاريخُ من ends_at",
+    "لا طمسَ لقيمةِ إعدادٍ غيرِ فارغة",
+    "لا حذفَ لصفوفِ الإشعارات — الملغى يبقى سجلًّا برمزٍ مقروء",
+    "لا مساسَ بالإنتاج"
+  ],
+  "limitations": "لم يُرسَل عبرَ تيليجرامَ حقيقيٍّ ولم تُطبَّق الهجرةُ على الإنتاج. معرّفاتُ دردشةِ القروباتِ (cities.telegram_unsubscribed_drivers_group_id) لم تُمَسّ. ضياعُ ردِّ تلغرامَ بعدَ القبولِ قد يكرّرُ رسالةً (حدُّ at-least-once القائم)."
+}
