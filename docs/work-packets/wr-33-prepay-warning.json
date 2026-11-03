@@ -1,9 +1,7 @@
 {
   "id": "wr-33-prepay-warning",
   "goal": "طلبُ المالكِ (استثناءٌ معتمدٌ على تجميدِ PRD-010): تنبيهُ «لا تحوّلْ أيَّ مبلغٍ مقدَّمًا» يظهرُ قبلَ التأكيدِ النهائيِّ لكلِّ طلبِ مشوارٍ أو توصيلٍ جديدٍ في كلِّ مساراتِ الإنشاء (Mini App وبوتِ الراكب)، ولا يُتجاوَزُ بمسارِ API مختلف — إنفاذٌ في الخادم.",
-  "canonical_source": [
-    "docs/evidence/WR-33-prepay-warning-20261103.md"
-  ],
+  "canonical_source": ["docs/evidence/WR-33-prepay-warning-20261103.md"],
   "implementation": [
     "packages/shared/prepay-warning/index.ts",
     "packages/application/transport/prepay-warning-guard.ts",
@@ -44,12 +42,8 @@
     "apps/miniapp/src/surfaces/rider/wr-33-prepay-warning.test.tsx",
     "tests/integration/wr-33-prepay-warning-enforcement.test.ts"
   ],
-  "state": [
-    "docs/SYSTEM_STATE.md"
-  ],
-  "roadmap": [
-    "ROADMAP.md"
-  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
   "affected_docs": [
     "docs/evidence/WR-33-prepay-warning-20261103.md",
     "docs/roadmap/execution/STATUS.md"
