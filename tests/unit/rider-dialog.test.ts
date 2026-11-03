@@ -151,7 +151,12 @@ describe("القائمة الدائمة في حوار العميل", () => {
 describe("تسجيل العميل وطلب رحلة", () => {
   it("يمضي من /start إلى طلب مُنشَأ بموقع حقيقي", async () => {
     const start = await handleRiderUpdate(text("/start"), deps);
-    expect(start.map((r) => r.text)).toEqual([ar("rider.welcome"), ar("rider.ask_name")]);
+    // `WR-32`: رسالةُ الخصوصيّةِ والسمعةِ قبلَ طلبِ الاسمِ — قبلَ أن يُكمِلَ تسجيلَه.
+    expect(start.map((r) => r.text)).toEqual([
+      ar("rider.welcome"),
+      ar("rider.privacy_notice"),
+      ar("rider.ask_name"),
+    ]);
 
     const name = await handleRiderUpdate(text("سالم"), deps);
     expect(name[0]?.text).toBe(ar("rider.ask_city"));

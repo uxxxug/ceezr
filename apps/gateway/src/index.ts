@@ -819,6 +819,9 @@ const consents =
           ),
           reader: createConsentRecordReader(container.sql),
           writer: createConsentRecordWriter(container.sql),
+          // `WR-32`: الجمهورُ (راكبٌ أم غيرُه) من `users.role` على الخادمِ — رسالةُ
+          // خصوصيّةِ الراكبِ لا تُطلَبُ من سائقٍ ولا يُسقِطُها عميلٌ عن راكبٍ.
+          accounts: createViewerAccountReader(container.sql),
           now: () => new Date(),
           log,
         },

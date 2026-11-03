@@ -26,6 +26,11 @@ export interface ConsentApiDocument {
   readonly summaryKey: string;
   readonly textKey: string;
   readonly requiredForOnboarding: boolean;
+  /**
+   * `WR-32` — `notice` رسالةُ اطّلاعٍ تُعرَضُ مفتوحةً، وغيرُها وثيقةٌ يُطوى نصُّها.
+   * اختياريٌّ عن قصدٍ: خادمٌ أقدمُ لا يرسلُه، فيُقرأُ غيابُه «وثيقةً» كما كان.
+   */
+  readonly presentation?: string;
 }
 
 export interface ConsentApiDocumentState {
@@ -51,6 +56,8 @@ export interface ConsentRow {
   readonly summaryKey: string;
   readonly textKey: string;
   readonly required: boolean;
+  /** `WR-32` — رسالةُ اطّلاعٍ (`presentation: "notice"`) لا وثيقةٌ قانونيّةٌ. */
+  readonly notice: boolean;
   readonly state: ConsentRowState;
   /** مفتاحُ النصِّ الذي يُقالُ تحتَ الصفِّ — لا لونٌ وحدَه (UX-10). */
   readonly statusKey: string;
@@ -60,6 +67,13 @@ const STATUS_KEY_BY_STATE: Readonly<Record<ConsentRowState, string>> = {
   missing: "welcome.consent_pending",
   satisfied: "welcome.consent_recorded",
   superseded: "welcome.consent_superseded",
+};
+
+/** `WR-32` — الرسالةُ «يُطَّلَعُ عليها» لا «يُوافَقُ عليها»: الحالةُ تُقالُ بلغتِها. */
+const NOTICE_STATUS_KEY_BY_STATE: Readonly<Record<ConsentRowState, string>> = {
+  missing: "welcome.notice_pending",
+  satisfied: "welcome.notice_acknowledged",
+  superseded: "welcome.notice_superseded",
 };
 
 /**
@@ -72,6 +86,7 @@ export function consentRows(status: ConsentApiStatus): readonly ConsentRow[] {
   return status.documents.map((document) => {
     const matched = status.onboarding.documents.find((d) => d.kind === document.kind);
     const state: ConsentRowState = matched?.state ?? "missing";
+    const notice = document.presentation === "notice";
     return {
       kind: document.kind,
       version: document.version,
@@ -79,8 +94,9 @@ export function consentRows(status: ConsentApiStatus): readonly ConsentRow[] {
       summaryKey: document.summaryKey,
       textKey: document.textKey,
       required: document.requiredForOnboarding,
+      notice,
       state,
-      statusKey: STATUS_KEY_BY_STATE[state],
+      statusKey: (notice ? NOTICE_STATUS_KEY_BY_STATE : STATUS_KEY_BY_STATE)[state],
     };
   });
 }
@@ -88,6 +104,16 @@ export function consentRows(status: ConsentApiStatus): readonly ConsentRow[] {
 /** ما يبقى مطلوباً فعلاً: الواجبُ الذي ليسَ `satisfied` وحدَه. */
 export function outstandingRows(rows: readonly ConsentRow[]): readonly ConsentRow[] {
   return rows.filter((row) => row.required && row.state !== "satisfied");
+}
+
+/**
+ * `WR-32` — هل المعلّقُ كلُّه رسائلُ اطّلاعٍ؟ نعم تعني راكباً مسجَّلاً وافقَ على
+ * الوثائقِ من قبلُ ولم يبقَ له إلّا رسالةٌ جديدةٌ: تُعرَضُ له الرسالةُ وحدَها بفعلٍ
+ * واحدٍ، بلا ترحيبٍ ولا قائمةِ وثائقَ توهِمُه أنَّه يُسجَّلُ من جديدٍ.
+ */
+export function noticeOnly(rows: readonly ConsentRow[]): boolean {
+  const outstanding = outstandingRows(rows);
+  return outstanding.length > 0 && outstanding.every((row) => row.notice);
 }
 
 /**

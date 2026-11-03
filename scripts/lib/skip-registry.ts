@@ -1136,6 +1136,23 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     whyNotRun: null,
   },
   {
+    file: "tests/integration/wr-32-rider-privacy.test.ts",
+    suites: [
+      "WR-32 (أ) — رسالةُ الراكبِ في سجلِّ الموافقاتِ الحقيقيِّ",
+      "WR-32 (ب) — رقمُ الراكبِ لا يصلُ السائقَ في أيِّ سطحٍ سائقيٍّ",
+    ],
+    skipped: 12,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "المُدَّعى في `WR-32` أنَّ رسالةَ خصوصيّةِ الراكبِ تُطلَبُ مرّةً بحسبِ `users.role` وتُسجَّلُ بإصدارِها ووقتِها في `user_consents` وتعودُ مع إصدارٍ جديدٍ، وأنَّ رقمَ الراكبِ واسمَ مستخدمِه لا يردانِ في أيِّ ردٍّ سائقيٍّ ولا في صندوقِ الإشعاراتِ. وهذه أحكامُ قيدِ `check` واستعلاماتِ SQL حقيقيّةٍ لا يقيسُها محرِّكٌ مُصنَّع.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بالهجرات مطبَّقة (ومنها 20261103180000). يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي».",
+    owner: "منفّذ المستودع",
+    criticalPath: "الهويةُ والجلسةُ والصلاحيات",
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+  {
     file: "tests/integration/d8-outbox-gate-per-recipient.test.ts",
     suites: ["D8 — بوابةُ صندوقِ الصادرِ: التسلسلُ على المستلِمِ لا على الطلبِ"],
     skipped: 3,

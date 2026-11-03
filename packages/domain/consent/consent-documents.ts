@@ -29,7 +29,26 @@
  */
 
 /** صنفُ الوثيقةِ. الاتّحادُ مُغلَقٌ عن قصدٍ: صنفٌ لا يُذكَرُ ههنا لا يُوافَقُ عليه. */
-export type ConsentDocumentKind = "terms_of_service" | "privacy_policy";
+export type ConsentDocumentKind = "terms_of_service" | "privacy_policy" | "rider_privacy_notice";
+
+/**
+ * `WR-32` — **لمن تُطلَبُ الوثيقةُ**. `all` تُطلَبُ من كلِّ صاحبِ حسابٍ (السائقُ
+ * والراكبُ يشتركانِ في `/v1/consents` وفي جدولِ `user_consents`)، و`rider` تُطلَبُ
+ * من الراكبِ وحدَه. والجمهورُ يُشتَقُّ على الخادمِ من `users.role` لا من العميلِ:
+ * فلا يستطيعُ عميلٌ قديمٌ ولا مُعدَّلٌ أن يُدخِلَ على السائقِ وثيقةَ الراكبِ أو أن
+ * يُسقِطَها عن الراكبِ.
+ */
+export type ConsentAudience = "all" | "rider";
+
+/** جمهورُ صاحبِ الجلسةِ كما يُقرأُ من دورِه — `other` كلُّ من ليسَ راكباً. */
+export type ConsentViewerAudience = "rider" | "other";
+
+/**
+ * `WR-32` — **كيفَ تُعرَضُ**. `document` وثيقةٌ قانونيّةٌ يُطوى نصُّها خلفَ «اقرأ
+ * النصَّ الكاملَ»، و`notice` رسالةُ اطّلاعٍ قصيرةٌ تُعرَضُ مفتوحةً كاملةً قبلَ زرِّ
+ * القبولِ — فالغرضُ أن تُقرأَ لا أن تُطوى.
+ */
+export type ConsentPresentation = "document" | "notice";
 
 export interface ConsentDocument {
   readonly kind: ConsentDocumentKind;
@@ -53,6 +72,10 @@ export interface ConsentDocument {
    * واجبتانِ — فالخدمةُ لا تُقدَّمُ بلا شروطٍ ولا بلا سياسةِ خصوصيّةٍ.
    */
   readonly requiredForOnboarding: boolean;
+  /** `WR-32` — لمن تُطلَبُ. */
+  readonly audience: ConsentAudience;
+  /** `WR-32` — كيفَ تُعرَضُ. */
+  readonly presentation: ConsentPresentation;
 }
 
 export const DECLARED_CONSENT_DOCUMENTS: readonly ConsentDocument[] = Object.freeze([
@@ -63,6 +86,8 @@ export const DECLARED_CONSENT_DOCUMENTS: readonly ConsentDocument[] = Object.fre
     summaryKey: "consent.terms_of_service.summary",
     textKey: "consent.terms_of_service.2026-09-12.text",
     requiredForOnboarding: true,
+    audience: "all" as const,
+    presentation: "document" as const,
   }),
   Object.freeze({
     kind: "privacy_policy" as const,
@@ -73,6 +98,21 @@ export const DECLARED_CONSENT_DOCUMENTS: readonly ConsentDocument[] = Object.fre
     summaryKey: "consent.privacy_policy.summary",
     textKey: "consent.privacy_policy.2026-10-13.text",
     requiredForOnboarding: true,
+    audience: "all" as const,
+    presentation: "document" as const,
+  }),
+  Object.freeze({
+    // `WR-32` (طلبُ المالكِ 2026-11-03): رسالةُ خصوصيّةِ الراكبِ وسمعتِه — تُعرَضُ مرّةً
+    // عندَ أوّلِ دخولٍ للراكبِ (جديداً كانَ أو مسجَّلاً قبلَها)، ومرّةً بعدَ كلِّ إصدارٍ
+    // جديدٍ. والإصدارُ الجديدُ يُضافُ نصُّه بمفتاحٍ جديدٍ ويبقى نصُّ القديمِ في القواميسِ.
+    kind: "rider_privacy_notice" as const,
+    version: "2026-11-03",
+    titleKey: "consent.rider_privacy_notice.title",
+    summaryKey: "consent.rider_privacy_notice.summary",
+    textKey: "consent.rider_privacy_notice.2026-11-03.text",
+    requiredForOnboarding: true,
+    audience: "rider" as const,
+    presentation: "notice" as const,
   }),
 ]);
 
@@ -87,6 +127,18 @@ export function findDeclaredDocument(kind: string): ConsentDocument | undefined 
   return DECLARED_CONSENT_DOCUMENTS.find((d) => d.kind === kind);
 }
 
-export function requiredDocuments(): readonly ConsentDocument[] {
-  return DECLARED_CONSENT_DOCUMENTS.filter((d) => d.requiredForOnboarding);
+/**
+ * الوثائقُ التي تخصُّ هذا الجمهورَ. والافتراضُ `other` عن قصدٍ: نداءٌ لا يعرفُ
+ * دورَ صاحبِه يرى ما كانَ يراه قبلَ `WR-32` حرفاً — لا وثيقةَ راكبٍ تُفرَضُ على سائقٍ.
+ */
+export function documentsFor(viewer: ConsentViewerAudience = "other"): readonly ConsentDocument[] {
+  return DECLARED_CONSENT_DOCUMENTS.filter(
+    (d) => d.audience === "all" || (d.audience === "rider" && viewer === "rider"),
+  );
+}
+
+export function requiredDocuments(
+  viewer: ConsentViewerAudience = "other",
+): readonly ConsentDocument[] {
+  return documentsFor(viewer).filter((d) => d.requiredForOnboarding);
 }

@@ -26,6 +26,7 @@ import { err, ok, type Result } from "../../shared/result/index.ts";
 import {
   type ConsentDocument,
   type ConsentDocumentKind,
+  type ConsentViewerAudience,
   findDeclaredDocument,
   requiredDocuments,
 } from "./consent-documents.ts";
@@ -129,18 +130,35 @@ function stateFor(
   };
 }
 
+/**
+ * `WR-32`: الحكمُ لجمهورٍ بعينِه. والافتراضُ `other` يُبقي حكمَ السائقِ وكلِّ نداءٍ
+ * قديمٍ كما كانَ: وثيقةُ الراكبِ لا تُنقِصُ تهيئةَ من ليسَ راكباً.
+ */
 export function evaluateOnboardingConsent(
   recorded: readonly RecordedConsent[],
+  viewer: ConsentViewerAudience = "other",
 ): OnboardingConsentState {
-  const documents = requiredDocuments().map((d) => stateFor(d, recorded));
+  const documents = requiredDocuments(viewer).map((d) => stateFor(d, recorded));
   return { satisfied: documents.every((d) => d.state === "satisfied"), documents };
 }
 
 /** الأصنافُ الواجبةُ التي لم تُستوفَ — ما تسألُ عنه الشاشةُ، بترتيبِ السجلِّ. */
 export function outstandingConsentKinds(
   recorded: readonly RecordedConsent[],
+  viewer: ConsentViewerAudience = "other",
 ): readonly ConsentDocumentKind[] {
-  return evaluateOnboardingConsent(recorded)
+  return evaluateOnboardingConsent(recorded, viewer)
     .documents.filter((d) => d.state !== "satisfied")
     .map((d) => d.kind);
+}
+
+/**
+ * `WR-32` — هل بقيَ على الراكبِ الإقرارُ بالإصدارِ الحاليِّ من رسالتِه؟ يقرؤه بوتُ
+ * الراكبِ ليُرسِلَ الرسالةَ مع `/start` حتى يُقِرَّ بها في التطبيقِ، ثمَّ يكفُّ.
+ * والحكمُ حكمُ `evaluateOnboardingConsent` نفسُه — لا مقارنةُ إصدارٍ ثانيةٌ.
+ */
+export function riderPrivacyNoticePending(recorded: readonly RecordedConsent[]): boolean {
+  return evaluateOnboardingConsent(recorded, "rider").documents.some(
+    (d) => d.kind === "rider_privacy_notice" && d.state !== "satisfied",
+  );
 }

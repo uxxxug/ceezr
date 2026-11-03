@@ -51,6 +51,7 @@ import {
   consentErrorKey,
   consentRows,
   isRetryable,
+  noticeOnly,
   outstandingRows,
   recordPendingInOrder,
 } from "./consent-view.ts";
@@ -286,6 +287,53 @@ export function WelcomeScreen({
   const rows = consentRows(state.status);
   const outstanding = outstandingRows(rows);
   const satisfied = state.status.onboarding.satisfied;
+  // `WR-32`: رسائلُ الاطّلاعِ تُعرَضُ مفتوحةً فوقَ الوثائقِ، والوثائقُ كما كانت.
+  const notices = rows.filter((row) => row.notice);
+  const documents = rows.filter((row) => !row.notice);
+  // `WR-32`: راكبٌ مسجَّلٌ لم يبقَ له إلّا رسالةٌ جديدةٌ — تُعرَضُ وحدَها بفعلٍ واحدٍ.
+  const returning = noticeOnly(rows);
+
+  const rowStatus = (row: ConsentRow) => (
+    <>
+      {/* الحالةُ مكتوبةٌ لا ملوّنةٌ وحدَها (UX-10). */}
+      <p className="wc__doc-state">
+        {pendingKind === row.kind ? t("welcome.consent_recording") : t(row.statusKey)}
+      </p>
+      {rowError !== null && rowError.kind === row.kind ? (
+        <p className="wc__doc-error" role="alert">
+          {t(consentErrorKey(rowError.code))}
+        </p>
+      ) : null}
+    </>
+  );
+
+  const noticeCards = notices.map((row) => (
+    <article key={row.kind} className="wc__notice" aria-labelledby={`wc-notice-${row.kind}`}>
+      <h2 id={`wc-notice-${row.kind}`} className="wc__heading">
+        {t(row.titleKey)}
+      </h2>
+      <p className="sys__hint">{t(row.summaryKey)}</p>
+      <div className="wc__notice-body">{t(row.textKey)}</div>
+      {rowStatus(row)}
+    </article>
+  ));
+
+  const primary = (
+    <button
+      type="button"
+      className="sys__action wc__primary"
+      disabled={acceptingAll || (outstanding.length === 0 && !satisfied)}
+      onClick={outstanding.length > 0 ? () => void acceptAll(outstanding) : onProceed}
+    >
+      {acceptingAll
+        ? t("welcome.consent_recording")
+        : outstanding.length > 0
+          ? returning
+            ? t("welcome.notice_ack")
+            : t("welcome.accept_all")
+          : t("welcome.start")}
+    </button>
+  );
 
   return (
     <section className="wc" dir={directionFor(language)} aria-labelledby="wc-title">
@@ -296,71 +344,71 @@ export function WelcomeScreen({
       <p className="sys__body" {...riderSurfaceTimingAttribute}>
         {t("welcome.line1")}
       </p>
-      <p className="sys__body">{t("welcome.line2")}</p>
-      <p className="sys__body">{t("welcome.line3")}</p>
+      {returning ? (
+        // `WR-32`: الراكبُ المسجَّلُ يُطمأَنُ أوّلاً — موافقاتُه محفوظةٌ ولا تسجيلَ جديداً.
+        <p className="sys__hint">{t("welcome.notice_returning_hint")}</p>
+      ) : (
+        <>
+          <p className="sys__body">{t("welcome.line2")}</p>
+          <p className="sys__body">{t("welcome.line3")}</p>
+        </>
+      )}
 
       {languagePicker}
 
-      <h2 className="wc__heading">{t("welcome.consents_heading")}</h2>
-      <p className="sys__hint">{t("welcome.consent_required_hint")}</p>
+      {noticeCards}
 
-      <ul className="wc__docs">
-        {rows.map((row) => {
-          const busy = pendingKind === row.kind;
-          const done = row.state === "satisfied";
-          return (
-            <li key={row.kind} className="wc__doc">
-              <h3 className="wc__doc-title">{t(row.titleKey)}</h3>
-              <p className="sys__hint">{t(row.summaryKey)}</p>
-              <details className="wc__doc-text">
-                <summary>{t("welcome.consent_read_full")}</summary>
-                <pre className="wc__doc-text-body">{t(row.textKey)}</pre>
-              </details>
-              {/* الحالةُ مكتوبةٌ لا ملوّنةٌ وحدَها (UX-10). */}
-              <p className="wc__doc-state">
-                {busy ? t("welcome.consent_recording") : t(row.statusKey)}
-              </p>
-              {done || row.required ? null : (
-                <button
-                  type="button"
-                  className="sys__action"
-                  disabled={busy}
-                  onClick={() => void accept(row)}
-                  aria-label={`${t("welcome.accept_aria_prefix")} ${t(row.titleKey)}`}
-                >
-                  {t("welcome.accept")}
-                </button>
-              )}
-              {rowError !== null && rowError.kind === row.kind ? (
-                <p className="wc__doc-error" role="alert">
-                  {t(consentErrorKey(rowError.code))}
-                </p>
-              ) : null}
-            </li>
-          );
-        })}
-      </ul>
+      {returning ? (
+        <p className="sys__hint">{t("welcome.notice_ack_note")}</p>
+      ) : (
+        <>
+          <h2 className="wc__heading">{t("welcome.consents_heading")}</h2>
+          <p className="sys__hint">{t("welcome.consent_required_hint")}</p>
 
-      <p className="sys__hint">{t("welcome.location_note")}</p>
+          <ul className="wc__docs">
+            {documents.map((row) => {
+              const busy = pendingKind === row.kind;
+              const done = row.state === "satisfied";
+              return (
+                <li key={row.kind} className="wc__doc">
+                  <h3 className="wc__doc-title">{t(row.titleKey)}</h3>
+                  <p className="sys__hint">{t(row.summaryKey)}</p>
+                  <details className="wc__doc-text">
+                    <summary>{t("welcome.consent_read_full")}</summary>
+                    <pre className="wc__doc-text-body">{t(row.textKey)}</pre>
+                  </details>
+                  {rowStatus(row)}
+                  {done || row.required ? null : (
+                    <button
+                      type="button"
+                      className="sys__action"
+                      disabled={busy}
+                      onClick={() => void accept(row)}
+                      aria-label={`${t("welcome.accept_aria_prefix")} ${t(row.titleKey)}`}
+                    >
+                      {t("welcome.accept")}
+                    </button>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
 
-      {outstanding.length > 0 ? <p className="sys__hint">{t("welcome.accept_all_note")}</p> : null}
-      <button
-        type="button"
-        className="sys__action wc__primary"
-        disabled={acceptingAll || (outstanding.length === 0 && !satisfied)}
-        onClick={outstanding.length > 0 ? () => void acceptAll(outstanding) : onProceed}
-      >
-        {acceptingAll
-          ? t("welcome.consent_recording")
-          : outstanding.length > 0
-            ? t("welcome.accept_all")
-            : t("welcome.start")}
-      </button>
+          <p className="sys__hint">{t("welcome.location_note")}</p>
 
-      <section className="wc__after">
-        <h2 className="wc__heading">{t("welcome.after_consent_heading")}</h2>
-        <p className="sys__hint">{t("welcome.after_consent_body")}</p>
-      </section>
+          {outstanding.length > 0 ? (
+            <p className="sys__hint">{t("welcome.accept_all_note")}</p>
+          ) : null}
+        </>
+      )}
+      {primary}
+
+      {returning ? null : (
+        <section className="wc__after">
+          <h2 className="wc__heading">{t("welcome.after_consent_heading")}</h2>
+          <p className="sys__hint">{t("welcome.after_consent_body")}</p>
+        </section>
+      )}
     </section>
   );
 }

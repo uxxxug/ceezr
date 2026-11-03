@@ -135,6 +135,8 @@ function buildApp(options: {
               sessions: sessions(),
               reader: ports.reader,
               writer,
+              // `WR-32`: كما في التركيبِ الحقيقيِّ — الجمهورُ من الحسابِ.
+              accounts: ports.accounts,
               now: () => NOW,
             },
           },
@@ -180,8 +182,9 @@ describe("LOAD-01 — قراءتا الإقلاعِ بنداءٍ واحدٍ لم
     expect(consents.status).toBe(200);
     expect(exchanged.json.viewer).toEqual(me.json);
     expect(exchanged.json.consents).toEqual(consents.json);
-    // المسارانِ المستقلّانِ ما زالا على منفذَيهما — اللقطةُ للإقلاعِ وحدَه.
-    expect(calls).toEqual({ accounts: 1, consents: 1 });
+    // المسارانِ المستقلّانِ ما زالا على منفذَيهما — اللقطةُ للإقلاعِ وحدَه. والحسابُ
+    // يُقرأُ مرّتينِ: لـ`/v1/me` ولجمهورِ `/v1/consents` (`WR-32`)، وفي الإقلاعِ صفراً.
+    expect(calls).toEqual({ accounts: 2, consents: 1 });
     expect(snapshot.ids.length).toBe(1);
   });
 

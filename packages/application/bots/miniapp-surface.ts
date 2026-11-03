@@ -329,6 +329,11 @@ export interface EntryContext {
   readonly language: string;
   /** للراكبِ غيرِ المسجَّلِ يُفتَحُ التطبيقُ على شاشةِ التسجيلِ. */
   readonly registered: boolean;
+  /**
+   * `WR-32` — رسالةُ خصوصيّةِ الراكبِ وسمعتِه تُرسَلُ مع ترحيبِ `/start` ما دامَ
+   * الراكبُ لم يُقِرَّ بإصدارِها الحاليِّ في التطبيقِ. غيابُها = لا رسالةَ.
+   */
+  readonly privacyNotice?: boolean;
 }
 
 /** ردُّ الدخولِ: رسالةُ ترحيبٍ تستبدلُ القائمةَ، ثمَّ زرُّ التطبيقِ. */
@@ -356,8 +361,21 @@ export function entryReplies(
               ? "miniapp.entry.welcome_driver"
               : "miniapp.entry.welcome_rider",
           );
+    // `WR-32`: الرسالةُ بينَ الترحيبِ وزرِّ الفتحِ — تُقرأُ قبلَ أن يُفتَحَ التطبيقُ، وتُشيرُ
+    // إلى أنَّ الإقرارَ نفسَه يُسجَّلُ هناك (إصدارٌ ووقتٌ في `user_consents`).
+    const notice: readonly BotReply[] =
+      command === "/start" && context.audience === "rider" && context.privacyNotice === true
+        ? [
+            {
+              chatId: context.chatId,
+              text: `${tr("rider.privacy_notice")}\n\n${tr("miniapp.entry.rider_privacy_notice_hint")}`,
+              keyboard: null,
+            },
+          ]
+        : [];
     return [
       { chatId: context.chatId, text: intro, keyboard: basicMenuKeyboard(context.language) },
+      ...notice,
       { chatId: context.chatId, text: tr("miniapp.entry.open_prompt"), keyboard: open },
     ];
   }
@@ -427,6 +445,11 @@ export interface SurfacePorts {
    * استثناءً: قناةُ تواصلٍ لا قرارَ فيها). `null` ⇒ تعذّرت القراءةُ (يمضي للقديمِ أيضاً).
    */
   inNegotiation?(telegramUserId: string): Promise<boolean | null>;
+  /**
+   * `WR-32` — هل بقيَ على الراكبِ الإقرارُ بالإصدارِ الحاليِّ من رسالةِ خصوصيّتِه وسمعتِه؟
+   * `null` ⇒ تعذّرت القراءةُ. غيابُ المنفذِ = لا رسالةَ (سلوكُ ما قبلَ `WR-32`).
+   */
+  riderPrivacyNoticePending?(telegramUserId: string): Promise<boolean | null>;
 }
 
 /**
@@ -510,7 +533,19 @@ export async function handleSurfaceUpdate(
     if (decision.command === "/start" && ports.onStart !== undefined) {
       await ports.onStart(telegramUserId);
     }
-    return entryReplies(config, { audience, chatId, language, registered }, decision.command);
+    // `WR-32` — في `/start` وحدَه، وللراكبِ وحدَه. وتعذُّرُ القراءةِ (`null`) يُرسِلُ الرسالةَ
+    // لا يحجبُها: تكرارُ رسالةِ طمأنةٍ مرّةً أهونُ من أن تفوتَ راكباً جديداً.
+    const privacyNotice =
+      audience === "rider" &&
+      decision.command === "/start" &&
+      ports.riderPrivacyNoticePending !== undefined
+        ? (await ports.riderPrivacyNoticePending(telegramUserId)) !== false
+        : false;
+    return entryReplies(
+      config,
+      { audience, chatId, language, registered, privacyNotice },
+      decision.command,
+    );
   }
 
   let active: readonly ActiveOrderSummary[] = [];
