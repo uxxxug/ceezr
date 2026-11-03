@@ -88,7 +88,7 @@ describeIf("WR-38 — عزلُ مسارِ الدعمِ", () => {
     expect(supportGroupId).not.toBeNull();
     const expectedGroup = supportGroupId ?? "";
     const [ticket] = await sql<{ result: Record<string, unknown> }[]>`
-      select open_support_ticket(${RIDER_TG}::bigint, 'general'::support_ticket_type,
+      select open_support_ticket(${RIDER_TG}::bigint, 'ride_dispute'::support_ticket_type,
                                 'رسالةُ عزلِ قروبِ الدعمِ'::text) as result`;
     if (ticket === undefined) throw new Error("تعذّر فتحُ التذكرةِ");
     expect(ticket.result.ok).toBe(true);
@@ -147,7 +147,7 @@ describeIf("WR-38 — عزلُ مسارِ الدعمِ", () => {
          set is_active = false, telegram_support_group_id = null
        where id = ${cityId}`;
     const [ticket] = await sql<{ result: Record<string, unknown> }[]>`
-      select open_support_ticket(${RIDER_TG}::bigint, 'general'::support_ticket_type,
+      select open_support_ticket(${RIDER_TG}::bigint, 'ride_dispute'::support_ticket_type,
                                 'لا ينبغي أن تُفتحَ'::text) as result`;
     if (ticket === undefined) throw new Error("تعذّر نداءُ open_support_ticket");
     expect(ticket.result.ok).toBe(false);

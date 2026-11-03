@@ -6,7 +6,8 @@
     "tests/unit/wr-38-support-group-path.test.ts",
     "tests/integration/wr-38-support-group-isolation.test.ts",
     "scripts/lib/skip-registry.ts",
-    "scripts/lib/execution-roadmap.ts"
+    "scripts/lib/execution-roadmap.ts",
+    "tests/unit/skip-audit.test.ts"
   ],
   "state": ["docs/SYSTEM_STATE.md"],
   "roadmap": ["ROADMAP.md"],
