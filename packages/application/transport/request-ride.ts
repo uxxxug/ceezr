@@ -97,6 +97,11 @@ export type RequestRidePublicErrorCode =
    * رفضَ منتجٍ. العزلُ عندَ موضعِ الأثرِ (إنشاءِ الطلبِ) لا عندَ إصدارِ الجلسةِ.
    */
   | "ACCOUNT_BLOCKED"
+  /**
+   * `WR-33` — طلبٌ جديدٌ بلا إقرارِ «تنبيهِ التحويلاتِ الماليّةِ المسبقة» بالإصدارِ الحاليّ:
+   * `400` يُصلِحُه العميلُ بعرضِ التنبيهِ ثمَّ إعادةِ الإرسال. لا يُنشَأُ شيء.
+   */
+  | "PREPAY_WARNING_ACK_REQUIRED"
   | "RIDE_STORE_NOT_AVAILABLE";
 
 function sessionErrorFrom(reason: string): RequestRidePublicErrorCode {
@@ -109,6 +114,7 @@ export function rideStoreErrorFrom(failure: RideStoreFailure): RequestRidePublic
   if (failure.reason === "USER_NOT_FOUND") return "ACCOUNT_NOT_FOUND";
   if (failure.reason === "RIDER_NOT_REGISTERED") return "RIDER_NOT_REGISTERED";
   if (failure.reason === "ACCOUNT_BLOCKED") return "ACCOUNT_BLOCKED";
+  if (failure.reason === "PREPAY_WARNING_NOT_ACKNOWLEDGED") return "PREPAY_WARNING_ACK_REQUIRED";
   return "RIDE_STORE_NOT_AVAILABLE";
 }
 
@@ -250,6 +256,9 @@ export async function requestRide(
     offerMode: offerPolicy.policy.offerMode,
     pickupPlace: pickupPlace.meta,
     dropoffPlace: dropoffPlace.meta,
+    // `WR-33` — يُمرَّرُ كما هو أو `null`؛ الحكمُ فيه لحارسِ المنفذِ `requirePrepayWarningAck`
+    // لا ههنا، كي يقعَ الحكمُ نفسُه على مسارِ البوتِ الذي لا يمرُّ بهذه الدالّة.
+    prepayWarningAck: typeof body.prepayWarningAck === "string" ? body.prepayWarningAck : null,
   });
   if (!created.ok) return err(rideStoreErrorFrom(created.error));
 

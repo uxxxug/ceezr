@@ -63,6 +63,7 @@ import type {
   TrackingTokenMintPort,
   TrackingTokenRpcPort,
 } from "../../../packages/application/tracking/tracking-token-ports.ts";
+import { requirePrepayWarningAck } from "../../../packages/application/transport/prepay-warning-guard.ts";
 import type { TranslationFailure } from "../../../packages/domain/i18n-translation/index.ts";
 import { DEFAULT_SESSION_POLICY } from "../../../packages/domain/tracking/session.ts";
 import { createConsentRecordReader } from "../../../packages/infrastructure/consent/consent-store.ts";
@@ -630,7 +631,9 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
   const riders = createRiderDirectory(sql);
   const orders = createOrderRepository(sql);
   const orderWriter = createOrderWriter(sql);
-  const rides = createRideRequestCommand(sql);
+  // `WR-33` — البوتُ يُنشئُ طلبًا في وضعِ `legacy` (ومن جلسةٍ قديمةٍ في وضعِ التطبيق): المنفذُ ملفوفٌ
+  // بحارسِ تنبيهِ التحويلاتِ المسبقة كمسارِ الـ HTTP تمامًا، فلا بابَ إنشاءٍ بلا إقرار.
+  const rides = requirePrepayWarningAck(createRideRequestCommand(sql));
   // D-01: البوتُ يحملُ الإلغاءَ وحدَه لا الإنشاءَ — نُمرِّرُ غلافاً يكشفُ `cancelByRider` فقط.
   const orderCancellation: OrderCancellationPort = {
     cancelByRider: (orderId, riderId) => orderWriter.cancelByRider(orderId, riderId),

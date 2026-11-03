@@ -1036,11 +1036,13 @@ describe("السجلُّ الحقيقيُّ — أرقامٌ مقيسةٌ مُث
     // `wr-31-driver-abort-ride`): 220 — `wr-31-driver-abort-ride.test.ts` (إحدى
     // عشرةَ حالةً: انتقالُ الحالةِ بإيداعِ MATCHED وABORTED ورفضُ التقييمِ بلا إتمامٍ)
     // على PostgreSQL حقيقيٍّ) في وظيفةِ التكاملِ.
+    // زيادةٌ (WR-33 · تنبيهُ التحويلاتِ المسبقة · 2026-11-03 · حزمةُ `wr-33-prepay-warning`):
+    // 221 — `wr-33-prepay-warning-enforcement.test.ts` (خمسُ حالاتٍ على PostgreSQL حقيقيٍّ).
     // زيادةٌ (WR-32 · رسالةُ خصوصيّةِ الراكبِ وتدقيقُ رقمِه · 2026-11-03 · حزمةُ
-    // `wr-32-rider-privacy`): 221 — `wr-32-rider-privacy.test.ts` (اثنتا عشرةَ حالةً:
+    // `wr-32-rider-privacy`): 222 — `wr-32-rider-privacy.test.ts` (اثنتا عشرةَ حالةً:
     // ظهورُ الرسالةِ مرّةً بحسبِ `users.role` وعودتُها مع إصدارٍ جديدٍ، وغيابُ رقمِ الراكبِ
     // عن كلِّ ردٍّ سائقيٍّ وصندوقِ الإشعاراتِ) على PostgreSQL حقيقيٍّ في وظيفةِ التكاملِ.
-    expect(SKIP_REGISTRY).toHaveLength(221);
+    expect(SKIP_REGISTRY).toHaveLength(222);
     // زيادةٌ (SEC-22 · 2026-10-29): ملفُّ إنفاذِ الحجبِ في إنشاءِ الطلبِ
     // (`blocked-rider-request-enforcement.test.ts`) وحالاتُهُ الأربعُ — كلُّها على
     // `TEST_DATABASE_URL` لأنَّ المقصودَ قفلُ صفِّ المستخدمِ وحكمُ قاعدةِ
@@ -1065,8 +1067,9 @@ describe("السجلُّ الحقيقيُّ — أرقامٌ مقيسةٌ مُث
     // زيادةٌ (WR-27 · 2026-10-29): 1746 — حالاتُ `job-heartbeat-no-active-city.test.ts` الثلاث.
     // زيادةٌ (WR-30 · 2026-11-03): 1750 — حالاتُ `wr-30-rider-rating-board.test.ts` الأربعُ.
     // زيادةٌ (WR-31 · 2026-11-03): 1761 — حالاتُ `wr-31-driver-abort-ride.test.ts` الإحدى عشرةَ.
-    // زيادةٌ (WR-32 · 2026-11-03): 1773 — حالاتُ `wr-32-rider-privacy.test.ts` الاثنتا عشرةَ.
-    expect(SKIP_REGISTRY.reduce((sum, entry) => sum + entry.skipped, 0)).toBe(1773);
+    // زيادةٌ (WR-33 · 2026-11-03): 1766 — حالاتُ `wr-33-prepay-warning-enforcement.test.ts` الخمس.
+    // زيادةٌ (WR-32 · 2026-11-03): 1778 — حالاتُ `wr-32-rider-privacy.test.ts` الاثنتا عشرةَ.
+    expect(SKIP_REGISTRY.reduce((sum, entry) => sum + entry.skipped, 0)).toBe(1778);
   });
 
   it("لا تجاوزَ على مسارٍ حرجٍ بلا مُشغِّلٍ، وما لا مُشغِّلَ له مُعلَنٌ ببيانٍ", () => {

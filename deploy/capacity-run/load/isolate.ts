@@ -603,6 +603,9 @@ async function legacyCallbackProbe(): Promise<void> {
       originLng: 39.1925,
       destinationLat: 21.5,
       destinationLng: 39.2,
+      // `WR-33` — إقرارُ تنبيهِ التحويلاتِ المسبقة (= `PREPAY_WARNING_ACK_VERSION`؛ يحرسُ تطابقَه
+      // `tests/unit/wr-33-prepay-warning-wiring.test.ts`). بدونه يرفضُ الخادمُ الإنشاء.
+      prepayWarningAck: "prepay-warning-v1",
     },
     timeoutMs: 20_000,
   });

@@ -1111,6 +1111,111 @@ a.sys__action {
 }
 
 /* ==========================================================================
+ * `WR-33` — بوّابةُ «تنبيهِ التحويلاتِ الماليّةِ المسبقة» قبلَ إرسالِ كلِّ طلب
+ *
+ * تحلُّ محلَّ نموذجِ الطلبِ فتُفرِدُ الشاشةَ للتنبيه: عنوانٌ في **كتلةٍ مُعبَّأةٍ** بالكهرمانيّ
+ * (اللونُ الدلاليُّ لا يُكتَبُ نصًّا على سطحٍ مجهول — ADR 0233 §2)، ونقاطٌ قصيرةٌ بخطِّ المتن،
+ * وزرّانِ بعرضِ الشاشةِ لا يقلّانِ عن 48px. خصائصُ منطقيّةٌ فقط (RTL).
+ * ========================================================================== */
+.qt__prepay {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0;
+  border: 2px solid var(--ui-amber);
+  border-radius: var(--r-lg);
+  background: var(--w-surface);
+  overflow: hidden;
+}
+
+.qt__prepay-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0.75rem 1rem;
+  background: var(--ui-amber);
+  color: var(--ui-amber-on);
+  font-size: var(--ui-size-heading);
+  line-height: var(--ui-line-heading);
+  font-weight: var(--ui-weight-title);
+}
+
+.qt__prepay-title:focus {
+  outline: none;
+}
+
+.qt__prepay-title:focus-visible {
+  outline: 2px solid var(--ui-amber-on);
+  outline-offset: -4px;
+}
+
+.qt__prepay-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  inline-size: 1.75rem;
+  block-size: 1.75rem;
+  border-radius: 50%;
+  background: var(--ui-amber-on);
+  color: var(--ui-amber);
+  font-weight: var(--ui-weight-title);
+}
+
+.qt__prepay-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0;
+  padding-block: 0;
+  padding-inline: 2.25rem 1rem;
+}
+
+.qt__prepay-line {
+  font-size: var(--ui-size-body);
+  line-height: var(--ui-line-body);
+  color: var(--tg-text-color);
+}
+
+.qt__prepay-line:first-child {
+  font-weight: var(--ui-weight-body-strong);
+}
+
+.qt__prepay-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0 1rem 1rem;
+}
+
+.qt__prepay-confirm {
+  min-block-size: 48px;
+  min-height: 3rem;
+  padding: 0.5rem 1rem;
+  border: 0;
+  border-radius: var(--r-md);
+  background: var(--ui-brand);
+  color: var(--ui-brand-on);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.qt__prepay-cancel {
+  min-block-size: 48px;
+  min-height: 3rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--w-line);
+  border-radius: var(--r-md);
+  background: var(--w-surface);
+  color: var(--tg-text-color);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* ==========================================================================
  * `F2-05` · `SR-05` — طلبُ الرحلةِ وشاشةُ البحثِ
  *
  * صنفٌ لكلِّ ما يُرسَمُ في الشاشتَينِ، ولا صنفَ بلا مُحدِّدٍ ههنا: `UX-021` فُتِحَ

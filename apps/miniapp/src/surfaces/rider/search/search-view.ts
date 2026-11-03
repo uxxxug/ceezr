@@ -177,6 +177,8 @@ const ERROR_KEYS: Readonly<Record<string, string>> = {
   ACCOUNT_NOT_FOUND: "rider.search.error.account",
   RIDER_NOT_REGISTERED: "rider.search.error.notRegistered",
   RIDE_STORE_NOT_AVAILABLE: "rider.search.error.unavailable",
+  // `WR-33` — طلبٌ وصلَ الخادمَ بلا إقرارِ تنبيهِ التحويلاتِ المسبقة (نسخةٌ قديمةٌ من الواجهة مثلًا).
+  PREPAY_WARNING_ACK_REQUIRED: "rider.search.error.prepayAck",
   /**
    * `WR-06` — رفضٌ يُصلِحُه الراكبُ يُقالُ بسببِه. كانت هذه الرموزُ تسقطُ إلى «الخدمة غير متاحة»
    * فيظنُّ الراكبُ عطلًا وهوَ مبلغٌ أو وصفٌ أو مكانٌ أو وقتٌ يُصحَّح.
