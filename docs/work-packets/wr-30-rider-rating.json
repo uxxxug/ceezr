@@ -16,7 +16,8 @@
     "packages/shared/i18n/miniapp/en.json",
     "packages/shared/i18n/miniapp/ur.json",
     "tests/unit/wr-30-rider-rating.test.ts",
-    "tests/integration/wr-30-rider-rating-board.test.ts"
+    "tests/integration/wr-30-rider-rating-board.test.ts",
+    "scripts/lib/skip-registry.ts"
   ],
   "state": ["docs/SYSTEM_STATE.md"],
   "roadmap": ["docs/ROADMAP-MASTER.md"],
