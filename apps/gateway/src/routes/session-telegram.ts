@@ -98,7 +98,8 @@ export async function bootstrapReads(
   const consentDeps =
     shared === undefined || bootstrap.consent === undefined
       ? bootstrap.consent
-      : { ...bootstrap.consent, reader: shared.consents };
+      : // `WR-32`: الجمهورُ من الحسابِ نفسِه في أخذةِ الإقلاعِ — بلا استعلامٍ ثالثٍ.
+        { ...bootstrap.consent, reader: shared.consents, accounts: shared.accounts };
   const viewer =
     viewerDeps === undefined
       ? Promise.resolve(undefined)

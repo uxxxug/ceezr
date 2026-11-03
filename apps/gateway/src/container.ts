@@ -19,6 +19,7 @@ import type {
   OrderCancellationPort,
   SessionStore,
 } from "../../../packages/application/bots/types.ts";
+import { createRiderPrivacyNoticeProbe } from "../../../packages/application/consent/rider-privacy-notice.ts";
 import { RIDER_TRIP_APP_FIRST_EVENTS } from "../../../packages/application/dispatch/deliver-rider-trip-notice.ts";
 import type { EscalateUnmatchedOrderDependencies } from "../../../packages/application/dispatch/escalate-unmatched-order.ts";
 import type { PublishToUnsubscribedGroupDependencies } from "../../../packages/application/dispatch/publish-to-unsubscribed-group.ts";
@@ -64,6 +65,7 @@ import type {
 } from "../../../packages/application/tracking/tracking-token-ports.ts";
 import type { TranslationFailure } from "../../../packages/domain/i18n-translation/index.ts";
 import { DEFAULT_SESSION_POLICY } from "../../../packages/domain/tracking/session.ts";
+import { createConsentRecordReader } from "../../../packages/infrastructure/consent/consent-store.ts";
 import { createSql, type Sql } from "../../../packages/infrastructure/db/client.ts";
 import {
   createDispatchRpc,
@@ -1294,6 +1296,9 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
       counterpart: counterpartNotifier(driverSender, log, "driver"),
     },
     language: languageDeps(riderSessions),
+    // `WR-32` — رسالةُ خصوصيّةِ الراكبِ وسمعتِه مع `/start` حتى يُقِرَّ بها في التطبيقِ:
+    // تقرأُ سجلَّ الموافقاتِ نفسَه الذي يكتبُه `POST /v1/consents`.
+    privacyNotice: createRiderPrivacyNoticeProbe(createConsentRecordReader(sql)),
     /**
      * §4.2 — زرّا «شارك موقعي الحي» و«إلغاء الرابط». الحقلُ يُسقَط بلا أساسٍ عامٍّ
      * فلا يُعرَض زرٌّ يُنتج رابطاً لا يُفتح.

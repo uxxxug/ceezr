@@ -15,6 +15,7 @@ import { DEFAULT_SESSION_POLICY } from "../../domain/tracking/session.ts";
 import { initialLanguageFromHint, t } from "../../shared/i18n/index.ts";
 import type { Clock, OrderId, ServiceType } from "../../shared/kernel/index.ts";
 import { formatPickupMoment } from "../../shared/order-terms/index.ts";
+import type { RiderPrivacyNoticeProbe } from "../consent/rider-privacy-notice.ts";
 import { requestDelivery } from "../delivery/request-delivery.ts";
 import { type BroadcastDependencies, broadcastOffers } from "../dispatch/broadcast-offers.ts";
 import {
@@ -137,6 +138,11 @@ export interface RiderBotDependencies {
    * لا أن يفشل.
    */
   readonly tracking?: LiveTrackingPort;
+  /**
+   * `WR-32` — هل بقيَ على الراكبِ الإقرارُ برسالةِ خصوصيّتِه وسمعتِه؟ تقرؤه طبقةُ
+   * التطبيقِ في `/start` لتُرسِلَ الرسالةَ حتى يُقِرَّ بها. غيابُه = لا رسالةَ في البوتِ.
+   */
+  readonly privacyNotice?: RiderPrivacyNoticeProbe;
   /**
    * §4.2 — روابطُ التتبّع المؤقّتة: زرّ «شارك موقعي الحي» وزرّ «إلغاء الرابط».
    *
@@ -1137,7 +1143,13 @@ async function handleCommand(
       // القائمة مع الترحيب لا مع طلب الاسم: تلغرام يُبقي لوحة الردّ معروضة ما لم
       // تُستبدل، فترافق العميل من أوّل رسالة — وزرّ اللغة أول ما يحتاجه من لا يقرأ
       // العربية، وهو أقلّ الناس قدرةً على معرفة أمر /language من نصّ عربيّ.
-      return [reply(sender, tr("rider.welcome"), menu(state)), reply(sender, tr("rider.ask_name"))];
+      // `WR-32`: والتسجيلُ في هذا الحوارِ يمرُّ بالبوتِ، فرسالةُ الخصوصيّةِ والسمعةِ قبلَ
+      // طلبِ الاسمِ — قبلَ أن يُكمِلَ تسجيلَه لا بعدَه.
+      return [
+        reply(sender, tr("rider.welcome"), menu(state)),
+        reply(sender, tr("rider.privacy_notice")),
+        reply(sender, tr("rider.ask_name")),
+      ];
     }
 
     case "/ride": {

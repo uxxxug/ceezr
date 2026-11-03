@@ -1,0 +1,66 @@
+{
+  "id": "wr-32-rider-privacy",
+  "goal": "طلبُ المالكِ (2026-11-03، استثناءٌ معتمدٌ على تجميدِ PRD-010): رسالةُ خصوصيّةٍ وسمعةٍ للراكبِ عندَ أوّلِ دخولٍ (البوت وMini App) تُعرَضُ مرّةً عندَ التسجيلِ الأوّلِ أو إصدارِ سياسةٍ جديدٍ ويُسجَّلُ الإقرارُ بالإصدارِ والتاريخِ عبرَ نظامِ الموافقاتِ القائمِ، معَ تدقيقِ كلِّ مكانٍ قد يظهرُ فيه رقمُ الراكبِ — «لا تكتب وعدًا لا يطابق النظام».",
+  "canonical_source": [
+    "docs/evidence/compliance/WR-32-rider-privacy-20261103.md"
+  ],
+  "implementation": [
+    "apps/gateway/src/bots/rider/index.ts",
+    "apps/gateway/src/container.ts",
+    "apps/gateway/src/index.ts",
+    "apps/gateway/src/routes/session-telegram.ts",
+    "apps/miniapp/src/styles/global.css",
+    "apps/miniapp/src/surfaces/rider/welcome/WelcomeScreen.tsx",
+    "apps/miniapp/src/surfaces/rider/welcome/consent-view.ts",
+    "packages/application/bots/miniapp-surface.ts",
+    "packages/application/bots/rider-dialog.ts",
+    "packages/application/consent/record-consent.ts",
+    "packages/domain/consent/consent-decision.ts",
+    "packages/domain/consent/consent-documents.ts",
+    "packages/shared/i18n/ar.json",
+    "packages/shared/i18n/en.json",
+    "packages/shared/i18n/miniapp/ar.json",
+    "packages/shared/i18n/miniapp/en.json",
+    "packages/shared/i18n/miniapp/ur.json",
+    "packages/shared/i18n/ur.json",
+    "scripts/lib/execution-roadmap.ts",
+    "scripts/lib/skip-registry.ts",
+    "tests/unit/consent-decision.test.ts",
+    "tests/unit/rider-dialog.test.ts",
+    "tests/unit/session-bootstrap-coalesce.test.ts",
+    "tests/unit/skip-audit.test.ts",
+    "apps/miniapp/src/surfaces/rider/welcome/wr-32-rider-notice.test.ts",
+    "packages/application/consent/rider-privacy-notice.ts",
+    "supabase/migrations/20261103180000_wr_32_f2_01_user_consents.sql",
+    "tests/integration/wr-32-rider-privacy.test.ts",
+    "tests/unit/wr-32-rider-privacy-notice.test.ts"
+  ],
+  "state": [
+    "docs/SYSTEM_STATE.md"
+  ],
+  "roadmap": [
+    "ROADMAP.md"
+  ],
+  "affected_docs": [
+    "docs/evidence/compliance/WR-32-rider-privacy-20261103.md",
+    "docs/roadmap/execution/STATUS.md"
+  ],
+  "decision": "صنفٌ ثالثٌ في سجلِّ الموافقاتِ (`rider_privacy_notice@2026-11-03`، عرضُه `notice` وجمهورُه `rider`) لا جدولٌ ولا مسارُ كتابةٍ جديدٌ؛ الجمهورُ يُشتقُّ في الخادمِ من `users.role` (راكبٌ ⇒ 3 وثائقَ، وغيرُه أو تعذُّرُ القراءةِ ⇒ الوثيقتانِ كما كان). الراكبُ المسجَّلُ قبلُ يرى الرسالةَ وحدَها بفعلٍ واحدٍ («اطّلعت، لنبدأ») وموافقاتُه السابقةُ محفوظةٌ، والإصدارُ الجديدُ يُعيدُها مرّةً (`superseded`). البوتُ يذكرُها في `/start` ما دامت معلّقةً. التدقيقُ: لا تسريبَ يلزمُ إصلاحُه — واجهاتُ السائقِ بقوائمِ سماحٍ، والإفصاحاتُ القائمةُ لمخوَّلينَ فقط (الدعمُ والإدارةُ وصاحبُ الحسابِ).",
+  "tests": [
+    "bun test tests/unit/wr-32-rider-privacy-notice.test.ts — 13/13",
+    "bun test apps/miniapp/src/surfaces/rider/welcome/wr-32-rider-notice.test.ts — 10/10 (والمجموعةُ apps/miniapp/src 851/0)",
+    "TEST_DATABASE_URL=… bun test tests/integration/wr-32-rider-privacy.test.ts — 12/12 على PostgreSQL 18 محلّيٍّ",
+    "bun test tests/integration — 1713 pass / 0 fail محلّياً",
+    "متصفّحٌ آليٌّ (Chromium + بناءُ Mini App + البوابة + القاعدة): راكبٌ مسجَّلٌ يرى الرسالةَ وحدَها ويُسجَّلُ إقرارُه ولا تعودُ؛ راكبٌ جديدٌ يرى الرسالةَ فوقَ الوثيقتَينِ ⇒ ثلاثةُ صفوفٍ — سكربتٌ مؤقّتٌ لم يُلتزَم",
+    "الحوارسُ: check-consent-documents · check-migration-safety · check-i18n · check-skip-classification · check-execution-roadmap · check-schema-contract · check-css-class-coverage — خضراء"
+  ],
+  "evidence": "docs/evidence/compliance/WR-32-rider-privacy-20261103.md",
+  "constraints": [
+    "لا تغييرَ في الأسعارِ ولا السياساتِ التجاريّةِ، ولا لمسَ للإنتاجِ ولا بياناتِ إنتاج",
+    "لا إقرارَ مزروعٌ في الهجرة: كلُّ راكبٍ يُقِرُّ بنفسِه",
+    "السائقُ والمسؤولُ وغيرُ المعروفِ يبقونَ على الوثيقتَينِ كما كان (fail-safe على الجمهورِ القديم)",
+    "الهجرةُ اتّساعُ قيدٍ `not valid` فقط — آمنةٌ في أيِّ ترتيبِ نشرٍ للبوابة",
+    "خصوصيّةُ الراكبِ: حارسُ RIDER_IDENTITY_TOKENS يمرُّ واختبارُ التكاملِ يفحصُ الرقمَ بصيغِه الثلاثِ واسمَ المستخدمِ ومعرّفَ تلغرامَ ورقمَ الطوارئ"
+  ],
+  "limitations": "لم يُقَس على تيليجرامَ حقيقيٍّ ولا في الإنتاج. عرضُ الإنجليزيّةِ والأورديّةِ في المتصفّحِ لم يُقَس (لغةُ الواجهةِ من الحساب). اسمُ الراكبِ الكاملُ يظهرُ للسائقِ في رسالتَي التقييمِ والاكتمالِ في البوت — قرارُ مالكٍ لم يُغيَّر. وتُنشَرُ Mini App قبلَ البوابةِ أو معها وإلّا ظهرت مفاتيحُ خامٌ في الحزمةِ القديمة."
+}

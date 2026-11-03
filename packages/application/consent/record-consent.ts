@@ -29,11 +29,15 @@ import {
   type OnboardingConsentState,
 } from "../../domain/consent/consent-decision.ts";
 import {
+  type ConsentAudience,
   type ConsentDocument,
+  type ConsentPresentation,
+  type ConsentViewerAudience,
   DECLARED_CONSENT_DOCUMENTS,
+  documentsFor,
 } from "../../domain/consent/consent-documents.ts";
 import { err, ok, type Result } from "../../shared/result/index.ts";
-import type { MiniAppSessionReader } from "../identity/ports.ts";
+import type { MiniAppSessionReader, ViewerAccountReader } from "../identity/ports.ts";
 import type { ConsentRecordReader, ConsentRecordWriter, ConsentStoreFailure } from "./ports.ts";
 
 export interface ConsentDeps {
@@ -42,6 +46,11 @@ export interface ConsentDeps {
   readonly writer: ConsentRecordWriter;
   readonly now: () => Date;
   readonly log?: (message: string, meta: Record<string, unknown>) => void;
+  /**
+   * `WR-32` — قارئُ الحسابِ لاشتقاقِ **الجمهورِ** من `users.role` على الخادمِ.
+   * غيابُه (تركيبٌ قديمٌ أو اختبارٌ) يعني `other`: ما كانَ يُطلَبُ قبلَ `WR-32` حرفاً.
+   */
+  readonly accounts?: ViewerAccountReader;
 }
 
 /**
@@ -93,6 +102,10 @@ export interface PublishedConsentDocument {
   readonly summaryKey: string;
   readonly textKey: string;
   readonly requiredForOnboarding: boolean;
+  /** `WR-32` — لمن تُطلَبُ (`all` · `rider`). */
+  readonly audience: ConsentAudience;
+  /** `WR-32` — كيفَ تُعرَضُ (`document` · `notice`). */
+  readonly presentation: ConsentPresentation;
 }
 
 export interface ConsentStatusOutput {
@@ -100,16 +113,54 @@ export interface ConsentStatusOutput {
   readonly onboarding: OnboardingConsentState;
 }
 
-const PUBLISHED_DOCUMENTS: readonly PublishedConsentDocument[] = DECLARED_CONSENT_DOCUMENTS.map(
-  (d) => ({
+function published(d: ConsentDocument): PublishedConsentDocument {
+  return {
     kind: d.kind,
     version: d.version,
     titleKey: d.titleKey,
     summaryKey: d.summaryKey,
     textKey: d.textKey,
     requiredForOnboarding: d.requiredForOnboarding,
-  }),
-);
+    audience: d.audience,
+    presentation: d.presentation,
+  };
+}
+
+/** كلُّ الوثائقِ المُعلَنةِ منشورةً — للاختبارِ والحاجزِ. */
+const PUBLISHED_DOCUMENTS: readonly PublishedConsentDocument[] =
+  DECLARED_CONSENT_DOCUMENTS.map(published);
+
+const PUBLISHED_BY_AUDIENCE: Readonly<
+  Record<ConsentViewerAudience, readonly PublishedConsentDocument[]>
+> = {
+  rider: documentsFor("rider").map(published),
+  other: documentsFor("other").map(published),
+};
+
+/** الوثائقُ المنشورةُ لجمهورٍ — ما يُعادُ في `documents`. */
+export function publishedDocumentsFor(
+  viewer: ConsentViewerAudience,
+): readonly PublishedConsentDocument[] {
+  return PUBLISHED_BY_AUDIENCE[viewer];
+}
+
+/**
+ * `WR-32` — جمهورُ صاحبِ الجلسةِ من دورِه في القاعدةِ. والإخفاقُ يرتدُّ إلى `other`
+ * عن قصدٍ ويُسجَّلُ: إخفاقُ قراءةِ الدورِ لا يُسقِطُ شاشةَ الموافقاتِ كلَّها، وأسوأُ
+ * أثرِه أن تتأخّرَ رسالةُ الراكبِ إلى الفتحِ التالي — لا أن تُفرَضَ على سائقٍ.
+ */
+async function audienceFor(
+  deps: ConsentDeps,
+  telegramUserId: string,
+): Promise<ConsentViewerAudience> {
+  if (deps.accounts === undefined) return "other";
+  const account = await deps.accounts.findByTelegramUserId(telegramUserId);
+  if (!account.ok) {
+    deps.log?.("consent.audience_lookup_failed", { reason: account.error.reason });
+    return "other";
+  }
+  return account.value?.role === "rider" ? "rider" : "other";
+}
 
 /**
  * حالةُ الموافقاتِ: **الوثائقُ الجاريةُ دائماً**، وحالةُ صاحبِ الجلسةِ منها. ولو
@@ -123,12 +174,15 @@ export async function readConsentStatus(
   const identified = await authenticate(deps, input.accessToken);
   if (!identified.ok) return identified;
 
-  const recorded = await deps.reader.listForTelegramUser(identified.value);
+  const [recorded, viewer] = await Promise.all([
+    deps.reader.listForTelegramUser(identified.value),
+    audienceFor(deps, identified.value),
+  ]);
   if (!recorded.ok) return err(storeErrorFrom(recorded.error));
 
   return ok({
-    documents: PUBLISHED_DOCUMENTS,
-    onboarding: evaluateOnboardingConsent(recorded.value),
+    documents: publishedDocumentsFor(viewer),
+    onboarding: evaluateOnboardingConsent(recorded.value, viewer),
   });
 }
 
@@ -164,7 +218,10 @@ export async function recordConsent(
   });
   if (!written.ok) return err(storeErrorFrom(written.error));
 
-  const recorded = await deps.reader.listForTelegramUser(identified.value);
+  const [recorded, viewer] = await Promise.all([
+    deps.reader.listForTelegramUser(identified.value),
+    audienceFor(deps, identified.value),
+  ]);
   if (!recorded.ok) return err(storeErrorFrom(recorded.error));
 
   deps.log?.("consent.recorded", {
@@ -176,7 +233,7 @@ export async function recordConsent(
   return ok({
     status: written.value.status,
     acceptedAtMs: written.value.acceptedAtMs,
-    onboarding: evaluateOnboardingConsent(recorded.value),
+    onboarding: evaluateOnboardingConsent(recorded.value, viewer),
   });
 }
 

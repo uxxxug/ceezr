@@ -47,8 +47,10 @@ describe("سجلُّ الوثائقِ المُعلَنةِ", () => {
     }
   });
 
-  it("٣) الوثيقتانِ كلتاهما واجبةٌ للتهيئةِ", () => {
-    expect(requiredDocuments().length).toBe(DECLARED_CONSENT_DOCUMENTS.length);
+  it("٣) كلُّ وثيقةٍ معلنةٍ واجبةٌ للتهيئةِ عندَ جمهورِها (`WR-32`: الراكبُ يرى الكلَّ)", () => {
+    expect(requiredDocuments("rider").length).toBe(DECLARED_CONSENT_DOCUMENTS.length);
+    // ومن ليسَ راكباً لا تُطلَبُ منه وثيقةُ الراكبِ: الشروطُ والخصوصيّةُ وحدَهما.
+    expect(requiredDocuments().map((d) => d.kind)).toEqual(["terms_of_service", "privacy_policy"]);
   });
 });
 
@@ -112,7 +114,8 @@ describe("حالةُ التهيئةِ", () => {
     const state = evaluateOnboardingConsent([]);
     expect(state.satisfied).toBe(false);
     expect(state.documents.every((d) => d.state === "missing")).toBe(true);
-    expect(outstandingConsentKinds([]).length).toBe(DECLARED_CONSENT_DOCUMENTS.length);
+    expect(outstandingConsentKinds([], "rider").length).toBe(DECLARED_CONSENT_DOCUMENTS.length);
+    expect(outstandingConsentKinds([]).length).toBe(DECLARED_CONSENT_DOCUMENTS.length - 1);
   });
 
   it("٩) إصدارٌ أقدمُ يُقرأُ `superseded` لا `satisfied`", () => {
@@ -136,7 +139,7 @@ describe("حالةُ التهيئةِ", () => {
   });
 
   it("١٢) صفٌّ لصنفٍ غيرِ مُعلَنٍ لا يُستوفي شيئاً ولا يُسقِطُ الحسابَ", () => {
-    const state = evaluateOnboardingConsent([recorded("unknown_kind", "2026-09-12")]);
+    const state = evaluateOnboardingConsent([recorded("unknown_kind", "2026-09-12")], "rider");
     expect(state.satisfied).toBe(false);
     expect(state.documents.length).toBe(DECLARED_CONSENT_DOCUMENTS.length);
   });

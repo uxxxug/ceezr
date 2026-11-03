@@ -497,6 +497,30 @@ a.sys__action {
   color: var(--tg-text-color);
 }
 
+/*
+ * `WR-32` — رسالةُ خصوصيّةِ الراكبِ وسمعتِه: بطاقةٌ مفتوحةٌ تُقرأُ قبلَ الزرِّ،
+ * بحدٍّ جانبيٍّ بلونِ العلامةِ لا بخلفيّةٍ ملوّنةٍ — فالتباينُ نصُّ القالبِ نفسُه.
+ */
+.wc__notice {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.9rem;
+  border: 1px solid var(--w-line);
+  border-inline-start: 4px solid var(--ui-brand);
+  border-radius: var(--r-lg);
+  background: var(--w-surface);
+}
+
+.wc__notice-body {
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.75;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  color: var(--tg-text-color);
+}
+
 .wc__primary {
   align-self: stretch;
   text-align: center;

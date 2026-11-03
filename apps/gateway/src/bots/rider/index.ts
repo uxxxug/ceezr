@@ -62,6 +62,10 @@ export function createRiderBot(
       const found = await deps.riders.findByTelegramId(telegramUserId);
       return found.ok ? found.value !== null : null;
     },
+    // `WR-32` — رسالةُ خصوصيّةِ الراكبِ وسمعتِه مع `/start` حتى يُقِرَّ بها في التطبيقِ.
+    ...(deps.privacyNotice === undefined
+      ? {}
+      : { riderPrivacyNoticePending: deps.privacyNotice.pending }),
     // NEG-SELECT-01 — نصُّ من في محادثةِ تفاوضٍ مفتوحةٍ رسالةٌ للطرفِ الآخرِ: يمضي للحوارِ.
     inNegotiation: async (telegramUserId) => {
       const relay = deps.negotiation?.relay;
