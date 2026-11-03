@@ -19,7 +19,38 @@ import { ApiError, ApiNetworkError, apiFetch } from "../../api/client.ts";
 
 export type ChatRole = "rider" | "driver";
 
-export type ChatMessageKind = "text" | "location";
+export type ChatMessageKind = "text" | "location" | "image" | "voice";
+
+/**
+ * `WR-34` (ADR 0305) — سجلُّ ملفِّ الوسيط: لا رابطَ فيه. الرابطُ الموقَّعُ القصيرُ يُطلَبُ
+ * لكلِّ ملفٍّ عندَ عرضِه أو تشغيلِه (`ChatApi.attachmentUrl`).
+ */
+export interface ChatAttachment {
+  readonly id: string;
+  readonly kind: "image" | "voice";
+  readonly mimeType: string;
+  readonly byteSize: number;
+  readonly width: number | null;
+  readonly height: number | null;
+  readonly durationMs: number | null;
+  /** `false` ⇒ انتهت مدّةُ الاحتفاظِ وحُذفَ الملف. */
+  readonly available: boolean;
+}
+
+/** `WR-34` — حدودُ الوسائطِ كما أعلنَها الخادم؛ `enabled: false` ⇒ لا أزرارَ وسائط. */
+export interface ChatMediaCapability {
+  readonly enabled: boolean;
+  readonly imageMaxBytes: number;
+  readonly voiceMaxBytes: number;
+  readonly voiceMaxMs: number;
+}
+
+export const MEDIA_DISABLED: ChatMediaCapability = Object.freeze({
+  enabled: false,
+  imageMaxBytes: 0,
+  voiceMaxBytes: 0,
+  voiceMaxMs: 0,
+});
 
 /** `WR-04` — نقطةٌ واحدةٌ اختارَ المستخدمُ إرسالَها. */
 export interface ChatLocation {
@@ -49,6 +80,8 @@ export interface ChatMessage {
   readonly kind: ChatMessageKind;
   readonly location: ChatLocation | null;
   readonly translation: ChatTranslation | null;
+  /** `WR-34` — للصورةِ والصوتِ وحدَهما؛ غيابُه ⇒ لا مرفق. */
+  readonly attachment?: ChatAttachment | null;
 }
 
 export interface ChatSnapshot {
@@ -68,7 +101,23 @@ export interface ChatSnapshot {
   readonly unread: number;
   /** `WR-04` (ADR 0277) — الرسائلُ تُترجَمُ آليًّا عبرَ خدمةٍ خارجيّة؛ منه يُعرَضُ الإفصاح. */
   readonly translationActive: boolean;
+  /** `WR-34` — في الخادمِ رسائلُ أقدمُ ممّا حُمِّل. */
+  readonly hasOlder: boolean;
+  readonly media: ChatMediaCapability;
 }
+
+/** `WR-34` — وسيطٌ محلّيٌّ ينتظرُ الرفع: البايتاتُ في الذاكرةِ وحدَها (لا تخزينَ في الجهاز). */
+export interface PendingMedia {
+  readonly kind: "image" | "voice";
+  readonly blob: Blob;
+  /** `blob:` للمعاينةِ والتشغيلِ قبلَ التأكيد — يُحرَّرُ عندَ إسقاطِ المعلَّق. */
+  readonly previewUrl: string | null;
+  readonly durationMs: number | null;
+  readonly width: number | null;
+  readonly height: number | null;
+}
+
+export type ChatMediaFailure = "too_large" | "unsupported" | "quota" | "disabled" | "other";
 
 /** رسالةٌ أرسلَها المستخدمُ ولم يؤكِّدْها الخادمُ بعدُ — بمعرّفِها الثابت. */
 export interface PendingMessage {
@@ -78,6 +127,9 @@ export interface PendingMessage {
   /** غيابُهما ⇒ نصّ. */
   readonly kind?: ChatMessageKind;
   readonly location?: ChatLocation;
+  readonly media?: PendingMedia;
+  /** `WR-34` — سببُ رفضٍ نهائيٍّ لا تُصلِحُه الإعادة (حجمٌ أو نوعٌ أو حصّة). */
+  readonly mediaFailure?: ChatMediaFailure;
 }
 
 /** ما يُرسَلُ للخادم: نصٌّ أو نقطةُ موقع. */
@@ -102,6 +154,16 @@ interface WireMessage {
     readonly maps_url?: string | null;
   } | null;
   readonly translation?: ChatTranslation | null;
+  readonly attachment?: {
+    readonly id: string;
+    readonly kind: "image" | "voice";
+    readonly mime_type: string;
+    readonly byte_size: number;
+    readonly width: number | null;
+    readonly height: number | null;
+    readonly duration_ms: number | null;
+    readonly available: boolean;
+  } | null;
 }
 
 interface WireThread {
@@ -122,7 +184,16 @@ interface WireThread {
   readonly counterpart_last_read_seq: number;
   readonly unread: number;
   readonly translation_active?: boolean;
+  readonly has_older?: boolean;
+  readonly media?: {
+    readonly enabled: boolean;
+    readonly image_max_bytes: number;
+    readonly voice_max_bytes: number;
+    readonly voice_max_ms: number;
+  };
 }
+
+export type { WireMessage as ChatWireMessage, WireThread as ChatWireThread };
 
 function finite(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
@@ -151,6 +222,27 @@ export function fromWireMessage(m: WireMessage): ChatMessage {
     m.translation.text.trim().length > 0
       ? m.translation
       : null;
+  const wireAttachment = m.attachment;
+  const attachment: ChatAttachment | null =
+    (m.kind === "image" || m.kind === "voice") &&
+    wireAttachment !== undefined &&
+    wireAttachment !== null &&
+    typeof wireAttachment.id === "string" &&
+    wireAttachment.kind === m.kind
+      ? {
+          id: wireAttachment.id,
+          kind: wireAttachment.kind,
+          mimeType: wireAttachment.mime_type,
+          byteSize: finite(wireAttachment.byte_size) ?? 0,
+          width: finite(wireAttachment.width),
+          height: finite(wireAttachment.height),
+          durationMs: finite(wireAttachment.duration_ms),
+          available: wireAttachment.available === true,
+        }
+      : null;
+  // `WR-34`: وسيطٌ بلا سجلِّ مرفقٍ يبقى بنوعِه ويُعرَضُ «غيرَ متاح» — لا نصًّا رمزيًّا.
+  const kind: ChatMessageKind =
+    m.kind === "image" || m.kind === "voice" ? m.kind : location === null ? "text" : "location";
   return {
     id: m.id,
     seq: m.seq,
@@ -160,10 +252,18 @@ export function fromWireMessage(m: WireMessage): ChatMessage {
     body: m.body,
     createdAt: m.created_at,
     // نوعٌ مجهولٌ أو موقعٌ بلا إحداثيّاتٍ صالحة يُعرَضُ نصًّا: لا بطاقةَ موقعٍ بلا موقع.
-    kind: location === null ? "text" : "location",
+    kind,
     location,
-    translation,
+    // الوسائطُ لا تُترجَم (ADR 0305): لا ترجمةَ تُعرَضُ على غيرِ النصّ.
+    translation: kind === "text" ? translation : null,
+    attachment,
   };
+}
+
+export interface ChatAttachmentLink {
+  readonly url: string;
+  readonly expiresAt: string;
+  readonly mimeType: string;
 }
 
 export interface ChatApi {
@@ -174,6 +274,22 @@ export interface ChatApi {
     outgoing: ChatOutgoing,
   ) => Promise<{ readonly status: "added" | "duplicate"; readonly message: WireMessage }>;
   readonly markRead: (orderId: string, seq: number) => Promise<unknown>;
+  /** `WR-34` — آخرُ صفحةٍ (الفتحُ الأوّل). غيابُها ⇒ `fetchAfter(…, 0)` كما كان. */
+  readonly fetchTail?: (orderId: string) => Promise<WireThread>;
+  /** `WR-34` — صفحةُ الأقدمِ قبلَ تسلسلٍ معلوم. */
+  readonly fetchBefore?: (orderId: string, beforeSeq: number) => Promise<WireThread>;
+  /** `WR-34` — رفعُ وسيطٍ بمعرّفِه الثابت: الإعادةُ بالمعرّفِ نفسِه لا تُكرِّرُ رسالة. */
+  readonly uploadMedia?: (
+    orderId: string,
+    clientMessageId: string,
+    media: {
+      readonly kind: "image" | "voice";
+      readonly blob: Blob;
+      readonly durationMs: number | null;
+    },
+  ) => Promise<{ readonly status: "added" | "duplicate"; readonly message: WireMessage }>;
+  /** `WR-34` — رابطٌ موقَّعٌ قصيرٌ لملفٍّ من هذه المحادثة. */
+  readonly attachmentUrl?: (orderId: string, attachmentId: string) => Promise<ChatAttachmentLink>;
 }
 
 export const productionChatApi: ChatApi = {
@@ -191,7 +307,45 @@ export const productionChatApi: ChatApi = {
     }),
   markRead: (orderId, seq) =>
     apiFetch(`/v1/orders/${orderId}/chat/read`, { method: "POST", body: { seq } }),
+  fetchTail: (orderId) =>
+    apiFetch<WireThread>(`/v1/orders/${orderId}/chat?tail=1`, { method: "GET" }),
+  fetchBefore: (orderId, beforeSeq) =>
+    apiFetch<WireThread>(`/v1/orders/${orderId}/chat?before=${String(beforeSeq)}`, {
+      method: "GET",
+    }),
+  uploadMedia: (orderId, clientMessageId, media) => {
+    const query = new URLSearchParams({ kind: media.kind, client_message_id: clientMessageId });
+    if (media.durationMs !== null) query.set("duration_ms", String(Math.round(media.durationMs)));
+    return apiFetch(`/v1/orders/${orderId}/chat/media?${query.toString()}`, {
+      method: "POST",
+      rawBody: {
+        data: media.blob,
+        contentType: media.blob.type.length > 0 ? media.blob.type : "application/octet-stream",
+      },
+    });
+  },
+  attachmentUrl: async (orderId, attachmentId) => {
+    const wire = await apiFetch<{ url: string; expires_at: string; mime_type: string }>(
+      `/v1/orders/${orderId}/chat/attachments/${attachmentId}`,
+      { method: "GET" },
+    );
+    return { url: wire.url, expiresAt: wire.expires_at, mimeType: wire.mime_type };
+  },
 };
+
+/** `WR-34` — سببُ رفضِ الوسيطِ من رمزِ الخادم؛ `null` ⇒ عطلٌ عابرٌ تُصلِحُه الإعادة. */
+export function mediaFailureOf(error: unknown): ChatMediaFailure | null {
+  if (!(error instanceof ApiError)) return null;
+  if (error.code === "MEDIA_TOO_LARGE" || error.status === 413) return "too_large";
+  if (error.code === "MEDIA_TYPE_UNSUPPORTED" || error.code === "MEDIA_INVALID")
+    return "unsupported";
+  if (error.code === "MEDIA_DURATION_INVALID") return "unsupported";
+  if (error.code === "MEDIA_QUOTA") return "quota";
+  if (error.code === "MEDIA_DISABLED") return "disabled";
+  if (error.status >= 500 || error.status === 401) return null;
+  if (error.status === 409) return null;
+  return "other";
+}
 
 /**
  * دمجُ دفعةٍ جديدةٍ في القائمةِ القائمة — بمعرّفِ الرسالةِ لا بموضعِها،
@@ -237,7 +391,26 @@ export function applyThread(previous: ChatSnapshot | null, wire: WireThread): Ch
     counterpartLastReadSeq: wire.counterpart_last_read_seq,
     unread: wire.unread,
     translationActive: wire.translation_active === true,
+    hasOlder: previous?.hasOlder ?? wire.has_older === true,
+    media:
+      wire.media === undefined
+        ? (previous?.media ?? MEDIA_DISABLED)
+        : {
+            enabled: wire.media.enabled === true,
+            imageMaxBytes: finite(wire.media.image_max_bytes) ?? 0,
+            voiceMaxBytes: finite(wire.media.voice_max_bytes) ?? 0,
+            voiceMaxMs: finite(wire.media.voice_max_ms) ?? 0,
+          },
   };
+}
+
+/**
+ * `WR-34` — صفحةٌ من الذيلِ أو من الأقدم: هيَ وحدَها تقولُ إن كانَ قبلَها شيء. (الاسترجاعُ
+ * التزايديُّ لا يعرفُ الأقدمَ فلا يُغيِّرُ `hasOlder`.)
+ */
+export function applyHistoryPage(previous: ChatSnapshot | null, wire: WireThread): ChatSnapshot {
+  const next = applyThread(previous, wire);
+  return { ...next, hasOlder: wire.has_older === true };
 }
 
 export type ChatFailure = "not_found" | "closed" | "session" | "network" | "rejected";

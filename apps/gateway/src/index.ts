@@ -75,7 +75,10 @@ import {
 } from "../../../packages/infrastructure/identity/telegram-init-data.ts";
 import { createViewerAccountReader } from "../../../packages/infrastructure/identity/viewer-account.ts";
 import { createViewerAccountLanguageWriter } from "../../../packages/infrastructure/identity/viewer-language.ts";
-import { createOrderChatStore } from "../../../packages/infrastructure/messaging/order-chat-store.ts";
+import {
+  createOrderChatMediaStore,
+  createOrderChatStore,
+} from "../../../packages/infrastructure/messaging/order-chat-store.ts";
 import { createNegotiationAppStore } from "../../../packages/infrastructure/negotiation/negotiation-app-store.ts";
 import { grammyTelegramSender } from "../../../packages/infrastructure/notification/telegram-api-sender.ts";
 import { createUserNotificationCenter } from "../../../packages/infrastructure/notification/user-notification-center.ts";
@@ -105,6 +108,11 @@ import {
 } from "../../../packages/infrastructure/safety/notification-prefs-store.ts";
 import { createSosSurfaceReader } from "../../../packages/infrastructure/safety/sos-surface-store.ts";
 import { createJobHeartbeatReader } from "../../../packages/infrastructure/scheduling/job-heartbeat-adapters.ts";
+import {
+  chatMediaEnabled,
+  HttpChatMediaObjectStore,
+  readChatMediaStoreConfig,
+} from "../../../packages/infrastructure/storage/chat-media-object-store.ts";
 import { HttpObjectContentInspector } from "../../../packages/infrastructure/storage/object-content-inspector.ts";
 import { HttpObjectExistenceChecker } from "../../../packages/infrastructure/storage/object-existence-checker.ts";
 import {
@@ -1244,6 +1252,26 @@ const support =
  * والقناةُ الآنيّةُ إشارةٌ تُسرِّعُ الوصولَ فقط. غيابُ سرِّ الجلسةِ يُلغي المسارات.
  */
 const orderChatStore = createOrderChatStore(container.sql);
+/**
+ * `WR-34` (ADR 0305) — وسائطُ المحادثة: دلوٌ خاصٌّ منفصلٌ عن وثائقِ السائق. الرفعُ يحتاجُ
+ * `ORDER_CHAT_MEDIA=enabled` **و**تهيئةَ المخزن؛ والقراءةُ تبقى ما دامَ المخزنُ مهيّأً كي
+ * لا يختفيَ ما أُرسِلَ إن أُوقِفَ المفتاح.
+ */
+const orderChatMediaConfig = readChatMediaStoreConfig(process.env);
+const orderChatMediaEnabled = chatMediaEnabled(process.env) && orderChatMediaConfig !== null;
+if (chatMediaEnabled(process.env) && orderChatMediaConfig === null) {
+  log("order_chat.media_misconfigured", {
+    hint: "ORDER_CHAT_MEDIA=enabled needs OBJECT_STORAGE_URL + OBJECT_STORAGE_SECRET_KEY and a bucket distinct from DRIVER_DOCUMENTS_BUCKET",
+  });
+}
+const orderChatMedia =
+  orderChatMediaConfig === null
+    ? undefined
+    : {
+        enabled: orderChatMediaEnabled,
+        store: createOrderChatMediaStore(container.sql),
+        objects: new HttpChatMediaObjectStore(orderChatMediaConfig),
+      };
 const orderChat =
   config.miniappSessionSecret === null
     ? undefined
@@ -1254,6 +1282,7 @@ const orderChat =
             sessionRevocationStore,
           ),
           store: orderChatStore,
+          ...(orderChatMedia === undefined ? {} : { media: orderChatMedia }),
           now: () => new Date(),
           onPosted: (signal: { readonly orderId: string; readonly lastSeq: number }) => {
             chatChannel?.publish(signal);

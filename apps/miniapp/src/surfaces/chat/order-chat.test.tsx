@@ -336,10 +336,15 @@ describe("WR-04 — رسالةُ الموقعِ والترجمةُ في العم
     expect(asked).toBe(0);
   });
 
-  it("لا زرَّ لنوعِ مرفقٍ لا يدعمُه الخادم (صور/فيديو/صوت/مستندات حتّى يُفتَحَ التخزين)", () => {
+  it("لا زرَّ لنوعِ مرفقٍ لا يدعمُه الخادم — `WR-34`: الصورةُ والصوتُ خلفَ قدرةِ الخادمِ وحدَها", () => {
     const code = read("./OrderChat.tsx").replace(/\/\*[\s\S]*?\*\//g, "");
-    expect(code).not.toMatch(/type="file"/);
-    expect(code).not.toMatch(/getUserMedia|MediaRecorder/);
+    // حقلُ الملفِّ وزرُّ الميكروفونِ مشروطانِ بـ`media.enabled` من الخادم (ADR 0305)…
+    expect(code).toMatch(/\{mediaOn \? \(\s*<input/);
+    expect(code).toMatch(/const voiceOn = mediaOn && canRecordVoice\(\)/);
+    // …والصورةُ وحدَها في منتقي الملفّات: لا فيديو ولا مستندات.
+    expect(code).not.toMatch(/accept="[^"]*(video|application|\*\/\*)/);
+    // والوصولُ إلى الميكروفونِ في وحدةِ الالتقاطِ وحدَها، لا في الشاشة.
+    expect(code).not.toMatch(/getUserMedia|new MediaRecorder/);
   });
 });
 

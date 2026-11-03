@@ -1,0 +1,57 @@
+{
+ "htmlDir": "rtl",
+ "textareaDir": "auto",
+ "bubbleSides": [
+  {
+   "cls": "ocht__msg ocht__msg--theirs",
+   "left": 17,
+   "right": 255
+  },
+  {
+   "cls": "ocht__msg ocht__msg--mine",
+   "left": 165,
+   "right": 373
+  },
+  {
+   "cls": "ocht__msg ocht__msg--theirs ocht__msg--media",
+   "left": 17,
+   "right": 261
+  },
+  {
+   "cls": "ocht__msg ocht__msg--mine ocht__msg--media",
+   "left": 141,
+   "right": 373
+  }
+ ],
+ "uploads": [
+  {
+   "kind": "voice",
+   "blobType": "audio/mp4;codecs=opus",
+   "clientDurationMs": 2549,
+   "bytes": 33633,
+   "verdict": {
+    "ok": true,
+    "mime": "audio/mp4",
+    "durationMs": 2549
+   },
+   "exifInClientOutput": false
+  },
+  {
+   "kind": "image",
+   "blobType": "image/jpeg",
+   "clientDurationMs": null,
+   "bytes": 866,
+   "verdict": {
+    "ok": true,
+    "mime": "image/jpeg",
+    "width": 64,
+    "height": 48,
+    "strippedBytes": 0
+   },
+   "exifInClientOutput": false
+  }
+ ],
+ "riderHasSafetyNotice": 0,
+ "micDeniedShown": true,
+ "pageErrors": []
+}

@@ -49,6 +49,7 @@ export const CANONICAL_ITEMS: readonly string[] = [
   "WR-31",
   "WR-32",
   "WR-33",
+  "WR-34",
   "WR-35",
 ];
 

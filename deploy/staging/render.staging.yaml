@@ -67,6 +67,10 @@ services:
       # يفتحُه المالكُ بالقيمةِ enabled وحدَها (BACKUP-STORAGE-20261011.md).
       - key: DRIVER_DOCUMENT_UPLOADS
         sync: false
+      # WR-34 (ADR 0305) — وسائطُ المحادثة: موقوفةٌ حتّى يفتحَها المالكُ بالقيمةِ enabled
+      # بعدَ تهيئةِ الدلوِ الخاصّ (scripts/provision-chat-media-storage.ts).
+      - key: ORDER_CHAT_MEDIA
+        sync: false
       - key: UPSTASH_REDIS_REST_URL
         sync: false
       - key: UPSTASH_REDIS_REST_TOKEN
@@ -368,7 +372,7 @@ services:
       # وتقييدُه يُسقِطُ طلبَ الرحلةِ نفسَه لا يُشدِّدُ أمناً.
       - path: /*
         name: Permissions-Policy
-        value: camera=(), microphone=(), payment=(), usb=()
+        value: camera=(), microphone=(self), payment=(), usb=()
       # سنةٌ بلا `includeSubDomains` ولا `preload`: النطاقُ الحاليُّ نطاقٌ فرعيٌّ
       # مشتركٌ على `onrender.com`، وإعلانُ شمولِ النطاقاتِ الفرعيّةِ من موقعٍ
       # ساكنٍ يتعدّى على نطاقٍ لا نملكُه.

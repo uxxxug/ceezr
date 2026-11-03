@@ -19,6 +19,7 @@
  *   ــ لا يعرفُ سعراً ولا دفعاً: الغرفةُ تواصلٌ لا وساطة.
  */
 
+import { CHAT_MEDIA_LIMITS } from "../../domain/messaging/chat-media.ts";
 import { err, ok, type Result } from "../../shared/result/index.ts";
 import type { MiniAppSessionReader } from "../identity/ports.ts";
 
@@ -26,6 +27,8 @@ import type { MiniAppSessionReader } from "../identity/ports.ts";
 export const ORDER_CHAT_MESSAGE_MAX = 1000;
 /** أكبرُ دفعةِ قراءةٍ — تُطابِقُ حدَّ `list_order_messages`. */
 export const ORDER_CHAT_PAGE_MAX = 200;
+/** `WR-34` — صفحةُ الفتحِ الأوّلِ والأقدم: آخرُ 60 رسالةً تكفي الشاشةَ ولا تُثقِلُ الهاتف. */
+export const ORDER_CHAT_HISTORY_PAGE = 60;
 
 export const ORDER_CHAT_PUBLIC_ERROR_CODES = [
   "SESSION_REQUIRED",
@@ -42,6 +45,16 @@ export const ORDER_CHAT_PUBLIC_ERROR_CODES = [
   "MESSAGE_KIND_INVALID",
   "LOCATION_INVALID",
   "CHAT_STORE_NOT_AVAILABLE",
+  // `WR-34` (ADR 0305) — الوسائط.
+  "MEDIA_DISABLED",
+  "MEDIA_TOO_LARGE",
+  "MEDIA_TYPE_UNSUPPORTED",
+  "MEDIA_INVALID",
+  "MEDIA_DURATION_INVALID",
+  "MEDIA_QUOTA",
+  "ATTACHMENT_INVALID",
+  "ATTACHMENT_NOT_FOUND",
+  "MEDIA_STORE_UNAVAILABLE",
 ] as const;
 
 export type OrderChatPublicErrorCode = (typeof ORDER_CHAT_PUBLIC_ERROR_CODES)[number];
@@ -49,7 +62,23 @@ export type OrderChatPublicErrorCode = (typeof ORDER_CHAT_PUBLIC_ERROR_CODES)[nu
 export type OrderChatRole = "rider" | "driver";
 
 /** `WR-04` — نوعُ الرسالة. المرفقاتُ الثنائيّةُ غيرُ مقبولةٍ حتّى يُفتَحَ التخزينُ (`WR-21`). */
-export type OrderChatMessageKind = "text" | "location";
+export type OrderChatMessageKind = "text" | "location" | "image" | "voice";
+
+/**
+ * `WR-34` — سجلُّ ملفِّ الوسيطِ كما يراه الطرفان: لا مسارَ في المخزنِ ولا رابط. الرابطُ
+ * الموقَّعُ يُطلَبُ لكلِّ ملفٍّ على حدةٍ من `GET …/chat/attachments/:id` بعدَ التفويض.
+ */
+export interface OrderChatAttachment {
+  readonly id: string;
+  readonly kind: "image" | "voice";
+  readonly mimeType: string;
+  readonly byteSize: number;
+  readonly width: number | null;
+  readonly height: number | null;
+  readonly durationMs: number | null;
+  /** `false` ⇒ حُذفَ الملفُّ (انتهت مدّةُ الاحتفاظ) وبقيَ سجلُّ الرسالة. */
+  readonly available: boolean;
+}
 
 /** نقطةٌ واحدةٌ أرسلَها المستخدمُ بفعلٍ صريح — ليسَت تتبّعًا مستمرًّا. */
 export interface OrderChatLocation {
@@ -84,6 +113,7 @@ export interface OrderChatMessage {
   readonly kind?: OrderChatMessageKind;
   readonly location?: OrderChatLocation | null;
   readonly translation?: OrderChatTranslation | null;
+  readonly attachment?: OrderChatAttachment | null;
 }
 
 export interface OrderChatThread {
@@ -105,6 +135,12 @@ export interface OrderChatThread {
   readonly myLastReadSeq: number;
   readonly counterpartLastReadSeq: number;
   readonly unread: number;
+  /** `WR-34` — في السجلِّ رسائلُ أقدمُ من أقدمِ ما في هذه الصفحة (زرُّ «الأقدم»). */
+  readonly hasOlder?: boolean;
+  /**
+   * `WR-34` — هل الوسائطُ مفتوحةٌ في هذا الخادم، وحدودُها. تُقرأُ من التهيئةِ لا من الطلب.
+   */
+  readonly media?: OrderChatMediaCapability;
   /**
    * `WR-04` (ADR 0277) — رسائلُ هذه المحادثةِ تمرُّ بمزوّدِ ترجمةٍ خارجيّ (مزوّدٌ مضبوطٌ ولغتا
    * الطرفينِ مختلفتان). منه يُعرَضُ الإفصاحُ للكاتبِ قبلَ أن يكتب، لا بعدَ أن يُترجَم.
@@ -120,6 +156,13 @@ export interface OrderChatThread {
   };
 }
 
+export interface OrderChatMediaCapability {
+  readonly enabled: boolean;
+  readonly imageMaxBytes: number;
+  readonly voiceMaxBytes: number;
+  readonly voiceMaxMs: number;
+}
+
 export type OrderChatStoreRejection =
   | "CHAT_NOT_FOUND"
   | "CHAT_CLOSED"
@@ -127,7 +170,10 @@ export type OrderChatStoreRejection =
   | "MESSAGE_TOO_LONG"
   | "MESSAGE_KIND_INVALID"
   | "LOCATION_INVALID"
-  | "CLIENT_ID_INVALID";
+  | "CLIENT_ID_INVALID"
+  | "ATTACHMENT_INVALID"
+  | "ATTACHMENT_NOT_FOUND"
+  | "ATTACHMENT_QUOTA";
 
 export type OrderChatStoreError =
   | { readonly rejection: OrderChatStoreRejection }
@@ -139,6 +185,10 @@ export interface OrderChatStore {
     readonly orderId: string;
     readonly afterSeq: number;
     readonly limit: number;
+    /** `WR-34` — صفحةُ الأقدمِ قبلَ هذا التسلسل. */
+    readonly beforeSeq?: number | null;
+    /** `WR-34` — الذيلُ: آخرُ `limit` رسالة (الفتحُ الأوّل). */
+    readonly tail?: boolean;
   }): Promise<Result<OrderChatThread, OrderChatStoreError>>;
   post(input: {
     readonly telegramUserId: string;
@@ -162,6 +212,69 @@ export interface OrderChatStore {
 }
 
 /** إشارةُ «جديدٌ في الغرفة» — بلا نصٍّ ولا مرسلٍ: العميلُ يسترجعُ من الخادم. */
+/** `WR-34` — سجلّاتُ المرفقاتِ في القاعدة (دوالُّ `20261103150000`). */
+export interface OrderChatMediaStore {
+  reserve(input: {
+    readonly telegramUserId: string;
+    readonly orderId: string;
+    readonly clientMessageId: string;
+    readonly kind: "image" | "voice";
+    readonly mimeType: string;
+    readonly byteSize: number;
+    readonly width: number | null;
+    readonly height: number | null;
+    readonly durationMs: number | null;
+  }): Promise<
+    Result<
+      | { readonly status: "reserved"; readonly attachmentId: string; readonly objectPath: string }
+      | { readonly status: "duplicate"; readonly message: OrderChatMessage },
+      OrderChatStoreError
+    >
+  >;
+  /** إنشاءُ رسالةِ الوسيطِ وربطُ المرفقِ بها في معاملةٍ واحدة. */
+  attach(input: {
+    readonly telegramUserId: string;
+    readonly orderId: string;
+    readonly clientMessageId: string;
+    readonly kind: "image" | "voice";
+    readonly attachmentId: string;
+  }): Promise<
+    Result<
+      { readonly status: "added" | "duplicate"; readonly message: OrderChatMessage },
+      OrderChatStoreError
+    >
+  >;
+  /** إسقاطُ حجزٍ معلَّقٍ — يُعيدُ مسارَه إن أُسقِط. */
+  discard(attachmentId: string): Promise<Result<string | null, OrderChatStoreError>>;
+  authorizeRead(input: {
+    readonly telegramUserId: string;
+    readonly orderId: string;
+    readonly attachmentId: string;
+  }): Promise<
+    Result<{ readonly objectPath: string; readonly mimeType: string }, OrderChatStoreError>
+  >;
+}
+
+/** `WR-34` — منفذُ الملفّات (التنفيذُ في `infrastructure/storage/chat-media-object-store.ts`). */
+export interface OrderChatMediaObjects {
+  put(input: {
+    readonly objectPath: string;
+    readonly bytes: Uint8Array;
+    readonly mimeType: string;
+  }): Promise<Result<void, string>>;
+  remove(objectPaths: readonly string[]): Promise<Result<void, string>>;
+  signRead(input: {
+    readonly objectPath: string;
+    readonly ttlSeconds: number;
+  }): Promise<Result<{ readonly url: string; readonly expiresAtEpochMs: number }, string>>;
+}
+
+export interface OrderChatMediaDeps {
+  readonly enabled: boolean;
+  readonly store: OrderChatMediaStore;
+  readonly objects: OrderChatMediaObjects;
+}
+
 export interface OrderChatSignal {
   readonly orderId: string;
   readonly lastSeq: number;
@@ -170,6 +283,11 @@ export interface OrderChatSignal {
 export interface OrderChatDeps {
   readonly sessions: MiniAppSessionReader;
   readonly store: OrderChatStore;
+  /**
+   * `WR-34` (ADR 0305) — الوسائط: مخزنُ السجلّاتِ ومخزنُ الملفّات. غيابُه ⇒ الوسائطُ موقوفةٌ
+   * (`MEDIA_DISABLED`) والمحادثةُ النصّيّةُ كما هي.
+   */
+  readonly media?: OrderChatMediaDeps;
   readonly now: () => Date;
   /** يُنادى بعدَ حفظِ رسالةٍ جديدةٍ (لا المكرَّرة) — القناةُ الآنيّةُ تبثُّ الإشارة. */
   readonly onPosted?: (signal: OrderChatSignal) => void;
@@ -209,8 +327,19 @@ async function identify(
   return ok(session.value.telegramUserId);
 }
 
+function mediaCapabilityOf(deps: Pick<OrderChatDeps, "media">): OrderChatMediaCapability {
+  return {
+    enabled: deps.media?.enabled === true,
+    imageMaxBytes: CHAT_MEDIA_LIMITS.imageMaxBytes,
+    voiceMaxBytes: CHAT_MEDIA_LIMITS.voiceMaxBytes,
+    voiceMaxMs: CHAT_MEDIA_LIMITS.voiceMaxMs,
+  };
+}
+
 function publicCodeFrom(error: OrderChatStoreError): OrderChatPublicErrorCode {
-  if ("rejection" in error) return error.rejection;
+  if ("rejection" in error) {
+    return error.rejection === "ATTACHMENT_QUOTA" ? "MEDIA_QUOTA" : error.rejection;
+  }
   return "CHAT_STORE_NOT_AVAILABLE";
 }
 
@@ -299,6 +428,10 @@ export async function readOrderChat(
     readonly accessToken: string | undefined;
     readonly orderId: unknown;
     readonly afterSeq: unknown;
+    /** `WR-34` — `?before=<seq>` صفحةُ الأقدم. */
+    readonly beforeSeq?: unknown;
+    /** `WR-34` — `?tail=1` آخرُ صفحة (الفتحُ الأوّل). */
+    readonly tail?: unknown;
   },
 ): Promise<Result<OrderChatThread, OrderChatPublicErrorCode>> {
   const identified = await identify(deps, input.accessToken);
@@ -307,21 +440,30 @@ export async function readOrderChat(
   if (orderId === null) return err("ORDER_ID_INVALID");
   const afterSeq = readAfterSeq(input.afterSeq);
   if (afterSeq === null) return err("MALFORMED");
+  let beforeSeq: number | null = null;
+  if (input.beforeSeq !== undefined && input.beforeSeq !== null && input.beforeSeq !== "") {
+    beforeSeq = readAfterSeq(input.beforeSeq);
+    if (beforeSeq === null || beforeSeq < 1) return err("MALFORMED");
+  }
+  const tail = input.tail === "1" || input.tail === true;
+  const history = beforeSeq !== null || tail;
 
   const result = await deps.store.list({
     telegramUserId: identified.value,
     orderId,
     afterSeq,
-    limit: ORDER_CHAT_PAGE_MAX,
+    limit: history ? ORDER_CHAT_HISTORY_PAGE : ORDER_CHAT_PAGE_MAX,
+    ...(beforeSeq === null ? {} : { beforeSeq }),
+    ...(tail && beforeSeq === null ? { tail: true } : {}),
   });
   if (!result.ok) {
     if ("reason" in result.error) deps.log?.("order_chat.store_failed", { op: "list" });
     return err(publicCodeFrom(result.error));
   }
-  return ok(await translateThread(deps, result.value));
+  const translated = await translateThread(deps, result.value);
+  return ok({ ...translated, media: mediaCapabilityOf(deps) });
 }
 
-/** إرسالُ رسالةٍ — `POST /v1/orders/:orderId/chat/messages`. */
 export async function postOrderChatMessage(
   deps: OrderChatDeps,
   input: {
@@ -432,3 +574,10 @@ export async function canJoinOrderChat(
   });
   return result.ok ? orderId : null;
 }
+
+/** `WR-34` — أدواتُ الحكمِ نفسِها لمسارِ الوسائط (`order-chat-media.ts`)، لا نسخةٌ منها. */
+export const orderChatInternals = Object.freeze({
+  identify,
+  readUuid,
+  publicCodeFrom,
+});
