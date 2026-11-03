@@ -55,15 +55,35 @@ async function seedRider(telegramId: number, fullName: string): Promise<string> 
   return row.id;
 }
 
+/** سائقٌ مزروعٌ: الطلبُ المنتهي في القاعدةِ يتطلّبُ سائقًا مُسندًا
+ * (قيدُ `orders_matched_requires_driver`) — لا علاقةَ لهُ بمسارِ المحو. */
+let seededDriverId = "";
+
+async function seedDriver(telegramId: number): Promise<string> {
+  const [row] = await sql<{ id: string }[]>`
+    insert into users (city_id, telegram_id, role, full_name, phone)
+    values (${cityId}, ${telegramId}, 'driver'::user_role, 'سائقُ المحوِ', null)
+    returning id`;
+  if (row === undefined) throw new Error(`تعذّر زرعُ السائقِ ${telegramId}`);
+  seededUserIds.push(row.id);
+  const [driver] = await sql<{ id: string }[]>`
+    insert into drivers (city_id, user_id, verification_status, vehicle_type, plate_number)
+    values (${cityId}, ${row.id}, 'verified'::verification_status, 'سيدان', 'ح ب 399')
+    returning id`;
+  if (driver === undefined) throw new Error("تعذّر زرعُ صفِّ السائقِ");
+  return driver.id;
+}
+
 async function seedOrder(riderUserId: string): Promise<string> {
   const [rider] = await sql<{ id: string }[]>`
     select id from riders where user_id = ${riderUserId}`;
   if (rider === undefined) throw new Error("الراكبُ غيرُ مزروعٍ");
   const [order] = await sql<{ id: string }[]>`
-    insert into orders (city_id, rider_id, service, status, pickup, dropoff)
+    insert into orders (city_id, rider_id, service, status, pickup, dropoff, assigned_driver_id)
     values (${cityId}, ${rider.id}, 'transport'::service_type, 'completed'::order_status,
             st_setsrid(st_makepoint(39.8, 21.4), 4326)::geography,
-            st_setsrid(st_makepoint(39.9, 21.5), 4326)::geography)
+            st_setsrid(st_makepoint(39.9, 21.5), 4326)::geography,
+            ${seededDriverId})
     returning id`;
   if (order === undefined) throw new Error("تعذّر زرعُ الطلبِ");
   return order.id;
@@ -101,6 +121,7 @@ beforeAll(async () => {
   cityHandle = await ensureActiveCity(sql);
   cityId = cityHandle.cityId;
 
+  seededDriverId = await seedDriver(900_003_392);
   aUserId = await seedRider(A_TG, "راكبُ يُمحى");
   bUserId = await seedRider(B_TG, "راكبٌ آخرُ");
 
