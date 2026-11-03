@@ -16,6 +16,7 @@
     "packages/infrastructure/driver/driver-job-store.ts",
     "apps/gateway/src/routes/driver-job.ts",
     "apps/gateway/src/rate-limit/policy.ts",
+    "packages/infrastructure/db/schema-contract.ts",
     "apps/gateway/src/admin/message-gallery.ts",
     "apps/miniapp/src/surfaces/driver/DriverRoot.tsx",
     "apps/miniapp/src/surfaces/driver/driver-flow.ts",
