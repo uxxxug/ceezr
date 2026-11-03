@@ -1,9 +1,7 @@
 {
   "id": "wr-32-rider-privacy",
   "goal": "طلبُ المالكِ (2026-11-03، استثناءٌ معتمدٌ على تجميدِ PRD-010): رسالةُ خصوصيّةٍ وسمعةٍ للراكبِ عندَ أوّلِ دخولٍ (البوت وMini App) تُعرَضُ مرّةً عندَ التسجيلِ الأوّلِ أو إصدارِ سياسةٍ جديدٍ ويُسجَّلُ الإقرارُ بالإصدارِ والتاريخِ عبرَ نظامِ الموافقاتِ القائمِ، معَ تدقيقِ كلِّ مكانٍ قد يظهرُ فيه رقمُ الراكبِ — «لا تكتب وعدًا لا يطابق النظام».",
-  "canonical_source": [
-    "docs/evidence/compliance/WR-32-rider-privacy-20261103.md"
-  ],
+  "canonical_source": ["docs/evidence/compliance/WR-32-rider-privacy-20261103.md"],
   "implementation": [
     "apps/gateway/src/bots/rider/index.ts",
     "apps/gateway/src/container.ts",
@@ -35,12 +33,8 @@
     "tests/integration/wr-32-rider-privacy.test.ts",
     "tests/unit/wr-32-rider-privacy-notice.test.ts"
   ],
-  "state": [
-    "docs/SYSTEM_STATE.md"
-  ],
-  "roadmap": [
-    "ROADMAP.md"
-  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
   "affected_docs": [
     "docs/evidence/compliance/WR-32-rider-privacy-20261103.md",
     "docs/roadmap/execution/STATUS.md"
