@@ -24,7 +24,6 @@ import {
 } from "../../packages/infrastructure/consent/consent-store.ts";
 import { createSql, type Sql } from "../../packages/infrastructure/db/client.ts";
 import { createOfferDecisionPort } from "../../packages/infrastructure/dispatch/dispatch-adapters.ts";
-import { PostgresDriverActivityStore } from "../../packages/infrastructure/driver/driver-activity-store.ts";
 import { PostgresDriverJobStore } from "../../packages/infrastructure/driver/driver-job-store.ts";
 import { PostgresDriverOfferStore } from "../../packages/infrastructure/driver/driver-offers-store.ts";
 import { createDriverDirectory } from "../../packages/infrastructure/identity/directories.ts";
@@ -190,6 +189,11 @@ beforeAll(async () => {
   if (offer === undefined) throw new Error("تعذّر زرعُ العرضِ");
   offerId = offer.id;
 
+  // يُحمَّلُ مخزنُ الحصيلةِ هنا لا في رأسِ الملفِّ: بلا قاعدةٍ يبقى خارجَ قياسِ التغطيةِ
+  // (`OPS-005` · `scripts/lib/coverage-registry.ts`) — ملفٌّ يُحمَّلُ ولا يُنفَّذُ يُحسَبُ صفراً.
+  const { PostgresDriverActivityStore } = await import(
+    "../../packages/infrastructure/driver/driver-activity-store.ts"
+  );
   const sessions = createMiniAppSessionReader(SESSION_SECRET);
   const now = () => new Date();
   app = createServer({
