@@ -278,9 +278,9 @@ describeIf("التقييم المتبادل وأثره في المطابقة ع�
     `;
     expect(availability?.is_available).toBe(true);
 
-    // طلب التقييم وصل الطرفين، كلٌّ على بوته، بخمسة أزرار نجوم
+    // طلب التقييم وصل الطرفين، كلٌّ على بوته، بخمسة أزرار نجوم (WR-36: الاسمُ الأوّلُ وحدَه للراكبِ في رسالةِ السائق)
     const driverPrompt = driverMessages(DRIVER_A).at(-1);
-    expect(driverPrompt?.text).toBe(ar("rating.ask_rating_rider", { rider: "منى العميلة" }));
+    expect(driverPrompt?.text).toBe(ar("rating.ask_rating_rider", { rider: "منى" }));
     const driverStars = driverPrompt?.markup as {
       inline_keyboard: { callback_data: string }[][];
     };
