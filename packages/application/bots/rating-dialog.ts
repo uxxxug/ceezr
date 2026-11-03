@@ -178,6 +178,21 @@ export async function handleStartRide(
 }
 
 /**
+ * الاسمُ الأوّلُ وحدَه في رسالَي البوتِ الموجَّهَتَينِ للسائقِ (اكتمالُ الرحلةِ وطلبُ
+ * تقييمِ الراكب) — قرارُ المالكِ 2026-11-03 (WR-32 §5-ج، بندُ الخصوصيّةِ الأوّل).
+ *
+ * `RideParty.fullName` اسمٌ كاملٌ يجيءُ من القاعدة، والرسالتانِ هما الموضعُ الوحيدُ
+ * الباقي الذي يظهرُ فيهِ للسائقِ اسمُ الراكبِ الكاملَ (المهمّةُ في Mini App تعرضُ
+ * الأوّلَ وحدَه منذُ WR-32). الكلمةُ الأولى تُؤخَذُ بقصِّ الفراغِ وتقسيمِ الكلماتِ
+ * وحدها — لا تنويطَ للأسماءِ المركَّبةِ: ما بدا كلمةً واحدةً كلمةٌ واحدةٌ.
+ * والاسمُ الفارغُ غيابٌ لا نصٌّ فارغٌ: يُستبدَلُ بكلمةٍ عامّةٍ بلغةِ السائقِ.
+ */
+function riderFirstNameForDriver(fullName: string, driverLang: string): string {
+  const first = fullName.trim().split(/\s+/)[0] ?? "";
+  return first !== "" ? first : t(driverLang)("rating.rider_name_fallback");
+}
+
+/**
  * إنهاء الرحلة: ملخّص للسائق، وملخّص للعميل، ثم طلب تقييم من كلٍّ منهما بلغته.
  * الطلبان يخرجان معاً لا واحداً بعد الآخر: من انتظر دوره في التقييم لا يقيّم.
  */
@@ -243,12 +258,14 @@ export async function handleCompleteRide(
       t(driverLang)("rating.completed_driver", {
         order: short,
         duration: duration(driverLang),
-        rider: summary.rider.fullName,
+        rider: riderFirstNameForDriver(summary.rider.fullName, driverLang),
       }),
     ),
     reply(
       sender,
-      t(driverLang)("rating.ask_rating_rider", { rider: summary.rider.fullName }),
+      t(driverLang)("rating.ask_rating_rider", {
+        rider: riderFirstNameForDriver(summary.rider.fullName, driverLang),
+      }),
       starsKeyboard(String(summary.orderId), driverLang),
     ),
   ];

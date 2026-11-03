@@ -220,6 +220,7 @@
   "rating.ride_not_completed": "⚠️ A ride that has not ended cannot be rated.",
   "rating.ride_not_startable": "⚠️ You have no assigned ride ready to start right now.",
   "rating.ride_started": "🚗 Ride started. Have a safe trip — send /complete on arrival.",
+  "rating.rider_name_fallback": "the rider",
   "rating.star_button": "{stars} ⭐",
   "rating.start_button": "🚗 Start ride",
   "rating.started_rider": "🚗 Your driver {driver} is on the way — ride {order} has started.\nYou will be asked to rate on arrival.",

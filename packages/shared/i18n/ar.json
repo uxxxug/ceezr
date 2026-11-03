@@ -220,6 +220,7 @@
   "rating.ride_not_completed": "⚠️ لا يمكن تقييم رحلة لم تنتهِ بعد.",
   "rating.ride_not_startable": "⚠️ لا توجد رحلة مُسنَدة إليك جاهزة للبدء الآن.",
   "rating.ride_started": "🚗 بدأت الرحلة. رحلة موفّقة — أرسل /complete عند الوصول.",
+  "rating.rider_name_fallback": "العميل",
   "rating.star_button": "{stars} ⭐",
   "rating.start_button": "🚗 بدء الرحلة",
   "rating.started_rider": "🚗 انطلق سائقك {driver} — الرحلة {order} بدأت الآن.\nسيصلك طلب التقييم عند الوصول.",
