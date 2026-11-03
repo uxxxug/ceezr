@@ -36,12 +36,13 @@
 | `waslah-<TS>.rowstats` | من **اللقطةِ نفسِها**: لكلِّ جدولٍ عددُ صفوفِه وmd5 لمحتواه مرتَّباً |
 | `storage-roles-<TS>.sql` | أدوارُ قاعدةِ المخزن (فيها بصماتُ كلماتِ مرور؛ لذلك الأرشيفُ مشفّر) |
 | `storage-db-<TS>.dump` (+`.sha256`) و`storage-db-<TS>.rowstats` | قاعدةُ المخزنِ الوصفيّة، ولقطةُ صفوفِها |
-| `storage-files-<TS>.tar` (+`.sha256`) و`storage-files-<TS>.sha256` | بايتاتُ وثائقِ السائقين، وبيانُ sha256 لكلِّ ملفّ |
+| `storage-files-<TS>.tar` (+`.sha256`) و`storage-files-<TS>.sha256` | بايتاتُ وثائقِ السائقين، وبيانُ sha256 لكلِّ ملفّ. **دلوُّ وسائطِ محادثةِ الطلبِ (`order-chat-media`) مستبعَدٌ منهما** (WR-40): بايتاتُ الوسائطِ عابرةٌ بالتصميمِ ولا تُنسَخُ احتياطيًّا |
 | `config-<TS>.tgz` | `/etc/wasla/*.env` و`redis.conf`، و`/opt/wasla/{.env,compose.yml,haproxy.cfg}` (أسرارُ التشغيل) |
 | `MANIFEST.sha256` | sha256 لكلِّ ما سبق، وبصمتُه نفسُها في البيانِ الموقَّع |
 
 ليست في النسخة:
 
+- **بايتاتُ وسائطِ محادثةِ الطلبِ** (`order-chat-media`): مستبعَدةٌ من `storage-files` ومن بيانِه منذَ [WR-40](../../docs/adr/0307-chat-media-excluded-from-backups.md) — استبقاءُ الوسائطِ قصيرٌ بالتصميم (7 أيّامٍ من انتهاءِ الطلبِ أو 30 يوماً من الرفعِ أيّهما أسبق، والمحوُ الفوريُّ عندَ حذفِ الحسابِ يسبقُهما)، فلا معنى لحفظِ بايتاتِها أصلًا. الاستبقاءُ نفسُه لا يتغيّرُ: صفوفُ `order_chat_attachments` في قاعدةِ التطبيقِ تُحذَفُ كالمعتاد.
 - `rclone.conf`، وفيه رمزُ Drive. يُعادُ إنشاؤه بـ`wasla-offsite-connect.sh`.
 - مفتاحُ age الخاصّ (على اللابتوبِ فقط)، ومفتاحُ التوقيعِ الخاصّ (`/etc/wasla/backup-signing.key`، على الخادمِ فقط).
 - ما يُعادُ بناؤه من المستودع: الشيفرة، و`miniapp-nginx.conf`، و`shim-overlay/Dockerfile`، وحزمةُ Mini App. انظر «الاستعادةُ الحقيقيّة».
@@ -312,7 +313,7 @@ bash wasla-offsite-restore-test.sh monthly/wasla-<TS>.tar.age
    - `sudo docker compose -f /opt/wasla/compose.yml up -d storage-db`.
    - الأدوار: `grep -vE '^(CREATE|ALTER) ROLE postgres( |;)' storage-roles-<TS>.sql | sudo docker exec -i wasla-storage-db-1 psql -U postgres`.
    - القاعدة: `sudo docker exec -i wasla-storage-db-1 pg_restore -U postgres -d storage --exit-on-error < storage-db-<TS>.dump`.
-   - البايتات: `sudo docker compose -f /opt/wasla/compose.yml run --rm --no-deps --entrypoint sh storage -c 'tar -C /var/lib/storage -xf -' < storage-files-<TS>.tar`.
+   - البايتات: `sudo docker compose -f /opt/wasla/compose.yml run --rm --no-deps --entrypoint sh storage -c 'tar -C /var/lib/storage -xf -' < storage-files-<TS>.tar`. لن تُستعادَ وسائطُ محادثةِ الطلبِ (مستبعَدةٌ من الأرشيفِ منذَ WR-40) — صفوفُها في `waslah` قد تُوجَدُ حديثةً نسبيًّا والمكنسةُ الدوريّةُ تحذفُ ما تجاوزَ الاستبقاءَ، والملفُّ المفقودُ عندَ قراءتِه لا يكسرُ شيئًا.
 6. **التشغيلُ والتحقّق:**
    - `sudo docker compose -f /opt/wasla/compose.yml up -d`.
    - ثبّتْ وحداتِ `deploy/casaos/tunnel/` ومؤقّتَ النسخ (`deploy/casaos/README.md`).

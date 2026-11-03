@@ -2,7 +2,7 @@
 #   واختبارُ فصلِ المراحلِ الثلاثِ على Linux (offsite-stages-test.sh: السكربتاتُ الحقيقيّة، وDrive وOAuth مُحاكَيان).
 #   تُبنى الحقيبةُ على Linux (كما تُسلَّمُ للمالك) وتُفَكُّ بـExpand-Archive في مجلّدِ مستخدمٍ فيه مسافة،
 #   وage وrclone برامجُ Windows أصليّةٌ بالإصدارَين المعتمدَين (تجزئاتُها مثبَّتة). الخادمُ وGoogle مُحاكَيان.
-# ينتمي إلى: deploy/casaos/tests/offsite-kit-windows-test.sh · deploy/casaos/tests/offsite-stages-test.sh
+# ينتمي إلى: deploy/casaos/tests/offsite-kit-windows-test.sh · deploy/casaos/tests/offsite-stages-test.sh · deploy/casaos/tests/backup-media-exclusion-test.sh
 name: offsite-kit-windows
 on:
   workflow_dispatch:
@@ -15,6 +15,8 @@ on:
       - deploy/casaos/offsite-*.sh
       - deploy/casaos/offsite-tool.py
       - deploy/casaos/backup.sh
+      - deploy/casaos/tests/backup-media-exclusion-test.sh
+      - deploy/casaos/storage-restore-drill.sh
       - deploy/casaos/tests/mock-oauth.py
       - .github/workflows/offsite-kit-windows.yml
 permissions:
@@ -33,6 +35,8 @@ jobs:
           tar -xzf age.tgz && python3 -c "import zipfile; zipfile.ZipFile('rclone.zip').extractall('.')"
           chmod 755 rclone-v1.75.2-linux-amd64/rclone
           echo "$PWD/age" >> "$GITHUB_PATH"; echo "$PWD/rclone-v1.75.2-linux-amd64" >> "$GITHUB_PATH"
+      - name: chat media backup exclusion test (WR-40 · ADR 0307)
+        run: bash deploy/casaos/tests/backup-media-exclusion-test.sh out-media-exclusion
       - name: stage separation test (ADR 0300)
         run: bash deploy/casaos/tests/offsite-stages-test.sh out-stages
       - if: always()

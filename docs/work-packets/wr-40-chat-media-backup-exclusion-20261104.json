@@ -1,0 +1,44 @@
+{
+  "id": "wr-40-chat-media-backup-exclusion-20261104",
+  "goal": "تنفيذُ البندِ (هـ) من أمرِ الاستلامِ 2026-11-03: الاستبقاءُ 7 أيّامٍ من انتهاءِ الطلبِ أو 30 يوماً من الرفعِ أيّهما أسبقُ (كانَ قائمًا في الشيفرةِ — أُثبتَ باختبارٍ مُركَّزٍ)، ووسائطُ المحادثةِ ليست جزءًا من النسخِ الاحتياطيّةِ الدائمةِ (كانت تدخلُ أرشيفَ البايتاتِ — استُبعدت من المحلّيّةِ والخارجيّةِ معًا)، معَ توثيقِ أسبقيّةِ المحوِ الفوريِّ على الاستبقاءِ.",
+  "canonical_source": [
+    "docs/evidence/compliance/WR-40-chat-media-backup-exclusion-20261104.md",
+    "docs/adr/0307-chat-media-excluded-from-backups.md"
+  ],
+  "implementation": [
+    "deploy/casaos/backup.sh",
+    "deploy/casaos/storage-restore-drill.sh",
+    "deploy/casaos/tests/backup-media-exclusion-test.sh",
+    ".github/workflows/offsite-kit-windows.yml",
+    "deploy/casaos/OFFSITE-BACKUP.md",
+    "packages/shared/config/retention-policy.ts",
+    "tests/integration/wr-40-chat-media-retention.test.ts",
+    "scripts/lib/execution-roadmap.ts",
+    "scripts/lib/skip-registry.ts",
+    "tests/unit/skip-audit.test.ts"
+  ],
+  "state": [
+    "docs/SYSTEM_STATE.md"
+  ],
+  "roadmap": [
+    "ROADMAP.md"
+  ],
+  "affected_docs": [
+    "docs/evidence/compliance/WR-40-chat-media-backup-exclusion-20261104.md",
+    "docs/adr/0307-chat-media-excluded-from-backups.md",
+    "docs/roadmap/execution/STATUS.md"
+  ],
+  "decision": "دلوُّ وسائطِ محادثةِ الطلبِ مستبعَدٌ من أرشيفِ البايتاتِ ومن بيانِ sha256 معًا في مصدرٍ واحدٍ (backup.sh) فترثُه النسخةُ الخارجيّةُ تلقائيًّا (ADR 0307): الاسمُ يُقرأُ من بيئةِ الخادمِ (ORDER_CHAT_MEDIA_BUCKET والافتراضيُّ order-chat-media) لا يُثبَّتُ؛ الاستثناءُ يشملُ النسخةَ المحلّيّةَ الدوّارةَ أيضًا لأنّ البايتاتِ المحذوفةَ لا تعودُ من أيِّ أرشيفٍ؛ الصفوفُ في waslah وstorage-db تُنسَخُ كما هي (الاستبقاءُ والمحوُ يحكمانِ القاعدةَ لا الأرشيفَ)؛ تمرينُ الاستعادةِ لا يُعدُّ غيابَ بايتاتِ الوسائطِ انحرافًا (media_bucket_skipped). معنى «أيُّهما أسبق» أُثبتَ باختبارٍ مُركَّزٍ على قاعدةٍ حقيقيّةٍ في دالةِ المطالبةِ نفسِها.",
+  "tests": [
+    "bash deploy/casaos/tests/backup-media-exclusion-test.sh — 9/9 (الأرشيفُ والبيانُ يستبعدانِ الدلوَّ، وسائرَ الدلاءِ والجذرِ يُنسَخُ، واسمُ الدلوِّ من البيئةِ، وإلغاءُ التجاوزِ) — بلا docker ولا جذرٍ ولا شبكة",
+    "tests/integration/wr-40-chat-media-retention.test.ts — 3 حالاتٍ تعملُ في CI بـTEST_DATABASE_URL (نافذةُ القراءةِ أسبقُ، سقفُ الثلاثينَ أسبقُ، ولا استبقاءَ قبلَ الأقربِ معَ إتمامِ السجلِّ وحذفِ الملفِّ) — محليًا skip مُصرَّحٌ به",
+    "check-skip-classification/check-state-sync/check-adr-numbering: ✅"
+  ],
+  "evidence": "docs/evidence/compliance/WR-40-chat-media-backup-exclusion-20261104.md",
+  "constraints": [
+    "لا تعديلًا على خادمِ الإنتاجِ ولا اختبارًا عليه — السكربتُ يُطبَّقُ عندَ أولِ نسخةٍ بعدَ الدمجِ (قرارُ مالكٍ للنشرِ)",
+    "لا تتغيّرُ قاعدةُ التطبيقِ ولا صفوفُ order_chat_attachments — الاستبقاءُ كما هو",
+    "الاستعادةُ الكارثيّةُ لا تُعيدُ وسائطَ المحادثاتِ (مُعلَنٌ في دليلِ النسخِ)"
+  ],
+  "limitations": "لم يُشغَّلْ السكربتُ المعدَّلُ على الخادمِ الحقيقيِّ (لا وصولَ SSH من هذهِ البيئةِ) — أوّلُ تشغيلٍ للنسخةِ التاليةِ هو التحقّقُ الفعليُّ، وأثرُه يظهرُ في سجلِّ backup-ok وسطرِ storage_files. النسخُ القديمةُ (قبلَ الدمجِ) تحملُ البايتاتِ كما هي — ينقصُها دورةُ الاحتفاظِ (14 يوماً محليًّا) لتخرجَ."
+}
