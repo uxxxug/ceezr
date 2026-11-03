@@ -16,7 +16,8 @@
     "apps/miniapp/src/surfaces/rider/entry-view.ts",
     "apps/miniapp/src/surfaces/rider/entry-view.test.ts",
     "apps/miniapp/src/surfaces/rider/wr-29-active-ride-follow.test.tsx",
-    "scripts/lib/execution-roadmap.ts"
+    "scripts/lib/execution-roadmap.ts",
+    "scripts/measure-tti.ts"
   ],
   "state": ["docs/SYSTEM_STATE.md"],
   "roadmap": ["docs/ROADMAP-MASTER.md"],

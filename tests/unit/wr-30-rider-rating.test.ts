@@ -14,14 +14,14 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import { composeDriverOfferBoard } from "../../packages/infrastructure/driver/driver-offers-store.ts";
-import { parseOrderPlaceExtrasRow } from "../../packages/infrastructure/transport/order-place-extras.ts";
 import {
   riderRatingLine,
   riderRatingText,
   toOfferCard,
   toOfferDetail,
 } from "../../apps/miniapp/src/surfaces/driver/offers/offers-view.ts";
+import { composeDriverOfferBoard } from "../../packages/infrastructure/driver/driver-offers-store.ts";
+import { parseOrderPlaceExtrasRow } from "../../packages/infrastructure/transport/order-place-extras.ts";
 
 /** بطاقةُ دالّةِ القاعدةِ كما تُخرِجُها `driver_offer_board` — قبلَ الإغناءِ. */
 function boardPayload(overrides: Record<string, unknown> = {}): Record<string, unknown> {
@@ -112,23 +112,27 @@ describe("WR-30 — تقييمُ الراكبِ على لوحِ العروضِ",
   it("المحلّلُ يرفضُ ما لا يكونُ تقييماً: عددٌ صفرٌ أو معدَّلٌ خارجَ [١، ٥]", () => {
     // عددٌ صفرٌ: راكبٌ جديدٌ لا «صفرُ نجومٍ».
     expect(
-      parseOrderPlaceExtrasRow(extrasRow({ rider_rating_average: 0, rider_rating_count: 0 }) as never)
-        .riderRating,
+      parseOrderPlaceExtrasRow(
+        extrasRow({ rider_rating_average: 0, rider_rating_count: 0 }) as never,
+      ).riderRating,
     ).toBeNull();
     // معدَّلٌ خارجَ سُلَّمِ التقييمِ: عطبُ بياناتٍ لا حكمَ سائقينَ.
     expect(
-      parseOrderPlaceExtrasRow(extrasRow({ rider_rating_average: 5.5, rider_rating_count: 3 }) as never)
-        .riderRating,
+      parseOrderPlaceExtrasRow(
+        extrasRow({ rider_rating_average: 5.5, rider_rating_count: 3 }) as never,
+      ).riderRating,
     ).toBeNull();
     // عددٌ كسريٌّ: عددُ تقييماتٍ لا يكونُ إلا عدداً صحيحاً.
     expect(
-      parseOrderPlaceExtrasRow(extrasRow({ rider_rating_average: 4, rider_rating_count: 2.5 }) as never)
-        .riderRating,
+      parseOrderPlaceExtrasRow(
+        extrasRow({ rider_rating_average: 4, rider_rating_count: 2.5 }) as never,
+      ).riderRating,
     ).toBeNull();
     // معدَّلٌ بلا عددٍ يُروى: كذبٌ إحصائيٌّ.
     expect(
-      parseOrderPlaceExtrasRow(extrasRow({ rider_rating_average: 4, rider_rating_count: null }) as never)
-        .riderRating,
+      parseOrderPlaceExtrasRow(
+        extrasRow({ rider_rating_average: 4, rider_rating_count: null }) as never,
+      ).riderRating,
     ).toBeNull();
   });
 });
@@ -149,7 +153,8 @@ describe("WR-30 — سطرُ التقييمِ في التطبيقِ", () => {
       rider_rating_count: 12,
     });
     expect(card.riderRating).toEqual({ average: 4.5, count: 12 });
-    const t = (key: string) => (key === "driver.offers.riderRating" ? "تقييم الراكب: {value} ★ ({count})" : key);
+    const t = (key: string) =>
+      key === "driver.offers.riderRating" ? "تقييم الراكب: {value} ★ ({count})" : key;
     expect(riderRatingText(t, card.riderRating ?? { average: 0, count: 0 })).toBe(
       "تقييم الراكب: 4.5 ★ (12)",
     );
