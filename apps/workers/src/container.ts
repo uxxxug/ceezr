@@ -162,6 +162,10 @@ import { createSafetyDeliveryPort } from "../../../packages/infrastructure/safet
 import { createAdvisoryLock } from "../../../packages/infrastructure/scheduling/advisory-lock.ts";
 import { createStaleAvailabilityRpc } from "../../../packages/infrastructure/scheduling/availability-adapters.ts";
 import { createJobHeartbeatRecorder } from "../../../packages/infrastructure/scheduling/job-heartbeat-adapters.ts";
+import {
+  HttpChatMediaObjectStore,
+  readChatMediaStoreConfig,
+} from "../../../packages/infrastructure/storage/chat-media-object-store.ts";
 import { createSubscriptionLifecycleRpc } from "../../../packages/infrastructure/subscription/lifecycle-adapters.ts";
 import { createSubscriptionNoticeDeliveryPort } from "../../../packages/infrastructure/subscription/notice-adapters.ts";
 import { createCeilingExceededAdapter } from "../../../packages/infrastructure/tracking/ceiling-exceeded-adapters.ts";
@@ -202,6 +206,7 @@ import { runReconcilePendingPayments } from "./jobs/reconcile-pending-payments.t
 import { runRedispatchSearching } from "./jobs/redispatch-searching.ts";
 import { refreshAdminMetrics } from "./jobs/refresh-admin-metrics.ts";
 import { rotateUnsubscribedNegotiations } from "./jobs/rotate-unsubscribed-negotiation.ts";
+import { createChatMediaSweepStore, sweepChatMedia } from "./jobs/sweep-chat-media.ts";
 import { sweepDecidedOfferNotifications } from "./jobs/sweep-decided-offer-notifications.ts";
 import { runSweepUnmatchedOrders } from "./jobs/sweep-unmatched-orders.ts";
 import { runBackupRestoreVerification } from "./jobs/verify-backup-restore.ts";
@@ -346,6 +351,11 @@ export const JOB_INTERVALS = {
    * أوّلَ إقلاعٍ بعدَ عطلٍ طويلٍ يُصلحُ النافذةَ فوراً لا بعدَ يومٍ.
    */
   ensureLocationPartitions: 86_400,
+  /**
+   * `WR-34` (ADR 0305) — مكنسةُ ملفّاتِ المحادثة كلَّ عشرِ دقائق: اليتيمُ يُلتقَطُ بعدَ 15
+   * دقيقةً من حجزِه، فيبقى في الدلوِ أقلَّ من نصفِ ساعة. والاحتفاظُ بالأيّام فلا حاجةَ لأسرع.
+   */
+  sweepChatMedia: 600,
   /**
    * `F7-08` — كلَّ ستِّينَ ثانيةً: لوحةُ الإدارةِ تُقرَأُ ليُقرَّرَ فيها شيءٌ
    * (توثيقُ سائقٍ، تذكرةُ نزاعٍ)، فدقيقةٌ تأخُّرٍ في عدَدٍ مقروءٍ **معَ عُمرِه
@@ -1821,6 +1831,30 @@ export function buildWorkerContainer(
        * نبضةٍ أو نبضتينِ لا أثرَ له، وإدراجُها حرجةً كانَ سيُرجِعُ `503` من
        * `/ready` على مهمّةٍ مهلتُها أسبوعانِ.
        */
+      /**
+       * `WR-34` (ADR 0305) — مكنسةُ ملفّاتِ المحادثة. تُسجَّلُ حينَ يُهيَّأُ مخزنُ الكائنات
+       * وحدَه (بلا مخزنٍ لا ملفَّ يُرفَعُ أصلًا)، وتعملُ وإن أُوقِفَ مفتاحُ الرفع كي تنقضيَ
+       * مدّةُ الاحتفاظِ بما رُفِع. وليست حرجة: فوتُ شوطٍ يؤخِّرُ حذفًا ولا يمسُّ أحدًا.
+       */
+      const chatMediaStorage = readChatMediaStoreConfig(process.env);
+      if (chatMediaStorage !== null) {
+        const chatMediaObjects = new HttpChatMediaObjectStore(chatMediaStorage);
+        const chatMediaSweepStore = createChatMediaSweepStore(sql);
+        global.push({
+          name: "sweep-chat-media",
+          everySeconds: JOB_INTERVALS.sweepChatMedia,
+          run: async () => {
+            const report = await sweepChatMedia({
+              ...chatMediaSweepStore,
+              remove: (paths) => chatMediaObjects.remove(paths),
+            });
+            if (!report.ok) throw new Error(`chat media sweep failed: ${report.error}`);
+            const v = report.value;
+            return `claimed=${v.claimed} orphan=${v.byReason.orphan_pending} gone=${v.byReason.message_gone} retention=${v.byReason.retention}`;
+          },
+        });
+      }
+
       global.push({
         name: "ensure-location-partitions",
         everySeconds: JOB_INTERVALS.ensureLocationPartitions,

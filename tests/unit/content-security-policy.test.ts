@@ -85,7 +85,8 @@ describe("buildCsp — النصُّ المتوقَّعُ حرفاً حرفاً",
       "default-src 'none'; " +
         "script-src 'self' https://telegram.org; " +
         `style-src 'self' ${HASH_A}; ` +
-        "img-src 'self' data:; " +
+        "img-src 'self' data: blob:; " +
+        "media-src 'self' blob:; " +
         "connect-src 'self'; " +
         "base-uri 'none'; " +
         "form-action 'none'; " +
