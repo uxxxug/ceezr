@@ -142,10 +142,45 @@ export interface ErasureReceipt {
   readonly retained: readonly RetainedSection[];
 }
 
+/**
+ * حالُ محوِ ملفّاتِ المحادثةِ عندَ حذفِ الحسابِ — قرارُ المالكِ (WR-39 ·
+ * ADR 0306): **يُقالُ صريحًا ولا يُدَّعى** أبدًا قبلَ حذفِ الملفِّ من المخزنِ
+ * فعلًا.
+ * - `purged`: حُذفتِ الملفّاتُ كلُّها في هذه المحاولةِ.
+ * - `deferred`: بعضُها أو كلُّها لم يُحذَفْ بعدُ (فشلُ المخزنِ أو سقوطُ العاملِ) —
+ *   الصفوفُ باقيةٌ قابلةٌ للالتقاطِ والمكنسةُ الدوريّةُ شبكةُ الأمانِ، والمحوُ
+ *   نفسُهُ لا يفشلُ بهذا: الحسابُ محوٌّ والوسائطُ على الطريقِ.
+ * - `unavailable`: لم تُجرَّ المحاولةُ أصلًا (لا مخزنَ وسائطَ مُهيَّأً) — ولا
+ *   ملفّاتِ محادثةٍ تُرفَعُ حينَها أصلًا.
+ */
+export interface ErasureMediaPurgeStatus {
+  readonly status: "purged" | "deferred" | "unavailable";
+  /** عددُ الملفّاتِ التي حُذفتْ فعلًا في هذه المحاولةِ — 0 في `unavailable`. */
+  readonly attachments: number;
+}
+
 export type ErasureOutcome =
-  | { readonly erased: true; readonly erasedAt: string; readonly receipt: ErasureReceipt }
+  | {
+      readonly erased: true;
+      readonly erasedAt: string;
+      readonly receipt: ErasureReceipt;
+      /**
+       * المعرّفُ الداخليُّ الثابتُ لصفِّ المستخدمِ — يُعادُ من القاعدةِ ليلتقطَهُ
+       * محوُ الوسائطِ بعدَ الإتمامِ (`telegram_id` قد زالَ بالتجهيلِ). **داخليٌّ:
+       * لا يُسلسَلُ في ردٍّ ولا يُنشَرُ** — المسارُ ينتقي حقولَهُ حرفيًّا.
+       */
+      readonly erasureUserId: string | null;
+      /** حالُ محوِ الوسائطِ — يَقولُهُ من جرَّبَ المحوَ لا من أنشأَ الإيصالَ. */
+      readonly mediaPurge: ErasureMediaPurgeStatus;
+    }
   /** حُذِفَ من قبلُ — يُقرأُ نجاحاً لا عطباً: النتيجةُ المطلوبةُ قائمةٌ. */
-  | { readonly erased: true; readonly erasedAt: string; readonly receipt: null }
+  | {
+      readonly erased: true;
+      readonly erasedAt: string;
+      readonly receipt: null;
+      readonly erasureUserId: string | null;
+      readonly mediaPurge: ErasureMediaPurgeStatus;
+    }
   | {
       readonly erased: false;
       readonly refusal: ErasureRefusal;

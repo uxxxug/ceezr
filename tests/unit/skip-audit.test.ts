@@ -1053,7 +1053,10 @@ describe("السجلُّ الحقيقيُّ — أرقامٌ مقيسةٌ مُث
     // `wr-38-support-group-isolation-20261104`): 226 —
     // `wr-38-support-group-isolation.test.ts` (خمسُ حالاتٍ على PostgreSQL حقيقيٍّ
     // في وظيفةِ التكاملِ).
-    expect(SKIP_REGISTRY).toHaveLength(226);
+    expect(SKIP_REGISTRY).toHaveLength(227);
+    // زيادةٌ (WR-39 · المحوُ الفوريُّ للوسائطِ · 2026-11-04): 227 —
+    // `wr-39-erasure-media-purge.test.ts` (ستُّ حالاتٍ على PostgreSQL حقيقيٍّ
+    // في وظيفةِ التكاملِ).
     // زيادةٌ (SEC-22 · 2026-10-29): ملفُّ إنفاذِ الحجبِ في إنشاءِ الطلبِ
     // (`blocked-rider-request-enforcement.test.ts`) وحالاتُهُ الأربعُ — كلُّها على
     // `TEST_DATABASE_URL` لأنَّ المقصودَ قفلُ صفِّ المستخدمِ وحكمُ قاعدةِ
@@ -1083,7 +1086,8 @@ describe("السجلُّ الحقيقيُّ — أرقامٌ مقيسةٌ مُث
     // زيادةٌ (WR-34 · 2026-11-03): 1800 — حالاتُ `wr-34-chat-media.test.ts` الأربعَ عشرة.
     // زيادةٌ (WR-32 · 2026-11-03): 1812 — حالاتُ `wr-32-rider-privacy.test.ts` الاثنتا عشرةَ.
     // زيادةٌ (WR-38 · عزلُ مسارِ الدعمِ · 2026-11-04): 1817 — حالاتُ `wr-38-support-group-isolation.test.ts` الخمس.
-    expect(SKIP_REGISTRY.reduce((sum, entry) => sum + entry.skipped, 0)).toBe(1817);
+    expect(SKIP_REGISTRY.reduce((sum, entry) => sum + entry.skipped, 0)).toBe(1823);
+    // زيادةٌ (WR-39 · 2026-11-04): 1823 — حالاتُ `wr-39-erasure-media-purge.test.ts` الستُّ.
   });
 
   it("لا تجاوزَ على مسارٍ حرجٍ بلا مُشغِّلٍ، وما لا مُشغِّلَ له مُعلَنٌ ببيانٍ", () => {

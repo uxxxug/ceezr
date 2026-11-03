@@ -143,6 +143,9 @@ export function createDataRightsRoutes(deps: DataRightsRouteDependencies): Hono 
       erased: true as const,
       erasedAt: outcome.erasedAt,
       receipt: outcome.receipt,
+      // WR-39: حالُ محوِ الوسائطِ يُقالُ صريحًا — `deferred` يعني: الحسابُ محوٌّ
+      // والملفّاتُ على الطريقِ (المكنسةُ الدوريّةُ شبكةُ الأمانِ)، لا نجاحًا يُدَّعى.
+      mediaPurge: outcome.mediaPurge,
     });
   });
 

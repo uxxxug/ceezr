@@ -1136,6 +1136,20 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     whyNotRun: null,
   },
   {
+    file: "tests/integration/wr-39-erasure-media-purge.test.ts",
+    suites: ["WR-39 — المحوُ الفوريُّ لملفّاتِ محادثةِ الحسابِ"],
+    skipped: 6,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "المُدَّعى في `WR-39` أنَّ محوَ الحسابِ يُقيّدُ في إيصالِهِ طابورَ الوسائطِ (لا حذفًا وقعَ) ويعيدُ المعرّفَ الداخليَّ، وأنَّ الالتقاطَ محصورٌ بملفّاتِ المحوِّ، وأنَّ الإتمامَ بمعرّفِ إنسانٍ آخرَ لا يمسُّ صفوفَهُ، وأنَّ الجاهزَ يصيرُ `deleted` والمعلَّقَ يُحذفُ صفُّهُ، وأنَّ الصفوفِ قبلَ الإتمامِ في قبضةِ المكنسةِ الدوريّةِ (`message_gone`)، وأنَّ التكرارَ آمنٌ. وهذه أحكامُ معاملاتٍ ودوالَّ في PostgreSQL لا يقيسُها محرِّكٌ مُصنَّع. (حذفُ الملفِّ من المخزنِ نفسِهِ مُغطّى في وحداتِ WR-39 بمخزنٍ مُصنَّعٍ.)",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بالهجرات مطبَّقة (ومنها 20261104100000). يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي».",
+    owner: "منفّذ المستودع",
+    criticalPath: null,
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+  {
     file: "tests/integration/wr-38-support-group-isolation.test.ts",
     suites: ["WR-38 — عزلُ مسارِ الدعمِ"],
     skipped: 5,

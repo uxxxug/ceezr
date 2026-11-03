@@ -95,6 +95,7 @@ import {
 } from "../../../packages/infrastructure/places/places-store.ts";
 import { createSettingsRepository } from "../../../packages/infrastructure/policy/settings-repository.ts";
 import { PostgresDataRightsStore } from "../../../packages/infrastructure/privacy/data-rights-store.ts";
+import { createErasureChatMediaPurgeSqlStore } from "../../../packages/infrastructure/privacy/erasure-media-purge-store.ts";
 import { createQuoteJudge } from "../../../packages/infrastructure/quote/quote-store.ts";
 import { createOperatingCityStore } from "../../../packages/infrastructure/rider-city/operating-city-store.ts";
 import { createDriverCannotCompletePort } from "../../../packages/infrastructure/safety/driver-cannot-complete-store.ts";
@@ -1192,6 +1193,10 @@ const safety =
  * مُركَّبٌ ههنا: الدالّتانِ في القاعدةِ تقرآنِ دورَ الصفِّ وترفضانِ غيرَ الراكبِ
  * برمزٍ مُصنَّفٍ — فحقُّ السائقِ (`SD-12`) يُفتَحُ في القاعدةِ لا بسطرٍ ههنا.
  */
+const orderChatMediaConfig = readChatMediaStoreConfig(process.env);
+const orderChatMediaObjects =
+  orderChatMediaConfig === null ? null : new HttpChatMediaObjectStore(orderChatMediaConfig);
+
 const dataRights =
   config.miniappSessionSecret === null
     ? undefined
@@ -1203,6 +1208,17 @@ const dataRights =
           ),
           now: () => new Date(),
           store: new PostgresDataRightsStore(container.sql),
+          // WR-39 (قرارُ المالكِ): محوُ ملفّاتِ محادثةِ الحسابِ فورًا بعدَ إتمامِ
+          // المحوِ — لا يُبنى المنفذُ إلا بمخزنِ وسائطٍ مُهيَّأٍ، وغيابُهُ لا يعطِّلُ
+          // المحوَ (تلتقطُ المكنسةُ الدوريّةُ، ويُقالُ `unavailable`).
+          ...(orderChatMediaObjects === null
+            ? {}
+            : {
+                mediaPurge: {
+                  ...createErasureChatMediaPurgeSqlStore(container.sql),
+                  remove: (paths: readonly string[]) => orderChatMediaObjects.remove(paths),
+                },
+              }),
         },
         log,
       };
@@ -1257,7 +1273,6 @@ const orderChatStore = createOrderChatStore(container.sql);
  * `ORDER_CHAT_MEDIA=enabled` **و**تهيئةَ المخزن؛ والقراءةُ تبقى ما دامَ المخزنُ مهيّأً كي
  * لا يختفيَ ما أُرسِلَ إن أُوقِفَ المفتاح.
  */
-const orderChatMediaConfig = readChatMediaStoreConfig(process.env);
 const orderChatMediaEnabled = chatMediaEnabled(process.env) && orderChatMediaConfig !== null;
 if (chatMediaEnabled(process.env) && orderChatMediaConfig === null) {
   log("order_chat.media_misconfigured", {
@@ -1270,7 +1285,7 @@ const orderChatMedia =
     : {
         enabled: orderChatMediaEnabled,
         store: createOrderChatMediaStore(container.sql),
-        objects: new HttpChatMediaObjectStore(orderChatMediaConfig),
+        objects: orderChatMediaObjects as HttpChatMediaObjectStore,
       };
 const orderChat =
   config.miniappSessionSecret === null
