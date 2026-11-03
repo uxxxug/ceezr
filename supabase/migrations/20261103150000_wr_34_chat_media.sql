@@ -14,7 +14,7 @@
 -- الحالة: منفَّذ فعلياً — 2026-11-03.
 -- ينتمي إلى: supabase/migrations
 -- يُستخدم من: `packages/infrastructure/messaging/order-chat-store.ts` ·
---   `packages/infrastructure/messaging/chat-media-sweep-store.ts`
+--   `apps/workers/src/jobs/sweep-chat-media.ts`
 --
 -- ## التوافق (لا يكسرُ الإصدارَ السابق)
 --   - `list_order_messages(bigint, uuid, bigint, integer)` تُعادُ بالتوقيعِ والمردِّ

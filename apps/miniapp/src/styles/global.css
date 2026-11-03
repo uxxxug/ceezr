@@ -9567,6 +9567,13 @@ body {
   font-weight: 700;
 }
 
+/* زرُّ «فهمت» هدفُ لمسٍ كاملٌ (44px) لا رابطٌ نصّيٌّ صغير. */
+.ocht__safety .ocht__retry {
+  min-block-size: 44px;
+  min-inline-size: 44px;
+  padding-inline: 0.5rem;
+}
+
 .ocht__older {
   display: flex;
   flex-direction: column;

@@ -1,0 +1,85 @@
+{
+  "id": "wr-34-chat-media",
+  "goal": "WR-34 (WR-NONE: طلب المالك — استثناء معتمد على تجميد PRD-010): الصور والرسائل الصوتية في محادثة الطلب بين الراكب والسائق في الاتجاهين — رفع عبر البوابة بفحص البصمة ونزع EXIF/GPS، دلو خاص مستقل order-chat-media (لا driver-documents)، روابط موقعة 300 ث لطرفي الطلب وحدهما، إعادة محاولة بلا تكرار بـ client_message_id، تنبيه سلامة للسائق وإقرار ذاتي قبل الوسائط بلا ادعاء معرفة التوقف، وإعادة تصميم واجهة المحادثة (RTL، textarea متعدد الأسطر، فقاعات، الأقدم، الجديد).",
+  "canonical_source": [
+    "docs/adr/0305-order-chat-image-voice-media.md"
+  ],
+  "implementation": [
+    ".env.example",
+    "apps/gateway/src/index.ts",
+    "apps/gateway/src/rate-limit/policy.ts",
+    "apps/gateway/src/routes/order-chat.ts",
+    "apps/miniapp/src/api/client.ts",
+    "apps/miniapp/src/styles/global.css",
+    "apps/miniapp/src/surfaces/chat/ChatMedia.tsx",
+    "apps/miniapp/src/surfaces/chat/OrderChat.tsx",
+    "apps/miniapp/src/surfaces/chat/chat-media-capture.ts",
+    "apps/miniapp/src/surfaces/chat/chat-media.test.tsx",
+    "apps/miniapp/src/surfaces/chat/order-chat-client.ts",
+    "apps/miniapp/src/surfaces/chat/order-chat.test.tsx",
+    "apps/miniapp/src/surfaces/driver/job/JobScreen.tsx",
+    "apps/miniapp/src/surfaces/rider/active/ActiveRideScreen.tsx",
+    "apps/workers/src/container.ts",
+    "apps/workers/src/jobs/sweep-chat-media.ts",
+    "deploy/casaos/miniapp-nginx.conf",
+    "deploy/staging/render.staging.yaml",
+    "packages/application/messaging/order-chat-media.ts",
+    "packages/application/messaging/order-chat.ts",
+    "packages/domain/messaging/chat-media.ts",
+    "packages/infrastructure/db/schema-contract.ts",
+    "packages/infrastructure/messaging/order-chat-store.ts",
+    "packages/infrastructure/storage/chat-media-object-store.ts",
+    "packages/shared/config/retention-policy.ts",
+    "packages/shared/i18n/miniapp/ar.json",
+    "packages/shared/i18n/miniapp/en.json",
+    "packages/shared/i18n/miniapp/ur.json",
+    "render.yaml",
+    "scripts/lib/content-security-policy.ts",
+    "scripts/lib/rollback-registry.ts",
+    "scripts/lib/skip-registry.ts",
+    "scripts/lib/wasla-boundary-registry.ts",
+    "scripts/provision-chat-media-storage.ts",
+    "supabase/migrations/20261103150000_wr_34_chat_media.sql",
+    "supabase/migrations/20261103150100_wr_34_chat_media_validate.sql",
+    "supabase/migrations/20261103150200_wr_34_chat_media_index.sql",
+    "tests/integration/order-chat.test.ts",
+    "tests/integration/wr-34-chat-media.test.ts",
+    "tests/unit/content-security-policy.test.ts",
+    "tests/unit/skip-audit.test.ts",
+    "tests/unit/wr-34-chat-media.test.ts",
+    "tests/fixtures/chat-media/"
+  ],
+  "state": [
+    "docs/SYSTEM_STATE.md"
+  ],
+  "roadmap": [
+    "ROADMAP.md",
+    "docs/ROADMAP-MASTER.md"
+  ],
+  "affected_docs": [
+    "docs/adr/0305-order-chat-image-voice-media.md",
+    "docs/evidence/chat-media/WR-34-chat-media-20261103.md",
+    "docs/roadmap/execution/STATUS.md",
+    "docs/SYSTEM_STATE.md",
+    "ROADMAP.md",
+    "docs/ROADMAP-MASTER.md",
+    "docs/wasla/boundary-audit.md"
+  ],
+  "decision": "ADR 0305 (يحل جزئيا محل ADR 0280: الرفع عبر البوابة لا مباشرة، وحد الصوت 5 MiB، ولا فيديو ولا وثائق).",
+  "tests": [
+    "TEST_DATABASE_URL=… bun test tests/integration/wr-34-chat-media.test.ts — 14/14 (PostgreSQL حقيقي، مخزن HTTP محاكى)",
+    "bun test tests/unit/wr-34-chat-media.test.ts — 34/34",
+    "bun test apps/miniapp/src/surfaces/chat/chat-media.test.tsx — 29/29",
+    "Chromium 147 حقيقي خارج CI: تسجيل MediaRecorder مقبول من الفاحص، وتدفق الواجهة كاملا، ورفض الميكروفون — docs/evidence/chat-media/wr-34-browser/"
+  ],
+  "evidence": "docs/evidence/chat-media/WR-34-chat-media-20261103.md",
+  "constraints": [
+    "لا دفع إلى main ولا لمس للإنتاج ولا بيانات إنتاج",
+    "لا استخدام لدلو driver-documents ولا مساس بعزله (التهيئة ترفض تساويهما)",
+    "لا روابط عامة: دلو خاص وروابط موقعة 300 ث وno-store",
+    "لا ادعاء بأن النظام يعرف توقف المركبة، ولا حساسات حركة، ولا تشغيل تلقائي",
+    "الهجرة قابلة للتراجع (ترويسة) ومسجلة في rollback-registry",
+    "الميزة مطفأة افتراضيا خلف ORDER_CHAT_MEDIA=enabled"
+  ],
+  "limitations": "لم يُقس على هاتف حقيقي ولا داخل تيليجرام ولا على storage-api الحقيقي. التسجيل بلا مدة في حاويته يقبل بتصريح العميل داخل الحدود والحد الصلب الحجم. ملفات المحادثة بلا نسخ احتياطي للمخزن (عابرة). WebM/Opus قد لا يُشغَّل على iOS قبل 18.4 (رسالة صريحة)."
+}

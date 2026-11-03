@@ -1,0 +1,54 @@
+import { render } from "preact";
+import ar from "../packages/shared/i18n/miniapp/ar.json";
+import { OrderChat, type OrderChatLabels } from "../apps/miniapp/src/surfaces/chat/OrderChat.tsx";
+import type { ChatApi } from "../apps/miniapp/src/surfaces/chat/order-chat-client.ts";
+import "../apps/miniapp/src/styles/global.css";
+
+const role = new URLSearchParams(location.search).get("role") ?? "driver";
+const prefix = role === "driver" ? "driver.job.chat." : "rider.active.chat.";
+const dict = ar as Record<string, string>;
+const labels = new Proxy({} as OrderChatLabels, {
+  get: (_t, k) => (typeof k === "string" ? (dict[`${prefix}media.${k}`] ?? dict[`${prefix}${k}`]) : undefined),
+});
+const att = (id: string, kind: "image" | "voice", over = {}) => ({
+  id, kind, mime_type: kind === "image" ? "image/jpeg" : "audio/webm", byte_size: 30000,
+  width: kind === "image" ? 1200 : null, height: kind === "image" ? 900 : null,
+  duration_ms: kind === "voice" ? 2400 : null, available: true, ...over,
+});
+const mine = role === "driver" ? "driver" : "rider";
+const theirs = role === "driver" ? "rider" : "driver";
+let seq = 4;
+const messages: unknown[] = [
+  { id: "1", seq: 1, sender_role: theirs, mine: false, client_message_id: null, body: "السلام عليكم، أنا عند البوابة الشمالية", created_at: "2026-11-03T10:00:00Z", kind: "text", location: null, translation: null },
+  { id: "2", seq: 2, sender_role: mine, mine: true, client_message_id: "c2", body: "وعليكم السلام، دقيقتين وأوصل", created_at: "2026-11-03T10:01:00Z", kind: "text", location: null, translation: null },
+  { id: "3", seq: 3, sender_role: theirs, mine: false, client_message_id: null, body: "📷", created_at: "2026-11-03T10:02:00Z", kind: "image", location: null, translation: null, attachment: att("a3", "image") },
+  { id: "4", seq: 4, sender_role: mine, mine: true, client_message_id: "c4", body: "🎤", created_at: "2026-11-03T10:03:00Z", kind: "voice", location: null, translation: null, attachment: att("a4", "voice") },
+];
+const thread = () => ({
+  order: { id: "o1", service: "ride", status: "assigned", writable: true }, my_role: role,
+  counterpart: { first_name: role === "driver" ? "سارة" : "سالم" }, messages, last_seq: seq,
+  my_last_read_seq: seq, counterpart_last_read_seq: 2, unread: 0, has_older: true,
+  media: { enabled: true, image_max_bytes: 5242880, voice_max_bytes: 5242880, voice_max_ms: 120000 },
+});
+const w = window as unknown as { uploads: unknown[] };
+w.uploads = [];
+const api: ChatApi = {
+  fetchTail: async () => thread() as never,
+  fetchAfter: async () => ({ ...thread(), messages: [] }) as never,
+  fetchBefore: async () => ({ ...thread(), messages: [], has_older: false }) as never,
+  send: async (_o, cid, out) => { seq += 1; const m = { id: String(seq), seq, sender_role: mine, mine: true, client_message_id: cid, body: (out as { text?: string }).text ?? "", created_at: new Date().toISOString(), kind: "text", location: null, translation: null }; messages.push(m); return { status: "added", message: m } as never; },
+  markRead: async () => undefined,
+  uploadMedia: async (_o, cid, media) => {
+    const buf = new Uint8Array(await media.blob.arrayBuffer());
+    let bin = ""; for (const b of buf) bin += String.fromCharCode(b);
+    w.uploads.push({ kind: media.kind, type: media.blob.type, durationMs: media.durationMs, b64: btoa(bin) });
+    seq += 1;
+    const m = { id: String(seq), seq, sender_role: mine, mine: true, client_message_id: cid, body: media.kind === "image" ? "📷" : "🎤", created_at: new Date().toISOString(), kind: media.kind, location: null, translation: null, attachment: att(`u${seq}`, media.kind, { duration_ms: media.durationMs }) };
+    messages.push(m);
+    return { status: "added", message: m } as never;
+  },
+  attachmentUrl: async (_o, id) => ({ url: id === "a3" ? "/photo.jpg" : "/voice.webm", expiresAt: new Date(Date.now() + 300000).toISOString(), mimeType: id === "a3" ? "image/jpeg" : "audio/webm" }),
+};
+document.documentElement.dir = "rtl";
+document.documentElement.lang = "ar";
+render(<main style="max-width:420px;margin:0 auto"><OrderChat orderId="o1" labels={labels} statusText="مُسنَد" api={api} socket={null} initiallyOpen /></main>, document.getElementById("root")!);
