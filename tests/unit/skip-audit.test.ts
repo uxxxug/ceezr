@@ -1038,7 +1038,11 @@ describe("السجلُّ الحقيقيُّ — أرقامٌ مقيسةٌ مُث
     // على PostgreSQL حقيقيٍّ) في وظيفةِ التكاملِ.
     // زيادةٌ (WR-33 · تنبيهُ التحويلاتِ المسبقة · 2026-11-03 · حزمةُ `wr-33-prepay-warning`):
     // 221 — `wr-33-prepay-warning-enforcement.test.ts` (خمسُ حالاتٍ على PostgreSQL حقيقيٍّ).
-    expect(SKIP_REGISTRY).toHaveLength(221);
+    // زيادةٌ (WR-35 · رابطُ قروبِ المدينةِ عندَ انتهاءِ التجربة · 2026-11-03 · حزمةُ
+    // `wr-35-unsubscribed-group-links-20261103`): 223 — `wr-35-unsubscribed-group-links.test.ts`
+    // (خمسَ عشرةَ حالةً) و`wr-35-no-docs-driver-cycle.test.ts` (خمسُ حالاتٍ) على PostgreSQL
+    // حقيقيٍّ في وظيفةِ التكاملِ.
+    expect(SKIP_REGISTRY).toHaveLength(223);
     // زيادةٌ (SEC-22 · 2026-10-29): ملفُّ إنفاذِ الحجبِ في إنشاءِ الطلبِ
     // (`blocked-rider-request-enforcement.test.ts`) وحالاتُهُ الأربعُ — كلُّها على
     // `TEST_DATABASE_URL` لأنَّ المقصودَ قفلُ صفِّ المستخدمِ وحكمُ قاعدةِ
@@ -1064,7 +1068,8 @@ describe("السجلُّ الحقيقيُّ — أرقامٌ مقيسةٌ مُث
     // زيادةٌ (WR-30 · 2026-11-03): 1750 — حالاتُ `wr-30-rider-rating-board.test.ts` الأربعُ.
     // زيادةٌ (WR-31 · 2026-11-03): 1761 — حالاتُ `wr-31-driver-abort-ride.test.ts` الإحدى عشرةَ.
     // زيادةٌ (WR-33 · 2026-11-03): 1766 — حالاتُ `wr-33-prepay-warning-enforcement.test.ts` الخمس.
-    expect(SKIP_REGISTRY.reduce((sum, entry) => sum + entry.skipped, 0)).toBe(1766);
+    // زيادةٌ (WR-35 · 2026-11-03): 1786 — حالاتُ ملفَّي WR-35 العشرون (15 + 5).
+    expect(SKIP_REGISTRY.reduce((sum, entry) => sum + entry.skipped, 0)).toBe(1786);
   });
 
   it("لا تجاوزَ على مسارٍ حرجٍ بلا مُشغِّلٍ، وما لا مُشغِّلَ له مُعلَنٌ ببيانٍ", () => {
