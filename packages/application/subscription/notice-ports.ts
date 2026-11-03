@@ -23,6 +23,14 @@ export interface SubscriptionNoticePayload {
   readonly currency?: string;
   /** رابط قروب غير المشتركين، أو نصّ فارغ إن لم يضعه المالك بعد. */
   readonly group_link?: string;
+  /**
+   * حكمُ الحجزِ على الرابطِ (WR-35): `ok` · `missing` (لا رابطَ لمدينته) ·
+   * `invalid` (ليس رابطَ t.me سليمًا) · `driver_not_verified`. غيرُ `ok` = إحالةٌ للدعم.
+   */
+  readonly group_link_status?: "ok" | "missing" | "invalid" | "driver_not_verified";
+  /** اسمُ مدينةِ الإشعارِ لصياغةِ «قروب سائقي مدينتك» (WR-35). */
+  readonly city_name_ar?: string;
+  readonly city_name_en?: string;
 }
 
 export interface SubscriptionNotice {

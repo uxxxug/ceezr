@@ -1094,6 +1094,34 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     whyNotRun: null,
   },
   {
+    file: "tests/integration/wr-35-unsubscribed-group-links.test.ts",
+    suites: ["WR-35 — رابطُ قروبِ سائقي المدينةِ عندَ انتهاءِ التجربة"],
+    skipped: 15,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "المُدَّعى في `WR-35` أنَّ بذرَ روابطِ المدنِ الخمسِ idempotent لا يطمسُ قيمةً قائمةً، وأنّ `claim_subscription_notices` يُلغي إشعارَ النهايةِ بعدَ تجديدٍ أو حظرٍ ويحدِّثُ الرابطَ من إعدادِ المدينةِ لحظةَ الحجزِ، وأنّ الحجزَ والإعادةَ لا يُكرِّران رسالةً. وهذه أحكامُ معاملاتٍ و`skip locked` وإعداداتٍ في PostgreSQL لا يقيسُها محرِّكٌ مُصنَّع.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بالهجرات مطبَّقة (ومنها 20261103163500). يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي».",
+    owner: "منفّذ المستودع",
+    criticalPath: "الدفعُ والاشتراك",
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+  {
+    file: "tests/integration/wr-35-no-docs-driver-cycle.test.ts",
+    suites: ["WR-35 — دورةُ السائقِ بلا وثائقَ: لا حارسَ مخفيٌّ"],
+    skipped: 5,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "المُدَّعى أنّ سائقًا بلا أيِّ وثيقةٍ يُوثَّقُ ويبدأُ تجربتَه ولا يُحجَبُ عن السباقِ تحتَ سياسةِ `driver_required_document_types = []`، وأنّ حارسَ F12-21 يعودُ فيحجبُ تحتَ إلزامٍ غيرِ فارغٍ. وهذه أحكامُ دوالَّ وإعداداتٍ في PostgreSQL لا يقيسُها محرِّكٌ مُصنَّع.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بالهجرات مطبَّقة (ومنها 20261102200000). يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي».",
+    owner: "منفّذ المستودع",
+    criticalPath: "توثيقُ السائق",
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+  {
     file: "tests/integration/wr-32-rider-privacy.test.ts",
     suites: [
       "WR-32 (أ) — رسالةُ الراكبِ في سجلِّ الموافقاتِ الحقيقيِّ",
