@@ -124,6 +124,11 @@ interface ResultRow {
   readonly result: unknown;
 }
 
+/** WR-39: معرّفٌ داخليٌّ ثابتٌ أو `null` — لا يُفشِلُ النتيجةَ إن غابَ. */
+function readUserId(value: unknown): string | null {
+  return typeof value === "string" && value.length > 0 ? value : null;
+}
+
 export class PostgresDataRightsStore implements DataRightsStore {
   readonly #sql: Sql;
 
@@ -211,10 +216,28 @@ export class PostgresDataRightsStore implements DataRightsStore {
 
     // `ALREADY_ERASED` يُعادُ **بلا إيصالٍ**: الإيصالُ وثيقةُ لحظةِ الوقوعِ،
     // وإعادةُ بنائِه بعدَ حينٍ اختلاقٌ لأعدادٍ لم تُقَسْ في تلكَ اللحظةِ.
-    if (payload.reason === "ALREADY_ERASED") return ok({ erased: true, erasedAt, receipt: null });
+    if (payload.reason === "ALREADY_ERASED") {
+      return ok({
+        erased: true,
+        erasedAt,
+        receipt: null,
+        // WR-39: يُعادُ المعرّفُ ليلتقطَ محوُ الوسائطِ ما فاتَ من طلبٍّ سابقٍ.
+        erasureUserId: readUserId(payload.user_id),
+        // لم يُجرِ المحوَ أحدٌ بعدُ في هذه الطبقةِ — منَ جرَّبَ يقولُ حالَهُ.
+        mediaPurge: { status: "unavailable" as const, attachments: 0 },
+      });
+    }
 
     const receipt = readReceipt(payload.receipt);
     if (receipt === null) return err(failed("MALFORMED_RESULT"));
-    return ok({ erased: true, erasedAt, receipt });
+    return ok({
+      erased: true,
+      erasedAt,
+      receipt,
+      // WR-39: `telegram_id` زالَ بالتجهيلِ — المعرّفُ الداخليُّ الثابتُ هوَ
+      // ما تُطاردُ بهِ ملفّاتُ المحادثةِ بعدَ الإتمامِ.
+      erasureUserId: readUserId(payload.user_id),
+      mediaPurge: { status: "unavailable" as const, attachments: 0 },
+    });
   }
 }

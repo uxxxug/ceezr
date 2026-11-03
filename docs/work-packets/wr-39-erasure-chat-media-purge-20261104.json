@@ -1,0 +1,50 @@
+{
+  "id": "wr-39-erasure-chat-media-purge-20261104",
+  "goal": "تنفيذُ البندِ (د) من أمرِ الاستلامِ 2026-11-03: حذفُ ملفّاتِ محادثةِ الحسابِ فورًا عندَ حذفِ الحسابِ — لا انتظارَ للمكنسةِ الدوريّةِ — معَ مسارِ حذفٍ كاملٍ (الملفُّ والسجلُّ والوصفُ)، وفشلٌ لا يُدَّعى معهُ إتمامٌ، وإعادةُ محاولةٍ موثوقةٌ، وأمانٌ على التكرارِ والانقطاعِ وإعادةِ تشغيلِ العاملِ، وعزلٌ صارمٌ عن ملفّاتِ الآخرينَ.",
+  "canonical_source": [
+    "docs/evidence/compliance/WR-39-erasure-chat-media-purge-20261104.md",
+    "docs/adr/0306-erasure-purges-chat-media-immediately-via-worker.md"
+  ],
+  "implementation": [
+    "packages/shared/config/erasure-policy.ts",
+    "supabase/migrations/20261104100000_wr_39_erasure_chat_media_purge.sql",
+    "packages/domain/privacy/data-rights.ts",
+    "packages/application/privacy/data-rights.ts",
+    "packages/application/privacy/erasure-media-purge.ts",
+    "packages/infrastructure/privacy/data-rights-store.ts",
+    "packages/infrastructure/privacy/erasure-media-purge-store.ts",
+    "apps/gateway/src/index.ts",
+    "apps/gateway/src/routes/me-data-rights.ts",
+    "scripts/lib/execution-roadmap.ts",
+    "tests/unit/wr-39-erasure-media-purge.test.ts",
+    "tests/integration/wr-39-erasure-media-purge.test.ts",
+    "scripts/lib/skip-registry.ts",
+    "tests/unit/skip-audit.test.ts"
+  ],
+  "state": [
+    "docs/SYSTEM_STATE.md",
+    "packages/shared/config/erasure-policy.ts"
+  ],
+  "roadmap": [
+    "ROADMAP.md"
+  ],
+  "affected_docs": [
+    "docs/evidence/compliance/WR-39-erasure-chat-media-purge-20261104.md",
+    "docs/adr/0306-erasure-purges-chat-media-immediately-via-worker.md",
+    "docs/roadmap/execution/STATUS.md"
+  ],
+  "decision": "المحوُ الفوريُّ بيدِ العاملِ بعدَ إتمامِ معاملةِ المحوِ لا داخلَها (ADR 0306): إيصالُ erase_my_account يقولُ «طابورٌ يُلتقطُ» ويعيدُ user_id الداخليَّ؛ طبقةُ التطبيقِ تمحو فورًا بترتيبِ «احذفِ الملفَّ ثمَّ السجلَّ»؛ فشلُ المخزنِ لا يُتِمُّ السجلَّ ولا يُفشِلُ المحوَ (الحالُ deferred صريحةً)؛ المكنسةُ الدوريّةُ (message_gone كلَّ 600 ثانيةٍ) شبكةُ أمانٍ على الفشلِ والانقطاعِ وإعادةِ التشغيلِ؛ العزلُ بـuploader_user_id في دالتَي القاعدةِ حرفيًّا؛ الجاهزُ يصيرُ deleted (دليلُ حذفٍ لا يختفي من السجلِ) والمعلَّقُ يُحذفُ صفُّهُ — نفسَ نموذجِ بياناتِ ADR 0305.",
+  "tests": [
+    "bun test tests/unit/wr-39-erasure-media-purge.test.ts — 12/12 (الحلقةُ والدفعةُ، فشلُ الحذفِ لا يُتِمُّ السجلَّ، سقوطُ الإتمامِ، السقفُ، والمحوُ لا يفشلُ بفشلِ الوسائطِ: purged/deferred/unavailable، ورفضُ المحوِ لا يمسُّ وسائطَ)",
+    "tests/integration/wr-39-erasure-media-purge.test.ts — 6 حالاتٍ تعملُ في CI بـTEST_DATABASE_URL (الإيصالُ والمعرّفُ، الحصرُ، شبكةُ الأمانِ message_gone، العزلُ، الإتمامُ، التكرارُ) — محليًا skip مُصرَّحٌ به",
+    "check-erasure-policy/check-rollback-safety/check-migration-safety/check-adr-numbering/check-skip-classification/check-state-sync: ✅"
+  ],
+  "evidence": "docs/evidence/compliance/WR-39-erasure-chat-media-purge-20261104.md",
+  "constraints": [
+    "لا كتابةً على قاعدةِ الإنتاجِ ولا اختبارًا ببياناتٍ حقيقيّةٍ — الهجرةُ لم تُطبَّق (قرارُ مالكٍ)",
+    "فشلُ حذفِ الملفِّ لا يجعلُ الحالةَ تقولُ اكتملَ (السجلُ يُتمُّ بعدَ الحذفِ فعلًا)",
+    "لا يمسُّ المحوُ ملفَّ إنسانٍ آخرَ (العزلُ شرطٌ في الدالتَينِ لا في المتنادي)",
+    "فشلُ المحوِ الفوريِّ لا يُسقِطُ طلبَ المحوِ ولا الوسائطَ ولا الإيصالَ"
+  ],
+  "limitations": "التكاملُ يعملُ في CI لا محليًّا (بلا قاعدةٍ في هذهِ البيئةِ). الهجرةُ 20261104100000 لم تُطبَّق على الإنتاجِ — تطبيقُها ومراقبةُ أولِ محوٍّ حقيقيٍّ بعدها قرارُ مالكٍ. التحقّقُ الميدانيُّ على حسابٍ حقيقيٍّ في قائمةِ القبولِ (WR-41)."
+}

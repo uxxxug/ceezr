@@ -30,6 +30,11 @@
 import type { ErasureOutcome } from "../../domain/privacy/data-rights.ts";
 import { err, ok, type Result } from "../../shared/result/index.ts";
 import type { MiniAppSessionReader } from "../identity/ports.ts";
+import {
+  type ErasureChatMediaPurgeDeps,
+  type ErasureChatMediaPurgeReport,
+  purgeErasureChatMedia,
+} from "./erasure-media-purge.ts";
 import type { DataRightsStore, ExportVerdict } from "./ports.ts";
 
 export type DataRightsPublicErrorCode =
@@ -62,6 +67,12 @@ export interface DataRightsDeps {
   readonly sessions: MiniAppSessionReader;
   readonly store: DataRightsStore;
   readonly now: () => Date;
+  /**
+   * `WR-39` (قرارُ المالكِ): محوُ ملفّاتِ محادثةِ الحسابِ فورًا بعدَ إتمامِ
+   * المحوِ. **غيابُهُ لا يعطِّلُ المحوَ**: الحسابُ يُمحى، والوسائطُ — إن وُجدتْ —
+   * تُلتقَطُ بالمكنسةِ الدوريّةِ، ويُقالُ `unavailable` صريحةً في الحالِ.
+   */
+  readonly mediaPurge?: ErasureChatMediaPurgeDeps;
 }
 
 async function openSession(
@@ -102,5 +113,31 @@ export async function eraseMyAccount(
 
   const erased = await deps.store.eraseMyAccount({ telegramUserId: session.value });
   if (!erased.ok) return err("PRIVACY_STORE_NOT_AVAILABLE");
-  return ok(erased.value);
+  if (!erased.value.erased) return ok(erased.value);
+
+  // ── WR-39: المحوُ الفوريُّ للوسائطِ — بعدَ الإتمامِ لا قبلهُ ──────────────
+  // الحسابُ محوٌّ الآنَ مهما حدثَ بعدَهُ: فشلُ المحوِ الفوريِّ **لا يُفشِلُ
+  // الاستجابةَ ولا يُسقِطُ الوسائطَ** — الصفوفُ باقيةٌ والمكنسةُ الدوريّةُ
+  // تلتقطُها، والحالُ يُقالُ صريحًا (`deferred`) لا يُدَّعى نجاحٌ.
+  const outcome = erased.value;
+
+  // `try` ههنا ليستِ تسامحًا معَ الخطأِ بل صدقًا معَ الفعلِ: المحوُ وقعَ، وكلُّ
+  // ما قد يحدثَ بعدهُ (حتى استثناءٌ في الالتقاطِ) لا يُفشِلُ الاستجابةَ — بل
+  // يُقالُ `deferred` وتُلتقَطُ الوسائطُ بالمكنسةِ أو بطلبٍّ تالٍ.
+  let purgeReport: ErasureChatMediaPurgeReport | null = null;
+  if (deps.mediaPurge !== undefined && outcome.erasureUserId !== null) {
+    try {
+      const report = await purgeErasureChatMedia(deps.mediaPurge, outcome.erasureUserId);
+      purgeReport = report.ok ? report.value : { purged: 0, deferred: true };
+    } catch {
+      purgeReport = { purged: 0, deferred: true };
+    }
+  }
+  const purgeStatus =
+    purgeReport === null
+      ? { status: "unavailable" as const, attachments: 0 }
+      : purgeReport.deferred
+        ? { status: "deferred" as const, attachments: purgeReport.purged }
+        : { status: "purged" as const, attachments: purgeReport.purged };
+  return ok({ ...outcome, mediaPurge: purgeStatus });
 }
