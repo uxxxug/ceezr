@@ -240,6 +240,12 @@ export const TABLE_RETENTION: Readonly<Record<string, RetentionClass>> = {
    * من انتهاءِ الطلبِ (`order_chat_read_window`)، ومدّةُ بقاءِ الصفِّ نفسِه لم تُحسَمْ.
    */
   order_message_reads: RETENTION_CLASSES.pendingDecision,
+  /**
+   * `WR-34` (ADR 0305): مرفقاتُ المحادثةِ (صورٌ وتسجيلات) — يحكمُها عاملُ
+   * `sweep-chat-media`: يُحذَفُ الملفُّ بعدَ سبعةِ أيّامٍ من انتهاءِ الطلبِ أو
+   * ثلاثينَ يوماً من رفعِه، والمعلَّقُ بعدَ ربعِ ساعة. والصفُّ يبقى أثراً بلا ملفّ.
+   */
+  order_chat_attachments: RETENTION_CLASSES.selfGoverned,
   order_messages: RETENTION_CLASSES.pendingDecision,
   order_offers: RETENTION_CLASSES.pendingDecision,
   /**

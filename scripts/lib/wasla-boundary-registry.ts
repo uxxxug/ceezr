@@ -363,6 +363,13 @@ export const WASLA_BOUNDARY_INVENTORY: readonly BoundaryEntry[] = [
       "التنفيذُ الميدانيُّ مِلكُ MOVE بحرفِ حدودِ الملكيّةِ؛ والجدولُ لا يحملُ مفهوماً من مفاهيمِ CORE بل مراجعَه مُعتِمةً (ADR 0081).",
   },
   {
+    table: "order_chat_attachments",
+    concern: "صورُ وتسجيلاتُ محادثةِ طرفَي المهمّةِ (WR-34، ADR 0305) — صفُّ المرفقِ ومسارُه في الدلوِ الخاصّ",
+    owner: "MOVE",
+    disposition: "KEEP",
+    rationale: "مرفقُ رسالةٍ في غرفةِ تواصلِ المهمّة، فهوَ أثرُ تنفيذٍ يملكُه MOVE كأختِه `order_messages`.",
+  },
+  {
     table: "order_message_reads",
     concern: "موضعُ قراءةِ كلِّ طرفٍ في محادثةِ المهمّةِ (WR-04)",
     owner: "MOVE",

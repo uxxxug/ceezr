@@ -98,6 +98,10 @@ describe("WR-34 — فحصُ الوسائطِ في الخادم", () => {
       ["voice.m4a", "audio/mp4"],
       ["voice-fragmented.m4a", "audio/mp4"],
       ["voice.ogg", "audio/ogg"],
+      // تسجيلانِ حقيقيّانِ من MediaRecorder في Chromium 147 (ميكروفونٌ مُحاكى، 2.5 ث) —
+      // ما يُنتجُه المتصفّحُ فعلاً لا ما يُنتجُه ffmpeg (دليلُ WR-34).
+      ["chromium-recorded.m4a", "audio/mp4"],
+      ["chromium-recorded.webm", "audio/webm"],
     ] as const) {
       const bytes = fixture(name);
       const verdict = inspectChatMedia({ kind: "voice", bytes, declaredDurationMs: 3000 });
