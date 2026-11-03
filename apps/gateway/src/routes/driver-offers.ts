@@ -19,7 +19,8 @@
  *
  * عرضٌ **مُحتَملٌ** لا يُبرِّرُ كشفَ راكبٍ: لو رأى كلُّ سائقٍ في الجولةِ اسمَ
  * الراكبِ ومعرِّفَه لَصارَ البثُّ **تسريباً موزّعاً**. فما يُعادُ موضعٌ وملاحظةٌ
- * وقياساتٌ، والتواصلُ بعدَ المطابقةِ بندٌ آخرُ.
+ * وقياساتٌ، والتواصلُ بعدَ المطابقةِ بندٌ آخرُ. **استثناءٌ واحدٌ (`WR-30`):**
+ * تقييمُ الراكبِ الإحصائيّ (معدَّلٌ وعددٌ) — حكمُ سائقينَ سابقينَ عليه، لا كشفٌ له.
  *
  * ## وما لا تفعلُه هذه المساراتُ عن قصدٍ — (`ح-5`)
  *
@@ -179,6 +180,9 @@ export function createDriverOfferRoutes(deps: DriverOfferRouteDependencies): Hon
         offer_sar: offer.offerTerms?.offerSar ?? null,
         // `WR-06`: وقتُ الحضورِ على بطاقةِ التطبيقِ كما على رسالةِ البوت.
         pickup_at: offer.offerTerms?.pickupAt ?? null,
+        // `WR-30` — تقييمُ الراكبِ **الإحصائيّ** بلا هويّةٍ: معدَّلٌ وعددٌ لا غير.
+        rider_rating_average: offer.riderRating?.average ?? null,
+        rider_rating_count: offer.riderRating?.count ?? null,
       })),
     });
   });
@@ -242,6 +246,9 @@ export function createDriverOfferRoutes(deps: DriverOfferRouteDependencies): Hon
       offer_mode: detail.offerTerms?.mode ?? null,
       offer_sar: detail.offerTerms?.offerSar ?? null,
       pickup_at: detail.offerTerms?.pickupAt ?? null,
+      // `WR-30` — تقييمُ الراكبِ **الإحصائيّ** في التفاصيلِ كما في البطاقةِ.
+      rider_rating_average: detail.riderRating?.average ?? null,
+      rider_rating_count: detail.riderRating?.count ?? null,
     });
   });
 

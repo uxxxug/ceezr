@@ -37,6 +37,7 @@
  */
 
 import type {
+  DriverJobAbort,
   DriverJobArrival,
   DriverJobCompletion,
   DriverJobSnapshot,
@@ -72,6 +73,9 @@ export const DRIVER_JOB_PUBLIC_ERROR_CODES = [
   "PHASE_MISMATCH",
   "ALREADY_ARRIVED",
   "TRANSITION_REFUSED",
+  // (WR-31) قطعُ الرحلةِ — رمزانِ جديدانِ بنصوصِهما وحالتَيهما.
+  "ORDER_NOT_ABORTABLE",
+  "REASON_TOO_LONG",
 ] as const;
 
 export type DriverJobPublicErrorCode = (typeof DRIVER_JOB_PUBLIC_ERROR_CODES)[number];
@@ -137,6 +141,11 @@ function publicCodeFrom(error: DriverJobStoreError): DriverJobRejection {
       return rejection("ALREADY_ARRIVED");
     case "TRANSITION_REFUSED":
       return rejection("TRANSITION_REFUSED");
+    // (WR-31) رمزا القطعِ يُنقَلانِ كما هما — لا يُخفى القطعُ في «رفضِ انتقالٍ» عامٍّ.
+    case "ORDER_NOT_ABORTABLE":
+      return rejection("ORDER_NOT_ABORTABLE");
+    case "REASON_TOO_LONG":
+      return rejection("REASON_TOO_LONG");
   }
 }
 
@@ -216,6 +225,40 @@ export async function completeDriverRide(
   );
   if (!completed.ok) return err(publicCodeFrom(completed.error));
   return ok(completed.value);
+}
+
+/**
+ * (WR-31) «قطعتُ الرحلةَ» — قطعٌ قبلَ الوصولِ لا إنهاءٌ: الطلبُ يصيرُ `cancelled`
+ * والسائقُ يعودُ متاحاً، وإشعارُ `ABORTED` **يُودَعُ داخلَ عبارةِ القطعِ نفسِها**
+ * (`driver_abort_ride`) فلا مسارَ إيداعٍ مستقلَّ ههنا. والسببُ نصٌّ حُرٌّ يُقيَّدُ
+ * في السجلِّ لا يُقصُّ ولا يُخفى.
+ */
+export async function abortDriverRide(
+  deps: DriverJobDeps,
+  input: {
+    readonly accessToken: string | undefined;
+    readonly orderId: unknown;
+    readonly reason: unknown;
+  },
+): Promise<Result<DriverJobAbort, DriverJobRejection>> {
+  const session = await openSession(deps, input.accessToken);
+  if (!session.ok) return err(session.error);
+
+  const orderId = readOrderId(input.orderId);
+  if (orderId === null) return err(rejection("ORDER_ID_INVALID"));
+
+  // السببُ نصٌّ حُرٌّ اختياريٌّ — لا شيءَ غيرُ النصِّ يُقبَلُ، والحدَّ
+  // يُحكِمُه الكاتبُ (`REASON_TOO_LONG`) لا العميلُ.
+  const reason =
+    typeof input.reason === "string" && input.reason.trim() !== "" ? input.reason.trim() : null;
+
+  const aborted = await deps.store.abortRide({
+    telegramUserId: session.value,
+    orderId,
+    reason,
+  });
+  if (!aborted.ok) return err(publicCodeFrom(aborted.error));
+  return ok(aborted.value);
 }
 
 /**

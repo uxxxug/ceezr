@@ -53,3 +53,21 @@ export function riderEntryState(raw: string | null | undefined): RiderEntryState
       return HOME;
   }
 }
+
+/**
+ * `WR-29` (ADR 0303): هل هذا هبوطاً **بلا هدفٍ صريحٍ** (الشاشةُ الرئيسة)؟ فحُكمُ
+ * الراكبِ الذي فتحَ التطبيقَ بلا وصلةٍ — وبعدَ استردادِ جلسةٍ أثناءَ رحلةٍ — هو
+ * أن يُتبِعَ رحلتَهُ الجاريةَ كما يُتبِعُ السائقُ مهمّتَه (`WR-20`). دالّةٌ خالصةٌ
+ * تُختبَرُ وحدَها.
+ */
+export function isDefaultRiderEntry(state: RiderEntryState): boolean {
+  return (
+    state.followed === null &&
+    state.summarized === null &&
+    !state.browsed &&
+    !state.notificationsOpen &&
+    !state.account &&
+    state.support === null &&
+    !state.sosOpen
+  );
+}

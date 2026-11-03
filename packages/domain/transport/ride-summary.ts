@@ -137,6 +137,12 @@ export interface RatingEligibilityFacts {
   readonly alreadyRated: boolean;
   /** انقضاءُ النافذةِ **كما قاسَته القاعدةُ بساعتِها** لا بساعةِ جهازٍ. */
   readonly windowClosed: boolean;
+  /**
+   * (WR-31) حكمُ القاعدةِ نفسِها في «يُقيَّمُ الآنَ» — القطعُ يفتحُ التقييمَ
+   * **للسائقِ وحدَه**، فالرايةُ لا تُشتَقُّ من الحالةِ وحدَها بل تُنقَلُ من
+   * الكاتبِ ويُصنِّفُها النطاقُ فوقَها لا مكانَها.
+   */
+  readonly canRate: boolean;
 }
 
 /**
@@ -145,10 +151,14 @@ export interface RatingEligibilityFacts {
  * فمن قيَّمَ لا يُقالُ له «فاتَ الوقتُ».
  */
 export function ratingEligibilityOf(facts: RatingEligibilityFacts): RatingEligibility {
-  if (facts.status !== "completed") return "RIDE_NOT_COMPLETED";
+  // (WR-31) الرحلةُ المقطوعةُ (`cancelled`) بابُ تقييمٍ كسائرِ ما انتهى —
+  // والكاتبُ هوَ الذي يفتحُ البابَ للسائقِ وحدَه، فالنطاقُ يُصنِّفُ ولا يفتحْ.
+  if (facts.status !== "completed" && facts.status !== "cancelled") {
+    return "RIDE_NOT_COMPLETED";
+  }
   if (facts.alreadyRated) return "ALREADY_RATED";
   if (facts.windowClosed) return "WINDOW_CLOSED";
-  return "CAN_RATE";
+  return facts.canRate ? "CAN_RATE" : "RIDE_NOT_COMPLETED";
 }
 
 /**

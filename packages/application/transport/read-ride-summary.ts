@@ -137,6 +137,9 @@ export async function readRideSummary(
         status: state.status,
         alreadyRated: state.rating.alreadyRated,
         windowClosed: state.rating.windowClosed,
+        // (WR-31) رايةُ الكاتبِ تُنقَلُ معَ تصنيفِ النطاقِ — القطعُ يفتحُ
+        // التقييمَ للسائقِ وحدَهِ فلا تُشتَقُّ الرايةُ من الحالةِ وحدَها.
+        canRate: state.rating.canRate,
       }),
     },
   });

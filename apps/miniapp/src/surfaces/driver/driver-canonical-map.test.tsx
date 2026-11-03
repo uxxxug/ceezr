@@ -132,9 +132,9 @@ describe("D1–D3 — اللوحُ والبطاقةُ والتفاصيل", () =>
 
 describe("D4–D7 — المهمّةُ وتعذّرُ الإكمالِ والملخّصُ وSOS", () => {
   it("D4: «مهمّتي» يرسمُ `JobScreen` واكتمالُه يفتحُ D6", () => {
-    expect(caseBlock("job")).toContain(
-      "<JobScreen language={language} showTitle={false} onCompleted={go.jobCompleted} />",
-    );
+    // (WR-31) القطعُ يفتحُ الملخّصَ نفسَهُ — وفيهِ تقييمُ الراكبِ.
+    expect(caseBlock("job")).toContain("onCompleted={go.jobCompleted}");
+    expect(caseBlock("job")).toContain("onAborted={go.jobAborted}");
   });
 
   it("D5: تعذّرُ الإكمالِ نداءٌ حقيقيٌّ (`reportDriverCannotComplete`) بتأكيدٍ وحالاتٍ معلنة", () => {

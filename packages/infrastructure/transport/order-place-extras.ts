@@ -11,9 +11,17 @@
  * تُطبَّقْ عليها الهجرةُ بعد) يُعيدُ خريطةً فارغةً فتبقى البطاقةُ كما كانَت لا شاشةَ عطب.
  * ولا يكتبُ سجلّاً بقيمةٍ: لا رابطَ ولا ملاحظةَ ولا إحداثيّةَ في أيِّ سطر.
  *
+ * **`WR-30`:** زِيدَ ههنا تقييمُ الراكبِ **الإحصائيّ** — معدَّلُه وعددُ تقييماتِه من
+ * `riders` — لا هويّتَه: لا اسمَ ولا هاتفَ يُقرَأُ ولا يُنشَرُ، والإحصاءُ المعدومُ
+ * (`rating_count = 0`) يُنقَلُ `null` فلا يُقالُ عن راكبٍ جديدٍ «صفرُ نجومٍ».
+ *
  * **الحالة:** منفّذ فعلياً. **ينتمي إلى:** infrastructure/transport.
  */
-import type { DriverOfferTerms, DriverPlaceExtras } from "../../domain/driver/driver-offers.ts";
+import type {
+  DriverOfferTerms,
+  DriverPlaceExtras,
+  DriverRiderRating,
+} from "../../domain/driver/driver-offers.ts";
 import { isOfferMode } from "../../shared/order-terms/index.ts";
 import type { Sql } from "../db/client.ts";
 
@@ -22,6 +30,11 @@ export interface OrderPlaceExtras {
   readonly dropoff: DriverPlaceExtras | null;
   /** `WR-05` — سياسةُ المبلغ (`mode` `null` لطلبٍ أقدمَ منها). */
   readonly offerTerms: DriverOfferTerms;
+  /**
+   * `WR-30` — تقييمُ الراكبِ الإحصائيّ، و`null` = راكبٌ بلا تقييمٍ بعدُ (أو صفٌّ
+   * بلا راكبٍ) — لا فراغَ يُقرأُ «معدوماً».
+   */
+  readonly riderRating: DriverRiderRating | null;
 }
 
 /** صفُّ استعلامِ الملاحقِ — مُصدَّرٌ لمشاركتهِ مع القراءةِ الموحّدةِ للوحِ. */
@@ -39,6 +52,10 @@ export interface ExtrasRow {
   readonly rider_offer_mode: string | null;
   readonly rider_offer_sar: number | null;
   readonly pickup_at: Date | string | null;
+  /** `WR-30` — من `riders` لا من الطلبِ: معدَّلُ تقييمِ الراكبِ أو `null`. */
+  readonly rider_rating_average: number | null;
+  /** `WR-30` — عددُ تقييماتِه؛ صفرٌ يُنقَلُ كأن لا تقييمَ. */
+  readonly rider_rating_count: number | null;
 }
 
 function num(value: unknown): number | null {
@@ -84,7 +101,28 @@ export function parseOrderPlaceExtrasRow(row: ExtrasRow): OrderPlaceExtras {
       offerSar: num(row.rider_offer_sar),
       pickupAt: instant(row.pickup_at),
     },
+    riderRating: riderRatingFrom(row),
   };
+}
+
+/**
+ * `WR-30` — التقييمُ من معدَّلٍ وعددٍ: لا تقييمَ بلا عددٍ، ولا عددٌ بلا معدَّلٍ،
+ * ولا معدَّلٌ خارجَ [١، ٥] — فحقلٌ كذلك في القاعدةِ عطبٌ لا تقييمٌ فيُنقَلُ `null`.
+ */
+function riderRatingFrom(row: ExtrasRow): DriverRiderRating | null {
+  const average = num(row.rider_rating_average);
+  const count = num(row.rider_rating_count);
+  if (
+    average === null ||
+    count === null ||
+    !Number.isInteger(count) ||
+    count <= 0 ||
+    average < 1 ||
+    average > 5
+  ) {
+    return null;
+  }
+  return { average, count };
 }
 
 export async function readOrderPlaceExtras(
@@ -103,8 +141,11 @@ export async function readOrderPlaceExtras(
              (o.dropoff is not null) as has_dropoff,
              o.dropoff_link, o.dropoff_notes,
              st_y(o.dropoff::geometry) as dropoff_lat, st_x(o.dropoff::geometry) as dropoff_lng,
-             o.rider_offer_mode, o.rider_offer_sar, o.pickup_at
+             o.rider_offer_mode, o.rider_offer_sar, o.pickup_at,
+             r.rating_average as rider_rating_average,
+             r.rating_count as rider_rating_count
         from orders o
+        left join riders r on r.id = o.rider_id
        where o.id = any(${sql.array(ids)}::uuid[])`;
   } catch {
     return found;

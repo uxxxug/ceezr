@@ -1028,7 +1028,15 @@ describe("السجلُّ الحقيقيُّ — أرقامٌ مقيسةٌ مُث
     // لا يُثبِتُها بديلٌ في الذاكرةِ.
     // زيادةٌ (WR-27 · نبضةُ المهمّةِ العامّةِ بلا مدينةٍ مفعَّلة · 2026-10-29 · حزمةُ
     // `wr-27-heartbeat-no-active-city`): 218 — `job-heartbeat-no-active-city.test.ts`.
-    expect(SKIP_REGISTRY).toHaveLength(218);
+    // زيادةٌ (WR-30 · تقييمُ الراكبِ الإحصائيّ على لوحِ العروض · 2026-11-03 · حزمةُ
+    // `wr-30-rider-rating`): 219 — `wr-30-rider-rating-board.test.ts` (أربعُ حالاتٍ:
+    // نجومُ الراكبِ ومتوسِّطُهُ في استعلامِ اللوحِ، بلا وسمٍ كاذبٍ لرحلةٍ بلا تقييمٍ)
+    // على PostgreSQL حقيقيٍّ) في وظيفةِ التكاملِ.
+    // زيادةٌ (WR-31 · قطعُ الرحلةِ من سطحِ السائقِ · 2026-11-03 · حزمةُ
+    // `wr-31-driver-abort-ride`): 220 — `wr-31-driver-abort-ride.test.ts` (إحدى
+    // عشرةَ حالةً: انتقالُ الحالةِ بإيداعِ MATCHED وABORTED ورفضُ التقييمِ بلا إتمامٍ)
+    // على PostgreSQL حقيقيٍّ) في وظيفةِ التكاملِ.
+    expect(SKIP_REGISTRY).toHaveLength(220);
     // زيادةٌ (SEC-22 · 2026-10-29): ملفُّ إنفاذِ الحجبِ في إنشاءِ الطلبِ
     // (`blocked-rider-request-enforcement.test.ts`) وحالاتُهُ الأربعُ — كلُّها على
     // `TEST_DATABASE_URL` لأنَّ المقصودَ قفلُ صفِّ المستخدمِ وحكمُ قاعدةِ
@@ -1051,7 +1059,9 @@ describe("السجلُّ الحقيقيُّ — أرقامٌ مقيسةٌ مُث
     // زيادةٌ (LOAD-01 · توفّرُ السائقِ بجملةٍ واحدة · 2026-10-25): 1734 — حالاتُ `driver-availability-single-statement.test.ts` الثلاث.
     // زيادةٌ (LOAD-01 · C2 دمجُ قراءةِ لغةِ المرسلِ · 2026-10-25): 1739 — حالاتُ `driver-sender-context.test.ts` الخمس.
     // زيادةٌ (WR-27 · 2026-10-29): 1746 — حالاتُ `job-heartbeat-no-active-city.test.ts` الثلاث.
-    expect(SKIP_REGISTRY.reduce((sum, entry) => sum + entry.skipped, 0)).toBe(1746);
+    // زيادةٌ (WR-30 · 2026-11-03): 1750 — حالاتُ `wr-30-rider-rating-board.test.ts` الأربعُ.
+    // زيادةٌ (WR-31 · 2026-11-03): 1761 — حالاتُ `wr-31-driver-abort-ride.test.ts` الإحدى عشرةَ.
+    expect(SKIP_REGISTRY.reduce((sum, entry) => sum + entry.skipped, 0)).toBe(1761);
   });
 
   it("لا تجاوزَ على مسارٍ حرجٍ بلا مُشغِّلٍ، وما لا مُشغِّلَ له مُعلَنٌ ببيانٍ", () => {

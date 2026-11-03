@@ -27,7 +27,9 @@
  *   ــ **لا يُصنِّفُ عطبَ شبكةٍ رفضاً**: استثناءٌ = `STORE_ERROR` = `503`.
  *   ــ **لا يقفلُ صفّاً ولا يُحدِّثُ حالةً**: القبولُ نداءُ `driver_accept_offer`
  *      التي تُفوِّضُ إلى `claim_ride` — **ولا `update` ههنا ألبتّةَ**.
- *   ــ **لا يقرأُ هويّةَ راكبٍ**: لا يُطلَبُ ولا يُنشَرُ.
+ *   ــ **لا يقرأُ هويّةَ راكبٍ**: لا يُطلَبُ ولا يُنشَرُ — لا اسمَ ولا هاتفَ ولا
+ *      معرِّفَ. **استثناءٌ واحدٌ (`WR-30`):** تقييمُ الراكبِ **الإحصائيّ** (معدَّلُه
+ *      وعددُ تقييماتِه) يُقرأُ ويُنشَرُ — فهو حكمٌ سابقٌ عليه، لا كشفٌ له.
  */
 
 import type {
@@ -272,14 +274,15 @@ export function composeDriverOfferBoard(
 
   const enriched = offers.map((card): DriverOfferCard => {
     const found = parts.extrasMap.get(card.orderId);
-    return found === undefined
-      ? card
-      : {
-          ...card,
-          pickupExtras: found.pickup,
-          dropoffExtras: found.dropoff,
-          offerTerms: found.offerTerms,
-        };
+    if (found === undefined) return card;
+    return {
+      ...card,
+      pickupExtras: found.pickup,
+      dropoffExtras: found.dropoff,
+      offerTerms: found.offerTerms,
+      // `WR-30` — الإحصاءُ يُنشَرُ بلا هويّةٍ، وغيابُه يُبقِي البطاقةَ كما هي.
+      ...(found.riderRating === null ? {} : { riderRating: found.riderRating }),
+    };
   });
 
   return ok({
@@ -475,9 +478,12 @@ export class PostgresDriverOfferStore implements DriverOfferStore {
               'dropoff_lng', st_x(o.dropoff::geometry),
               'rider_offer_mode', o.rider_offer_mode,
               'rider_offer_sar', o.rider_offer_sar,
-              'pickup_at', to_jsonb(o.pickup_at)
+              'pickup_at', to_jsonb(o.pickup_at),
+              'rider_rating_average', r.rating_average,
+              'rider_rating_count', r.rating_count
             ) as fields
             from orders o
+            left join riders r on r.id = o.rider_id
             where o.id in (
               select (entry->>'order_id')::uuid
               from board
@@ -584,6 +590,10 @@ export class PostgresDriverOfferStore implements DriverOfferStore {
       tripDistance,
       notes: typeof payload.notes === "string" ? payload.notes : null,
       ...(extras === undefined ? {} : { offerTerms: extras.offerTerms }),
+      // `WR-30` — تقييمُ الراكبِ الإحصائيّ في تفاصيلِ العرضِ كالبطاقةِ سواءً.
+      ...(extras === undefined || extras.riderRating === null
+        ? {}
+        : { riderRating: extras.riderRating }),
     });
   }
 

@@ -462,6 +462,7 @@
   "tracking.rider_driver_arrived": "📍 ڈرائیور پک اپ کی جگہ پہنچ گیا — آپ کی درخواست {order}\n🚗 ڈرائیور: {driver}\n🔢 نمبر پلیٹ: {plate}\n🚙 گاڑی: {vehicle}\nڈرائیور اب آپ کا انتظار کر رہا ہے۔",
   "tracking.rider_trip_started": "🚗 آپ کی سواری {order} شروع ہو گئی۔ سفر مبارک۔",
   "tracking.rider_trip_completed": "✅ آپ پہنچ گئے — سواری {order} مکمل ہو گئی۔\nوصلہ استعمال کرنے کا شکریہ۔",
+  "tracking.rider_trip_aborted": "⚠️ آپ کی سواری {order} پہنچنے سے پہلے منقطع کر دی گئی۔\nآپ دوسرا ڈرائیور طلب کر سکتے ہیں۔",
   "tracking.rider_link": "📍 اس لنک سے اپنے ڈرائیور کا مقام دیکھیں (عارضی، سفر ختم ہونے پر بند):\n{url}",
   "tracking.share_button": "📍 میرا مقام شیئر کریں",
   "tracking.revoke_button": "🚫 ٹریکنگ لنک منسوخ کریں",

@@ -21,7 +21,8 @@
  *      (`ADR 0039` §٤ · `م13-7` · `DEC-11`) — لا `fare` ولا `fare: null`.
  *   ــ **لا مدّةَ وصولٍ**: امتناعٌ مُصنَّفٌ (`ADR 0024`)، والشاشةُ تقولُه سطراً.
  *   ــ **لا هويّةَ راكبٍ**: لا اسمَ ولا هاتفَ ولا معرِّفَ تلغرامَ — عرضٌ
- *      **مُحتَملٌ** لا يُبرِّرُ كشفَ راكبٍ لكلِّ سائقٍ في الجولةِ.
+ *      **مُحتَملٌ** لا يُبرِّرُ كشفَ راكبٍ لكلِّ سائقٍ في الجولةِ. **استثناءٌ
+ *      واحدٌ (`WR-30`):** تقييمُه **الإحصائيّ** (معدَّلٌ وعددٌ) — حكمٌ لا كشفٌ.
  *   ــ **لا خريطةَ ولا مسارَ طريقٍ**: إحداثيّتانِ فحسب، والخريطةُ دَينٌ مُعلَنٌ.
  */
 
@@ -68,6 +69,12 @@ export interface ApiDriverOfferCard {
   readonly offer_sar?: number | null;
   /** `WR-06` — وقتُ الحضورِ ISO، و`null` = الآن. غائبٌ في بوّابةٍ أقدم. */
   readonly pickup_at?: string | null;
+  /**
+   * `WR-30` — تقييمُ الراكبِ الإحصائيّ: معدَّلٌ وعددٌ **بلا هويّةٍ**. غائبانِ من
+   * بوّابةٍ أقدم، و`null` = راكبٌ بلا تقييمٍ بعدُ.
+   */
+  readonly rider_rating_average?: number | null;
+  readonly rider_rating_count?: number | null;
 }
 
 /**
@@ -135,6 +142,12 @@ export interface DriverOfferDetailResponse {
   readonly offer_sar?: number | null;
   /** `WR-06` — وقتُ الحضورِ ISO، و`null` = الآن. غائبٌ في بوّابةٍ أقدم. */
   readonly pickup_at?: string | null;
+  /**
+   * `WR-30` — تقييمُ الراكبِ الإحصائيّ: معدَّلٌ وعددٌ **بلا هويّةٍ**. غائبانِ من
+   * بوّابةٍ أقدم، و`null` = راكبٌ بلا تقييمٍ بعدُ.
+   */
+  readonly rider_rating_average?: number | null;
+  readonly rider_rating_count?: number | null;
 }
 
 export interface AcceptDriverOfferResponse {

@@ -55,6 +55,7 @@ import {
   offerLineText,
   offersErrorKey,
   pickupAtText,
+  riderRatingText,
   toOfferDetail,
 } from "./offers-view.ts";
 
@@ -370,6 +371,10 @@ export function OfferDetailScreen({
         <p className="dof__offer-terms">{pickupAtText(t, detail.pickupAt)}</p>
         {detail.offerTerms === null ? null : (
           <p className="dof__offer-terms">{offerLineText(t, detail.offerTerms)}</p>
+        )}
+        {/* `WR-30` — تقييمُ الراكبِ الإحصائيّ: قبلَ قرارِ القبولِ لا بعده. */}
+        {detail.riderRating === null ? null : (
+          <p className="dof__rider-rating">{riderRatingText(t, detail.riderRating)}</p>
         )}
         <p className="dof__place">
           {t("driver.offers.pickup")}: {detail.pickupLabel ?? t("driver.offers.place.unnamed")}

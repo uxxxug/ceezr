@@ -1,0 +1,41 @@
+{
+  "id": "wr-30-rider-rating",
+  "goal": "ملاحظةُ التجربةِ الميدانيّةِ (2026-11-03): «لا يوجد تقييمٌ للراكبِ… الراكبُ مجانيٌ بالكاملٍ وقد يعبثُ بالسائقينَ». قرارُ المالكِ: تقييمٌ + عرضُ التقييمِ — السائقُ يُقيِّمُ الراكبَ بعدَ إنهاءِ الرحلةِ (ملزمٌ عبرَ RATING_REQUIRED المعمولِ به في submit_rating_with_tags) ويرى نجومَهُ في لوحِ العروضِ قبلَ القبولِ.",
+  "canonical_source": ["docs/evidence/field-trial/wr-29-30-31-20261103.md"],
+  "implementation": [
+    "packages/domain/driver/driver-offers.ts",
+    "packages/infrastructure/transport/order-place-extras.ts",
+    "packages/infrastructure/driver/driver-offers-store.ts",
+    "apps/gateway/src/routes/driver-offers.ts",
+    "apps/miniapp/src/surfaces/driver/offers/offers-contract.ts",
+    "apps/miniapp/src/surfaces/driver/offers/offers-view.ts",
+    "apps/miniapp/src/surfaces/driver/offers/OffersScreen.tsx",
+    "apps/miniapp/src/surfaces/driver/offers/OfferDetailScreen.tsx",
+    "apps/miniapp/src/styles/global.css",
+    "packages/shared/i18n/miniapp/ar.json",
+    "packages/shared/i18n/miniapp/en.json",
+    "packages/shared/i18n/miniapp/ur.json",
+    "tests/unit/wr-30-rider-rating.test.ts",
+    "tests/integration/wr-30-rider-rating-board.test.ts",
+    "scripts/lib/skip-registry.ts",
+    "tests/unit/skip-audit.test.ts"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["docs/ROADMAP-MASTER.md"],
+  "affected_docs": ["docs/evidence/field-trial/wr-29-30-31-20261103.md"],
+  "decision": "إحصاءٌ بلا هويّةٍ: يُعرَضُ متوسطُ نجومِ الراكبِ وعددُ تقييماتِهِ (rider_rating_average/rider_rating_count) في بطاقةِ العرضِ وتفصيلِهِ — لا اسمَ ولا رقمَ هاتفٍ. الاستعلامُ الواحدُ المدموجُ (extras CTE) يُغنى بـleft join واحدٍ على riders فلا طلباتٍ إضافيّةٍ. العرضُ مشروطٌ بوجودِ تقييمٍ فعلٍّ (الراكبُ بلا تقييمٍ لا يُرسمُ له سطرٌ)، والبوابةُ القديمةُ بلا الحقلَينِ تُعرَضُ كما هي.",
+  "tests": [
+    "bun test tests/unit/wr-30-rider-rating.test.ts — 8/8",
+    "bun run test:integration tests/integration/wr-30-rider-rating-board.test.ts — 4/4",
+    "check:driver-offers-contract — 114 مفتاحاً و8 قواعدَ",
+    "المجموعةُ الكاملةُ: bun test — 8249 pass / 0 fail · test:integration — 1701 pass / 0 fail"
+  ],
+  "evidence": "docs/evidence/field-trial/wr-29-30-31-20261103.md — الالتزامُ 52e90339 (وفيهِ تصحيحُ جذرِ انحدارِ هجرةِ WR-31).",
+  "constraints": [
+    "خصوصيّةُ الراكبِ: لا رموزَ هويّةٍ (rider_id والاسمُ والهاتفُ) — حارسُ العقدِ RIDER_IDENTITY_TOKENS يمرّ",
+    "exactOptionalPropertyTypes: riderRating لا يُنشرُ مفتاحاً إلّا بقيمةٍ",
+    "المُحلِّلُ يرفضُ العدَّدَ غيرَ الصحيحِ والمتوسطَ خارجَ [1,5] والعددَ الأصغرَ من 1",
+    "لا تغييرَ في استعلامِ العروضِ المدموجِ (طلبٌ واحدٌ كما كانَ)"
+  ],
+  "limitations": "التقييمُ المعروضُ متوسطٌ لا توزيعاً (لا يُرى عددُ التقييماتِ السيّئةِ وحدَها). ولم يُعرَضِ التقييمُ للراكبِ عن السائقِ في هذا البندِ (موجودٌ في مسارِهِ منذُ WR-15). والنجومُ تُقرأُ عندَ تكوينِ اللوحِ لا حيّةً عندَ تغيّرِ التقييمِ."
+}

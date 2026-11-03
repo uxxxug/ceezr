@@ -234,7 +234,14 @@ export function DriverSurface({ language, onLanguageChanged, entry }: LanguageSu
         );
       case "job":
         // D4: المَهمّةُ الحاليّة، وفيها تعذّرُ الإكمالِ (D5) والاستغاثةُ (D7 · SOS)؛ اكتمالُها يفتحُ D6.
-        return <JobScreen language={language} showTitle={false} onCompleted={go.jobCompleted} />;
+        return (
+          <JobScreen
+            language={language}
+            showTitle={false}
+            onCompleted={go.jobCompleted}
+            onAborted={go.jobAborted}
+          />
+        );
       case "earnings":
         // D10: الحصيلةُ والنشاط — عددٌ وساعاتٌ ومقامات، ولا مبلغَ مُختلَق.
         return <ActivityScreen language={language} showTitle={false} />;

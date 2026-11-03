@@ -27,6 +27,7 @@ import { publishLocationBroadcastPolicy } from "../location/broadcast-api.ts";
 import type {
   DriverActiveJobResponse,
   DriverCannotCompleteResponse,
+  DriverJobAbortedResponse,
   DriverJobArrivedResponse,
   DriverJobCompletedResponse,
   DriverJobStartedResponse,
@@ -62,6 +63,22 @@ export function startDriverRide(orderId: string): Promise<DriverJobStartedRespon
 export function completeDriverRide(orderId: string): Promise<DriverJobCompletedResponse> {
   return apiFetch<DriverJobCompletedResponse>(`/v1/driver/job/${orderId}/complete`, {
     method: "POST",
+  });
+}
+
+/**
+ * (WR-31) «قطعتُ الرحلةَ» — قطعٌ قبلَ الوصولِ لا إنهاءٌ: الطلبُ يصيرُ `cancelled`
+ * والسائقُ يعودُ متاحاً. والسببُ نصٌّ اختياريٌّ يُقيَّدُ في السجلِّ، والحدَّ
+ * يُحكِمُه الكاتبُ (`REASON_TOO_LONG`) لا العميلُ. ولا إعادةَ محاولةٍ آليّةً:
+ * إعادةُ قطعٍ بعدَ انقطاعِ شبكةٍ قد تكونُ إعادةً لفعلٍ نجحَ ولم يصلْ جوابُه.
+ */
+export function abortDriverRide(
+  orderId: string,
+  reason: string | null,
+): Promise<DriverJobAbortedResponse> {
+  return apiFetch<DriverJobAbortedResponse>(`/v1/driver/job/${orderId}/abort`, {
+    method: "POST",
+    body: { reason },
   });
 }
 

@@ -107,10 +107,13 @@ describe("قراءةُ الوسومِ من مُدخلٍ غيرِ موثوقٍ", 
 });
 
 describe("أهليّةُ التقييمِ", () => {
+  // (WR-31) رايةُ الكاتبِ (`canRate`) تُنقَلُ معَ التصنيفِ — القطعُ يفتحُ
+  // التقييمَ للسائقِ وحدَهُ، فالنطاقُ يُصنِّفُ فوقَ رايةِ الكاتبِ لا مكانَها.
   const facts = (over: Record<string, unknown> = {}) => ({
     status: "completed",
     alreadyRated: false,
     windowClosed: false,
+    canRate: true,
     ...over,
   });
 
@@ -120,7 +123,12 @@ describe("أهليّةُ التقييمِ", () => {
 
   it("رحلةٌ لم تنتهِ ⇒ خطأُ مسارٍ لا خبرُ تقييمٍ", () => {
     expect(ratingEligibilityOf(facts({ status: "in_progress" }))).toBe("RIDE_NOT_COMPLETED");
-    expect(ratingEligibilityOf(facts({ status: "cancelled" }))).toBe("RIDE_NOT_COMPLETED");
+    // (WR-31) الملغاةُ بابُ تقييمٍ للسائقِ وحدَه: رايةُ الكاتبِ هيَ التي تفتحُ —
+    // والراكبُ في الملغاةِ لا رايةَ لهُ فخطأُ المسارِ هوَ الخبرُ.
+    expect(ratingEligibilityOf(facts({ status: "cancelled" }))).toBe("CAN_RATE");
+    expect(ratingEligibilityOf(facts({ status: "cancelled", canRate: false }))).toBe(
+      "RIDE_NOT_COMPLETED",
+    );
   });
 
   it("من قيَّمَ سلفاً **لا يُقالُ له «فاتَ الوقتُ»** ولو انقضَت النافذةُ", () => {

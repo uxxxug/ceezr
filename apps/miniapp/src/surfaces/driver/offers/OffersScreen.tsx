@@ -81,6 +81,7 @@ import {
   offersCodeOf,
   offersErrorKey,
   pickupAtText,
+  riderRatingText,
   toOffersBoard,
 } from "./offers-view.ts";
 
@@ -673,6 +674,10 @@ export function OffersScreen({
                 <p className="dof__offer-terms">{pickupAtText(t, card.pickupAt)}</p>
                 {card.offerTerms === null ? null : (
                   <p className="dof__offer-terms">{offerLineText(t, card.offerTerms)}</p>
+                )}
+                {/* `WR-30` — تقييمُ الراكبِ الإحصائيّ فوقَ الموضعِ: حكمُ سائقينَ سابقينَ. */}
+                {card.riderRating === null ? null : (
+                  <p className="dof__rider-rating">{riderRatingText(t, card.riderRating)}</p>
                 )}
 
                 <p className="dof__place">

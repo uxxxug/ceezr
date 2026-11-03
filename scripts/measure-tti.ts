@@ -60,6 +60,7 @@ import {
 } from "../packages/infrastructure/identity/telegram-init-data.ts";
 import { createViewerAccountReader } from "../packages/infrastructure/identity/viewer-account.ts";
 import { createViewerAccountLanguageWriter } from "../packages/infrastructure/identity/viewer-language.ts";
+import { createRideHistoryReader } from "../packages/infrastructure/transport/ride-history-store.ts";
 import type { AppConfig } from "../packages/shared/config/index.ts";
 import { SLOW_3G } from "./lib/first-paint-budget.ts";
 import {
@@ -109,15 +110,27 @@ async function seedTestUserIfMissing(
     select count(*)::text as count from users where telegram_id = ${TEST_USER.id}::bigint
   `;
   const count = Number(existing[0]?.count ?? 0);
-  if (count > 0) return;
   const city = await sql<{ id: string }[]>`select id from cities where code = 'JED' limit 1`;
   const cityId = city[0]?.id;
   if (cityId === undefined)
     throw new Error("لا مدينةَ 'JED' في قاعدةِ الاختبارِ — هل طُبِّقتْ هجراتُ البذور؟");
+  if (count === 0) {
+    await sql`
+      insert into users (city_id, telegram_id, full_name, language_code, role)
+      values (${cityId}, ${TEST_USER.id}::bigint, 'راكب TTI', 'ar', 'rider')
+      on conflict (telegram_id) do nothing
+    `;
+  }
+  // `WR-29`: سطحُ الراكبِ عندَ الدخولِ الافتراضيِّ يسألُ عن رحلتِهِ الجاريةِ عبرَ
+  // `GET /v1/rides`، وقارئُ السجلِّ يرفضُ راكباً بلا صفٍّ في `riders`
+  // بـ`RIDER_NOT_REGISTERED` (404) فيُسقِطُ القياسَ بـ`FAILED_REQUEST`. فبذرُ راكبٍ
+  // مُسجَّلٍ — لا مستخدمٍ فحسبُ — جزءٌ من صدقِ المسارِ كالموافقاتِ سواءً بسواءٍ.
+  // (يُبذَرُ دائماً لا عندَ غيابِ المستخدمِ وحدَه: بذرٌ قديمٌ سابقٌ لـ`WR-29`
+  // قد يكونُ خلقَ المستخدمَ بلا صفِّ راكبٍ.)
   await sql`
-    insert into users (city_id, telegram_id, full_name, language_code, role)
-    values (${cityId}, ${TEST_USER.id}::bigint, 'راكب TTI', 'ar', 'rider')
-    on conflict (telegram_id) do nothing
+    insert into riders (city_id, user_id)
+    select ${cityId}, u.id from users u where u.telegram_id = ${TEST_USER.id}::bigint
+    on conflict (user_id) do nothing
   `;
 }
 
@@ -640,6 +653,21 @@ async function main(): Promise<void> {
           log: () => {},
         },
         log: () => {},
+      },
+      // مسارُ سجلِّ الرحلاتِ: سطحُ الراكبِ عندَ الدخولِ الافتراضيِّ يسألُ عن رحلتِهِ
+      // الجاريةِ (`WR-29`: `GET /v1/rides?pageSize=1` — متابعةُ الرحلةِ الجاريةِ)،
+      // فهو جزءٌ من شريحةِ الإقلاعِ المُختبَرةِ لا إضافةٌ خارجيّةٌ — كالموافقاتِ
+      // سواءً بسواءٍ: وغيابُه يُسقِطُ القياسَ بـ`FAILED_REQUEST` بعدَ إصلاحِ صدقِ
+      // المسارِ.
+      rides: {
+        history: {
+          sessions: createRevocableSessionReader(
+            createMiniAppSessionReader(TEST_SESSION_SECRET),
+            revocationStore,
+          ),
+          history: createRideHistoryReader(sql),
+          now: () => new Date(),
+        },
       },
     };
 

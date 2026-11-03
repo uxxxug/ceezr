@@ -15,6 +15,80 @@ import { getSession, hasValidSession } from "../identity/session.ts";
 /** الحدُّ الأعلى المعقولُ لثوانٍ في `Retry-After` — يومٌ واحد. ما فوقه يُهمَل. */
 const MAX_RETRY_AFTER_SECONDS = 86_400;
 
+/**
+ * `WR-29` (ADR 0303) — استردادُ الجلسةِ بعدَ انتهائِها **أثناءَ الاستخدامِ**:
+ * التجربةُ الميدانيّةُ (٣ نوفمبر ٢٠٢٦) أثبتت أنّ الراكبَ في رحلةٍ جاريةٍ قد
+ * تنتهي جلستُهُ فلا يعودُ يجدُ رحلتَهُ. فكان القرارُ المالكِ: استردادٌ تلقائيٌّ
+ * كاملٌ. والمسجِّلُ هو الهيكلُ (`shell/Shell.tsx`) — حدُّ النقلِ لا يعرفُ كيفَ
+ * تُقامُ الجلسةُ، فقطَ **متى** يُنادى مَن يُقيمُها.
+ *
+ * سياسةُ المحاولةِ الواحدةِ (لا سلسلةَ ولا دورانَ): نداءٌ واحدٌ للاستردادِ،
+ * فإن أقامَ جلسةً صالحةً أُعيدَ الطلبُ الأصليُّ مرّةً واحدةً لا غير. وإن فشلَ
+ * رُدَّ الخطأُ الأصليُّ نفسُه — فشلُ الاستردادِ لا يُخفي رفضَ الخادمِ.
+ */
+export type SessionRecovery = () => Promise<boolean>;
+
+let sessionRecovery: SessionRecovery | null = null;
+let inflightRecovery: Promise<boolean> | null = null;
+let recoveryCooldownUntilMs = 0;
+
+/**
+ * مهلةُ تهدئةٍ بعدَ فشلِ استردادٍ: نداءاتُ السطوحِ دوريّةٌ، فبلا مهلةٍ صارَ كلُّ
+ * نداءٍ فاشلٍ يفتحُ إقامةَ جلسةٍ جديدةً (شبكةً وشيكاتِ توقيعٍ) في دائرةٍ محكومةٍ.
+ * والنجاحُ يرفعُ التهدئةَ فوراً.
+ */
+const SESSION_RECOVERY_COOLDOWN_MS = 15_000;
+
+export function registerSessionRecovery(recover: SessionRecovery | null): void {
+  sessionRecovery = recover;
+  // تسجيلٌ جديدٌ يبدأُ صفحةً بيضاءَ: لا طيراناً قائماً ولا تهدئةً — المسجِّلُ
+  // ههنا واحدٌ (الهيكلُ) وتركيبُه الجديدُ جلسةٌ جديدةٌ لا بقايا القديمةِ.
+  inflightRecovery = null;
+  recoveryCooldownUntilMs = 0;
+}
+
+/**
+ * محاولةُ استردادٍ واحدةٌ مُشفَعةٌ لكلِّ النداءاتِ المتزامنةِ: من يتجمّعونَ على
+ * انتهاءِ جلسةٍ واحدةٍ يُقيمونَها إقامةً واحدةً. والفشلُ يُفعِلُ التهدئةَ لا
+ * يُرمى: فشلُ الاستردادِ نتيجةٌ تُعاد، لا استثناءٌ يُخفي الرفضَ الأصليَّ.
+ */
+async function recoverSession(): Promise<boolean> {
+  const recover = sessionRecovery;
+  if (recover === null) return false;
+  if (inflightRecovery !== null) return inflightRecovery;
+  if (Date.now() < recoveryCooldownUntilMs) return false;
+  const attempt = recover().then(
+    (ok) => {
+      if (ok) recoveryCooldownUntilMs = 0;
+      else recoveryCooldownUntilMs = Date.now() + SESSION_RECOVERY_COOLDOWN_MS;
+      return ok;
+    },
+    () => {
+      recoveryCooldownUntilMs = Date.now() + SESSION_RECOVERY_COOLDOWN_MS;
+      return false;
+    },
+  );
+  inflightRecovery = attempt;
+  try {
+    return await attempt;
+  } finally {
+    if (inflightRecovery === attempt) inflightRecovery = null;
+  }
+}
+
+/**
+ * رموزُ رفضِ الخادمِ التي معناها «الجلسةُ ذاتُها لا تُقبلُ» فتستحقُّ محاولةَ
+ * استردادٍ — وسائرُ رموزِ `401` تُرمى كما هي.
+ */
+const SESSION_LOST_CODES = new Set(["SESSION_EXPIRED", "SESSION_INVALID"]);
+
+/**
+ * سياسةُ الاستردادِ داخلَ النداءِ الواحدِ: `"allow"` في النداءِ الأول، و`"deny"`
+ * في إعادةِ المحاولةِ بعدَ استردادٍ ناجحٍ — فلا يستردَّ الطلبُ المُستردُّ مرّةً
+ * ثانيةً مهما رُدَّ. معيارٌ داخليٌّ لا يمرّره المنادي الخارجيُّ أبداً.
+ */
+type SessionRecoveryPolicy = "allow" | "deny";
+
 export class ApiError extends Error {
   readonly status: number;
   readonly code: string;
@@ -154,10 +228,20 @@ function notify(observe: ApiObserver | undefined, observation: ApiObservation): 
   }
 }
 
-export async function apiFetch<T>(path: string, init: ApiRequestInit = {}): Promise<T> {
+export async function apiFetch<T>(
+  path: string,
+  init: ApiRequestInit = {},
+  recovery: SessionRecoveryPolicy = "allow",
+): Promise<T> {
   const method = init.method ?? (init.body !== undefined ? "POST" : "GET");
 
   if (!init.public && !hasValidSession()) {
+    // `WR-29` (ADR 0303): الجلسةُ انتهت أثناءَ الاستخدامِ — استردادٌ صامتٌ واحدٌ
+    // قبلَ رميِ الرفضِ المحليِّ، فإن أقامَ جلسةً مضى النداءُ في مسارِه ولم يُرمَ
+    // شيءٌ. والنداءُ المُستردُّ (`recovery = "deny"`) لا يستردُّ مرّةً ثانيةً.
+    if (recovery === "allow" && (await recoverSession()) && hasValidSession()) {
+      return apiFetch<T>(path, init, "deny");
+    }
     // `F1-08`: رفضٌ محليٌّ قبلَ الشبكةِ — يُسجَّل `not_attempted` لا `rejected`:
     // الخادمُ لم يُنادَ، فنسبةُ الرفضِ إليه كذبٌ في القياس.
     notify(init.observe, {
@@ -246,6 +330,19 @@ export async function apiFetch<T>(path: string, init: ApiRequestInit = {}): Prom
       requestId,
       outcome: "rejected",
     });
+    // `WR-29` (ADR 0303): الرفضُ واقعةٌ سُجِّلت كما هي، ثمّ — إن كان رفضاً
+    // للجلسةِ ذاتِها — محاولةُ استردادٍ واحدةٌ تُعيدُ النداءَ مرّةً لا تُعيدُه
+    // سلسلةً. والفشلُ يُرمي الرفضَ الأصليَّ نفسَهُ بلا تمويهٍ.
+    if (
+      recovery === "allow" &&
+      !init.public &&
+      res.status === 401 &&
+      SESSION_LOST_CODES.has(code)
+    ) {
+      if ((await recoverSession()) && hasValidSession()) {
+        return apiFetch<T>(path, init, "deny");
+      }
+    }
     throw new ApiError(
       res.status,
       code,

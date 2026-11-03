@@ -462,6 +462,7 @@
   "tracking.rider_driver_arrived": "📍 Your driver has arrived at the pickup point — order {order}\n🚗 Driver: {driver}\n🔢 Plate: {plate}\n🚙 Vehicle: {vehicle}\nThe driver is waiting for you now.",
   "tracking.rider_trip_started": "🚗 Your ride {order} has started. Have a good trip.",
   "tracking.rider_trip_completed": "✅ You have arrived — ride {order} is complete.\nThank you for riding with WASLA.",
+  "tracking.rider_trip_aborted": "⚠️ Your ride {order} was cut short before arrival.\nYou can request another driver.",
   "tracking.rider_link": "📍 Follow your driver on this link (temporary, ends with the trip):\n{url}",
   "tracking.share_button": "📍 Share my live location",
   "tracking.revoke_button": "🚫 Cancel tracking link",

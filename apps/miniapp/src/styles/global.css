@@ -3957,6 +3957,15 @@ a.sys__action {
   overflow-wrap: anywhere;
 }
 
+/* WR-30 — تقييمُ الراكبِ الإحصائيّ على بطاقةِ العرضِ وتفاصيلِه. */
+.dof__rider-rating {
+  margin: 0;
+  font-size: var(--ui-size-label);
+  font-weight: 700;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
 /* الإحداثيّتانِ نصٌّ تقنيٌّ يُنقَلُ إلى تطبيقِ خريطةٍ باليدِ حتّى تُبنى الخريطةُ
    (دَينٌ مُعلَنٌ): يُصغَّرُ خطُّه ويُثبَّتُ عرضُ رقمِه فيُقرأُ ويُنسَخُ. */
 .dof__coords {
@@ -4197,6 +4206,79 @@ a.sys__action {
 .djb__advance:disabled {
   opacity: 0.6;
   cursor: default;
+}
+
+/*
+  (WR-31) زرُّ القطعِ الأحمرُ — لونُهُ **مقصودٌ مختلفٌ** عن زرِّ الطورِ (قرارُ
+  المالكِ منَ التجربةِ الميدانيةِ): هدمٌ مؤكَّدٌ لا يُلبَسُ بإنهاءٍ عاديٍّ.
+*/
+.djb__abort {
+  display: block;
+  width: 100%;
+  min-block-size: 52px;
+  padding: 0.75rem 1rem;
+  border: none;
+  border-radius: var(--r-md);
+  background: var(--ui-bad);
+  color: #fff;
+  font: inherit;
+  font-size: 1.0625rem;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: var(--w-shadow);
+}
+
+.djb__abort:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.djb__abort-confirm {
+  display: grid;
+  gap: 0.6rem;
+  padding: 0.9rem;
+  border: 1px solid var(--ui-bad);
+  border-radius: var(--r-md);
+}
+
+.djb__abort-question {
+  margin: 0;
+  font-weight: 700;
+}
+
+.djb__abort-reason {
+  min-block-size: 44px;
+  padding: 0 0.75rem;
+  border: 1px solid var(--ui-line);
+  border-radius: var(--r-md);
+  font: inherit;
+}
+
+.djb__abort-send {
+  min-block-size: 48px;
+  border: none;
+  border-radius: var(--r-md);
+  background: var(--ui-bad);
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.djb__abort-cancel {
+  min-block-size: 48px;
+  border: 1px solid var(--ui-line);
+  border-radius: var(--r-md);
+  background: transparent;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.djb__abort-error {
+  margin: 0;
+  color: var(--ui-bad);
+  font-weight: 600;
 }
 
 .djb__navigate,

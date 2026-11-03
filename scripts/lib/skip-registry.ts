@@ -1066,6 +1066,34 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     whyNotRun: null,
   },
   {
+    file: "tests/integration/wr-30-rider-rating-board.test.ts",
+    suites: ["WR-30 — تقييمُ الراكبِ الإحصائيّ على لوحِ العروض"],
+    skipped: 4,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "المُدَّعى في `WR-30` أنَّ نجومَ الراكبِ ومتوسِّطَه تُقرأُ من `riders` في استعلامِ لوحِ العروضِ نفسِه (left join)، وأنَّ رحلةً بلا تقييمٍ لا تُنشئ وسماً كاذباً. وهذا حكمُ SQL وتجميعٍ لا يقيسُه محرِّكٌ مُصنَّع.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بالهجرات مطبَّقة (ومنها 20260807170000). يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي».",
+    owner: "منفّذ المستودع",
+    criticalPath: "دورةُ الرحلةِ والإسناد",
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+  {
+    file: "tests/integration/wr-31-driver-abort-ride.test.ts",
+    suites: ["قطعُ الرحلةِ من سطحِ السائقِ (WR-31)"],
+    skipped: 11,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "المُدَّعى في `WR-31` أنَّ قطعَ السائقِ رحلتَهُ يُحوِّلُ matched/in_progress إلى cancelled بدالّةِ `driver_abort_ride` في معاملتِه، ويودِعُ إشعارَ ABORTED، ويرفضُ التقييمَ بـORDER_NOT_COMPLETED. وهذه أحكامُ معاملاتٍ وأعمدةِ حالةٍ في PostgreSQL لا يقيسُها محرِّكٌ مُصنَّع.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بالهجرات مطبَّقة (ومنها 20261103120000). يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي».",
+    owner: "منفّذ المستودع",
+    criticalPath: "دورةُ الرحلةِ والإسناد",
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+  {
     file: "tests/integration/d8-outbox-gate-per-recipient.test.ts",
     suites: ["D8 — بوابةُ صندوقِ الصادرِ: التسلسلُ على المستلِمِ لا على الطلبِ"],
     skipped: 3,

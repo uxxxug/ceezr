@@ -1,0 +1,57 @@
+{
+  "id": "wr-31-driver-abort-ride",
+  "goal": "ملاحظةُ التجربةِ الميدانيّةِ (2026-11-03): «لا بدَّ من وجودِ زرَّين: زرُّ إنهاءِ الرحلةِ وزرُّ انتهاءِ الرحلةِ بألوانٍ مختلفةٍ نوعاً ما». قرارُ المالكِ: «عاديٌّ وقطعٌ أحمر» — زرُّ إنهاءٍ عاديٌّ (WR-15) وزرُّ قطعٍ أحمرُ بخطوتَينِ، والقطعُ عَرَضٌ لِعَرَضِ الإلغاءِ (ADR 0304): matched/in_progress ← cancelled بإخطارِ ABORTED وبلا تقييمٍ بعدهُ.",
+  "canonical_source": [
+    "docs/evidence/field-trial/wr-29-30-31-20261103.md",
+    "docs/adr/0304-driver-abort-ride.md"
+  ],
+  "implementation": [
+    "supabase/migrations/20261103120000_wr_31_driver_abort_ride.sql",
+    "packages/application/driver/driver-job.ts",
+    "packages/application/driver/job-ports.ts",
+    "packages/application/driver/rider-trip-notice.ts",
+    "packages/application/transport/read-ride-summary.ts",
+    "packages/domain/driver/driver-job.ts",
+    "packages/domain/transport/ride-summary.ts",
+    "packages/infrastructure/driver/driver-job-store.ts",
+    "apps/gateway/src/routes/driver-job.ts",
+    "apps/gateway/src/rate-limit/policy.ts",
+    "packages/infrastructure/db/schema-contract.ts",
+    "scripts/lib/skip-registry.ts",
+    "tests/unit/skip-audit.test.ts",
+    "apps/gateway/src/admin/message-gallery.ts",
+    "apps/miniapp/src/surfaces/driver/DriverRoot.tsx",
+    "apps/miniapp/src/surfaces/driver/driver-flow.ts",
+    "apps/miniapp/src/surfaces/driver/driver-canonical-map.test.tsx",
+    "apps/miniapp/src/surfaces/driver/job/JobScreen.tsx",
+    "apps/miniapp/src/surfaces/driver/job/job-api.ts",
+    "apps/miniapp/src/surfaces/driver/job/job-contract.ts",
+    "apps/miniapp/src/surfaces/driver/job/job-view.ts",
+    "packages/shared/i18n/ar.json",
+    "packages/shared/i18n/en.json",
+    "packages/shared/i18n/ur.json",
+    "scripts/lib/rollback-registry.ts",
+    "tests/integration/wr-31-driver-abort-ride.test.ts",
+    "tests/unit/ride-summary-domain.test.ts"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["docs/ROADMAP-MASTER.md"],
+  "affected_docs": [
+    "docs/adr/0304-driver-abort-ride.md",
+    "docs/evidence/field-trial/wr-29-30-31-20261103.md"
+  ],
+  "decision": "نهايةٌ واحدةٌ بلا حالةِ أمرٍ رابعةٍ: driver_abort_ride يقبلُ matched/in_progress وحدهما ← cancelled (بسببٍ مسجَّلٍ حتى 500 حرفاً)، ويُدرِجُ إخطارَ ABORTED داخليّاً بمفتاحِ إزالةِ التكرارِ نفسِهِ. التقييمُ بعدَ القطعِ مرفوضٌ (ORDER_NOT_COMPLETED) والملخّصُ يُقرأ للسائقِ بعدَ القطعِ. الزرُّ الأحمرُ بخطوتَينِ ظاهرٌ في matched/in_progress وحدهما (من حالةِ المهمّةِ المنشورةِ)، وبعدَ القطعِ ينتقلُ السطحُ إلى الملخّصِ كما بعدَ الإنهاءِ.",
+  "tests": [
+    "bun run test:integration tests/integration/wr-31-driver-abort-ride.test.ts — 11/11",
+    "bun test tests/unit/ride-summary-domain.test.ts — 8/8",
+    "المجموعةُ الكاملةُ: bun test — 8249 pass / 0 fail · test:integration — 1701 pass / 0 fail"
+  ],
+  "evidence": "docs/evidence/field-trial/wr-29-30-31-20261103.md — الالتزامُ 7f3a61b1 وتصحيحُ الجذرِ في 52e90339.",
+  "constraints": [
+    "لا حالةَ أمرٍ رابعةً (aborting ونحوُها) — القطعُ إلغاءٌ بعَرَضِ سائقٍ",
+    "لا حذفَ لسجلِّ المحادثةِ ولا لسجلِّ التدقيقِ",
+    "التراجعُ مسجَّلٌ في rollback-registry",
+    "الجرحُ لا يُخفى: الإخطارُ الفاشلُ يُسجَّلُ في الالتزامِ (error) لا يُرمى"
+  ],
+  "limitations": "لم يُقَسِ القطعُ على تيليجرامَ حقيقيٍّ ولا على الإنتاجِ بعدُ. والنسخةُ الأولىُ من هجرةِ 20261103120000 كتبت enqueue_rider_trip_notice على جسمٍ قديمٍ فأسقطت حقولَ WR-15 وأحداثَ الجدولةِ (19 فشلاً في التكاملِ) — أُصلِحَ من الجذرِ بإعادةِ الكتابةِ على الجسمِ القانونيِّ، والتفصيلُ في الدليلِ."
+}

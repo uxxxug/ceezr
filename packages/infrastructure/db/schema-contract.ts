@@ -63,6 +63,7 @@ export const CONTRACT_FUNCTIONS: readonly string[] = [
   "delete_saved_place",
   "detect_ceiling_exceeded_orders",
   "detect_stalled_orders",
+  "driver_abort_ride",
   "driver_accept_offer",
   "driver_accept_offer_with_matched_notice",
   "driver_active_job",

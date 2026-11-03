@@ -40,6 +40,7 @@ import type {
 } from "../../application/driver/job-ports.ts";
 import {
   type DriverActiveJob,
+  type DriverJobAbort,
   type DriverJobArrival,
   type DriverJobCompletion,
   type DriverJobSnapshot,
@@ -69,6 +70,9 @@ const REJECTIONS: readonly DriverJobStoreRejection[] = [
   "PHASE_MISMATCH",
   "ALREADY_ARRIVED",
   "TRANSITION_REFUSED",
+  // (WR-31) رمزا القطعِ — يُمَدَّدُ المجالُ ولا يُخفى الرفضُ في `TRANSITION_REFUSED`.
+  "ORDER_NOT_ABORTABLE",
+  "REASON_TOO_LONG",
 ];
 
 function failed(reason: "STORE_ERROR" | "MALFORMED_RESULT"): DriverJobStoreError {
@@ -311,6 +315,34 @@ export class PostgresDriverJobStore implements DriverJobStore {
     return completionFrom(rows.value[0]?.result);
   }
 
+  /**
+   * (WR-31) «قطعتُ الرحلةَ» — نداءٌ حرفيٌّ بثلاثةِ وسائطَ (السببُ معها) خارجَ
+   * قائمةِ `#call` المغلقةِ ذاتِ الوسيطَين، وإيداعُ إشعارِ `ABORTED` داخلَ
+   * العبارةِ نفسِها فلا مسارَ إيداعٍ بعدها. والرفضُ يُنقَلُ كما هو.
+   */
+  async abortRide(input: {
+    readonly telegramUserId: string;
+    readonly orderId: string;
+    readonly reason: string | null;
+  }): Promise<Result<DriverJobAbort, DriverJobStoreError>> {
+    const telegramId = asTelegramId(input.telegramUserId);
+    if (telegramId === null) return err(failed("MALFORMED_RESULT"));
+    const sql = this.#sql;
+    const id = input.orderId;
+    const reason = input.reason;
+    try {
+      const rows = await sql<ResultRow[]>`
+        select driver_abort_ride(
+          ${telegramId}::bigint,
+          ${id}::uuid,
+          ${reason}::text
+        ) as result`;
+      return abortFrom(rows[0]?.result);
+    } catch {
+      return err(failed("STORE_ERROR"));
+    }
+  }
+
   async completeRideWithNotice(input: {
     readonly telegramUserId: string;
     readonly orderId: string;
@@ -395,6 +427,28 @@ function startFrom(payload: unknown): Result<DriverJobStart, DriverJobStoreError
   if (orderId === null) return err(failed("MALFORMED_RESULT"));
   // وغيابُ الختمِ ههنا **يُقالُ عَدَماً** ولا يُستبدَلُ بساعةِ العمليّةِ.
   return ok({ orderId, startedAt: readInstant(payload.started_at) });
+}
+
+/** (WR-31) أثرُ القطعِ — الختمُ والطورُ السابقُ يُقرَآنِ صارمَينِ فلا نجاحَ صامتاً. */
+function abortFrom(payload: unknown): Result<DriverJobAbort, DriverJobStoreError> {
+  if (!isRecord(payload)) return err(failed("MALFORMED_RESULT"));
+  if (payload.ok !== true) return err(rejectionFrom(payload));
+
+  const orderId = readText(payload.order_id);
+  const abortedAt = readInstant(payload.aborted_at);
+  const wasStatus = readText(payload.was_status);
+  if (
+    orderId === null ||
+    abortedAt === null ||
+    (wasStatus !== "matched" && wasStatus !== "in_progress")
+  ) {
+    return err(failed("MALFORMED_RESULT"));
+  }
+  return ok({
+    orderId,
+    abortedAt,
+    wasStatus: wasStatus as DriverJobAbort["wasStatus"],
+  });
 }
 
 function completionFrom(payload: unknown): Result<DriverJobCompletion, DriverJobStoreError> {

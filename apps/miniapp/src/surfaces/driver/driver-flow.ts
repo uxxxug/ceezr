@@ -56,6 +56,11 @@ export type DriverFlowAction =
   /** D4→D6: رحلةٌ اكتملَت من «مهمّتي» — إلى ملخّصِها. */
   | { readonly type: "jobCompleted"; readonly orderId: string }
   /**
+   * (WR-31) D4→D6: رحلةٌ قُطِعَت من «مهمّتي» — إلى ملخّصِها أيضاً، ففيهِ
+   * تقييمُ الراكبِ الذي قطعَ عليهِ السائقُ رحلتَهُ.
+   */
+  | { readonly type: "jobAborted"; readonly orderId: string }
+  /**
    * `WR-20` (§20): قراءةُ الخادمِ عندَ الدخولِ وجدَت مَهمّةً نشطةً — إلى «مهمّتي».
    * لا يقطعُ سياقًا: يُطبَّقُ على جذرِ العروضِ وحدَه، فسائقٌ فتحَ شاشةً أو تبويبًا قبلَ وصولِ الردِّ يبقى حيثُ هو.
    */
@@ -118,6 +123,10 @@ export function driverFlowReducer(
     case "jobCompleted":
       if (state.tab !== "job" || top !== null) return state;
       return push(state, { kind: "summary", orderId: action.orderId });
+    // (WR-31) القطعُ يفتحُ الملخّصَ نفسَه — فيه تقييمُ الراكبِ.
+    case "jobAborted":
+      if (state.tab !== "job" || top !== null) return state;
+      return push(state, { kind: "summary", orderId: action.orderId });
     case "open":
       // لا تُكدَّسُ الشاشةُ فوقَ نفسِها ولا تُفتَحُ مرّتَين في التدفّقِ نفسِه.
       if (state.stack.some((entry) => entry.screen.kind === action.screen.kind)) return state;
@@ -157,6 +166,8 @@ export interface DriverFlowHandlers {
   readonly offerAccepted: () => void;
   readonly offerRejected: () => void;
   readonly jobCompleted: (orderId: string) => void;
+  /** (WR-31) قطعُ الرحلةِ — إلى ملخّصِها وتقييمِ راكبِها. */
+  readonly jobAborted: (orderId: string) => void;
   readonly activeJobFound: () => void;
   readonly openDocuments: (focusDocType?: string) => void;
   readonly openVehicle: () => void;
@@ -175,6 +186,8 @@ export function driverFlowHandlers(
     offerAccepted: () => dispatch({ type: "offerAccepted" }),
     offerRejected: () => dispatch({ type: "offerRejected" }),
     jobCompleted: (orderId) => dispatch({ type: "jobCompleted", orderId }),
+    // (WR-31) القطعُ يفتحُ الملخّصَ نفسَه — فيه تقييمُ الراكبِ.
+    jobAborted: (orderId) => dispatch({ type: "jobAborted", orderId }),
     activeJobFound: () => dispatch({ type: "activeJobFound" }),
     openDocuments: (focusDocType) =>
       dispatch({ type: "open", screen: { kind: "documents", focusDocType: focusDocType ?? null } }),
