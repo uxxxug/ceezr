@@ -1,9 +1,7 @@
 {
   "id": "wr-41-field-acceptance-20261104",
   "goal": "تنفيذُ البندِ (و) من أمرِ الاستلامِ 2026-11-03 + حسمُ تناقضاتِ التوثيقِ الموثَّقةِ في §4 منه: قائمةُ قبولٍ ميدانيّةٍ بخمسِ مراتبَ (اجتاز آليًا / تحقق على الخادم / تحقق على متصفح آلي / تحقق على هاتف حقيقي داخل Telegram / لم يُختبر) لكلِّ بنودِ أمرِ الاستلامِ واختباراتِ §5 (WR-29/30/31 والمضافات)، لا يُسجَّلُ فيها اختبارٌ حقيقيٌّ على أنّه اجتازَ قبلَ نتيجةٍ فعليّةٍ؛ وتصحيحاتٌ مؤرَّخةٌ تحفظُ التاريخَ: دليلُ WR-34 الأصليّ (قالَ «مطفأة/لم تُنشَر» قبلَ نشرِ fb3825e9)، ومدخلاه في SYSTEM_STATE وROADMAP، ومدخلُ WR-35 في الثلاثة، ورأسُ STATUS.md.",
-  "canonical_source": [
-    "docs/roadmap/execution/WR-41-FIELD-ACCEPTANCE-20261104.md"
-  ],
+  "canonical_source": ["docs/roadmap/execution/WR-41-FIELD-ACCEPTANCE-20261104.md"],
   "implementation": [
     "docs/roadmap/execution/WR-41-FIELD-ACCEPTANCE-20261104.md",
     "docs/roadmap/execution/STATUS.md",
@@ -12,12 +10,8 @@
     "docs/evidence/chat-media/WR-34-chat-media-20261103.md",
     "scripts/lib/execution-roadmap.ts"
   ],
-  "state": [
-    "docs/SYSTEM_STATE.md"
-  ],
-  "roadmap": [
-    "ROADMAP.md"
-  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
   "affected_docs": [
     "docs/roadmap/execution/WR-41-FIELD-ACCEPTANCE-20261104.md",
     "docs/evidence/chat-media/WR-34-chat-media-20261103.md"
