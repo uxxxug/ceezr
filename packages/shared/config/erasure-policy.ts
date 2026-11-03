@@ -382,6 +382,25 @@ export const TABLE_ERASURE: Readonly<Record<string, ErasureRule>> = {
     exportSection: "orderMessages",
     deferredTo: null,
   },
+  /**
+   * `WR-34` (ADR 0305): صفُّ مرفقِ محادثةٍ (صورةٌ أو تسجيلٌ) ومسارُه في الدلوِ
+   * الخاصِّ `order-chat-media`. **لا يُمحى في `erase_my_account`** لأنَّ محوَ
+   * الصفِّ في SQL يُيتِّمُ الكائنَ في التخزينِ (لا يراه عاملُ الكنسِ بعدها)،
+   * فيبقى صوتُ الإنسانِ بلا مالكٍ ولا موعد. فالحكمُ الصادقُ اليومَ «يبقى بأساسٍ»
+   * محدودٍ بالاستبقاءِ الذاتيِّ: يُكنَسُ الكائنُ والصفُّ معاً بعدَ 7 أيّامٍ من
+   * انتهاءِ الطلبِ أو 30 يوماً من الرفعِ أيّهما أسبق. ورسالةُ المحادثةِ نفسُها
+   * (`order_messages`) تُمحى، فينقطعُ الربطُ بالنصِّ. **دينٌ مُعلَن**: محوٌ فوريٌّ
+   * عندَ حذفِ الحسابِ يمرُّ بعاملِ الكنسِ لا بـSQL وحدَه — قرارُ مالكٍ.
+   */
+  order_chat_attachments: {
+    disposition: D.retainLegalBasis,
+    subjects: [S.rider, S.driver],
+    linkedBy: "order_chat_attachments.uploader_user_id",
+    basis:
+      "استبقاءٌ ذاتيٌّ محدودٌ: الصفُّ والكائنُ يُكنَسانِ معاً بعدَ 7 أيّامٍ من انتهاءِ الطلبِ أو 30 يوماً من الرفعِ (ADR 0305)، ومحوُ الصفِّ في SQL وحدَه يُيتِّمُ الكائنَ في التخزين.",
+    exportSection: "orderMessages",
+    deferredTo: null,
+  },
   order_message_reads: {
     disposition: D.erase,
     subjects: [S.rider, S.driver],

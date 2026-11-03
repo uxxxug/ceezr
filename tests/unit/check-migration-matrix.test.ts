@@ -105,10 +105,12 @@ describe("مصفوفةُ الهجرةِ — الحالةُ الحاضرةُ في
   // `KEEP` لـMOVE تبعاً لدليلِ تسليمِ العروضِ (إيصالاتُ اللوحِ).
   // ثمَّ من 71 إلى **72** بجدولِ `rider_trip_event_receipts` (ADR 0287 · التكليفُ
   // السابعُ)، `NONE` في الموجةِ ٠ لأنَّ وجهتَه `KEEP` لـMOVE تبعاً لدليلِ تسليمِ أحداثِ الرحلةِ.
+  // ثمَّ من 72 إلى **73** بجدولِ `order_chat_attachments` (`WR-34` · ADR 0305)، `NONE` في
+  // الموجةِ ٠ لأنَّ مرفقَ المحادثةِ أثرُ تنفيذٍ يملكُه MOVE كأختِه `order_messages`.
   // والأرقامُ السابقةُ محفوظةٌ لا ممحوّةٌ (`ح-8`).
   it("تغطّي كلَّ جدولٍ في جردِ الحدودِ بلا زيادةٍ", () => {
-    expect(WASLA_MIGRATION_MATRIX.length).toBe(72);
-    expect(new Set(WASLA_MIGRATION_MATRIX.map((e) => e.table)).size).toBe(72);
+    expect(WASLA_MIGRATION_MATRIX.length).toBe(73);
+    expect(new Set(WASLA_MIGRATION_MATRIX.map((e) => e.table)).size).toBe(73);
   });
 
   it("لا مُدخلَ يدّعي تنفيذاً اليومَ — ولا خطّةَ عمودٍ", () => {

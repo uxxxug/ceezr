@@ -181,6 +181,11 @@ export type ApiObserver = (observation: ApiObservation) => void;
 export type ApiRequestInit = {
   method?: "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
   body?: unknown;
+  /**
+   * `WR-34` (ADR 0305): جسمٌ ثنائيٌّ خامٌ (صورةٌ أو تسجيلٌ) بنوعِه — بدلَ `body`. البوّابةُ
+   * لا تثقُ بالنوعِ المصرَّح: تفحصُ البايتات، فالنوعُ هنا تلميحٌ للنقلِ فقط.
+   */
+  rawBody?: { readonly data: Blob; readonly contentType: string };
   idempotencyKey?: string;
   /**
    * When true, skip session check.
@@ -233,7 +238,8 @@ export async function apiFetch<T>(
   init: ApiRequestInit = {},
   recovery: SessionRecoveryPolicy = "allow",
 ): Promise<T> {
-  const method = init.method ?? (init.body !== undefined ? "POST" : "GET");
+  const method =
+    init.method ?? (init.body !== undefined || init.rawBody !== undefined ? "POST" : "GET");
 
   if (!init.public && !hasValidSession()) {
     // `WR-29` (ADR 0303): الجلسةُ انتهت أثناءَ الاستخدامِ — استردادٌ صامتٌ واحدٌ
@@ -259,7 +265,9 @@ export async function apiFetch<T>(
     Accept: "application/json",
   };
 
-  if (init.body !== undefined) {
+  if (init.rawBody !== undefined) {
+    headers["Content-Type"] = init.rawBody.contentType;
+  } else if (init.body !== undefined) {
     headers["Content-Type"] = "application/json";
   }
 
@@ -285,7 +293,11 @@ export async function apiFetch<T>(
     res = await fetch(`${apiBase()}${path}`, {
       method,
       headers,
-      ...(init.body !== undefined ? { body: JSON.stringify(init.body) } : {}),
+      ...(init.rawBody !== undefined
+        ? { body: init.rawBody.data }
+        : init.body !== undefined
+          ? { body: JSON.stringify(init.body) }
+          : {}),
       ...(abort === null ? {} : { signal: abort.signal }),
     });
   } catch {

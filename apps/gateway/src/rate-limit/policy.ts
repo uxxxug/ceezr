@@ -701,6 +701,25 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
   },
 
   {
+    // `WR-34` (ADR 0305) — الحدُّ حصّةُ القاعدة: 30 وسيطًا لكلِّ مرسِلٍ في الطلب.
+    method: "POST",
+    path: "/v1/orders/:orderId/chat/media",
+    file: "apps/gateway/src/routes/order-chat.ts",
+    exposure: "مُصادَقٌ بجلسةٍ",
+    limits: [],
+    exemption: null,
+  },
+
+  {
+    method: "GET",
+    path: "/v1/orders/:orderId/chat/attachments/:attachmentId",
+    file: "apps/gateway/src/routes/order-chat.ts",
+    exposure: "مُصادَقٌ بجلسةٍ",
+    limits: [],
+    exemption: null,
+  },
+
+  {
     method: "GET",
     path: "/v1/driver/job",
     file: "apps/gateway/src/routes/driver-job.ts",
@@ -1705,8 +1724,11 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
  * 150 → 151 في 2026-10-30: `POST /internal/realtime/chat-signal` خدمةٌ لخدمةٍ بسرٍّ مشتركٍ (تعدُّدُ النسخ).
  * 151 → 152 في 2026-11-03 (WR-31): `POST /v1/driver/job/:orderId/abort` — انتقالُ
  *   حالةٍ كإخوتِهِ، مُصادَقٌ بجلسةٍ بلا حدٍّ.
+ * 152 → 154 في 2026-11-03 (WR-34، ADR 0305): `POST /v1/orders/:orderId/chat/media` و
+ *   `GET /v1/orders/:orderId/chat/attachments/:attachmentId` — مُصادَقانِ بجلسةٍ، والحدُّ حصّةُ
+ *   القاعدةِ لكلِّ مرسِلٍ في الطلب.
  */
-export const ROUTE_POLICY_COUNT = 152;
+export const ROUTE_POLICY_COUNT = 154;
 export const LIMITED_ROUTE_COUNT = 10;
 /** 4 → 5 في 2026-10-18 (ADR 0287): `/internal/realtime/rider-trip-signal` بسرٍّ مشتركٍ كأختِه.
  *  5 → 6 في 2026-10-30: `/internal/realtime/chat-signal` بسرٍّ مشتركٍ كأختَيه. */

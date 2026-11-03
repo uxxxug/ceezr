@@ -1,0 +1,54 @@
+import { chromium } from "playwright-core";
+import { writeFileSync } from "node:fs";
+import { inspectChatMedia } from "/home/user/workspace/ceezr-wr34/packages/domain/messaging/chat-media.ts";
+import { pickVoiceMime } from "/home/user/workspace/ceezr-wr34/apps/miniapp/src/surfaces/chat/chat-media-capture.ts";
+const exe = `${process.env.HOME}/.cache/ms-playwright/chromium-1217/chrome-linux64/chrome`;
+const server = Bun.serve({ port: 0, fetch: () => new Response("<html><body>ok</body></html>", { headers: { "content-type": "text/html" } }) });
+const origin = `http://localhost:${server.port}`;
+const out: Record<string, unknown> = {};
+{
+  const browser = await chromium.launch({ executablePath: exe, args: ["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream"] });
+  const page = await browser.newPage();
+  await page.goto(origin);
+  out.version = browser.version();
+  const supported = await page.evaluate(() => ["audio/mp4","audio/webm;codecs=opus","audio/webm","audio/ogg;codecs=opus"].map((t) => [t, MediaRecorder.isTypeSupported(t)]));
+  out.supported = supported;
+  for (const [mime, ok] of supported as [string, boolean][]) {
+    if (!ok) continue;
+    const res = await page.evaluate(async (mimeType) => {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const rec = new MediaRecorder(stream, { mimeType });
+      const chunks: Blob[] = [];
+      rec.ondataavailable = (e) => chunks.push(e.data);
+      const started = performance.now();
+      rec.start();
+      await new Promise((r) => setTimeout(r, 2500));
+      const done = new Promise((r) => (rec.onstop = r));
+      rec.stop(); await done;
+      stream.getTracks().forEach((t) => t.stop());
+      const blob = new Blob(chunks, { type: rec.mimeType });
+      const buf = new Uint8Array(await blob.arrayBuffer());
+      return { type: blob.type, ms: Math.round(performance.now() - started), b64: btoa(String.fromCharCode(...buf)) };
+    }, mime);
+    const bytes = Uint8Array.from(atob(res.b64), (c) => c.charCodeAt(0));
+    writeFileSync(`/tmp/pw/rec-${mime.replace(/[^a-z0-9]/g, "_")}.bin`, bytes);
+    const v = inspectChatMedia({ kind: "voice", bytes, declaredDurationMs: res.ms });
+    out[mime] = { recorderType: res.type, bytes: bytes.length, clientMs: res.ms, verdict: v.ok ? { ok: true, mime: v.mime, durationMs: (v as {durationMs:number}).durationMs } : v };
+  }
+  out.pickVoiceMime = await page.evaluate(() => 1) && pickVoiceMime({ MediaRecorder: { isTypeSupported: (t: string) => (supported as [string, boolean][]).some(([m, o]) => m === t && o) } as never });
+  await browser.close();
+}
+{
+  // رفضُ الإذن: بلا fake-ui، والسياقُ بلا إذنِ ميكروفون.
+  const browser = await chromium.launch({ executablePath: exe, args: ["--use-fake-device-for-media-stream"] });
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  await page.goto(origin);
+  out.denied = await page.evaluate(async () => {
+    try { await navigator.mediaDevices.getUserMedia({ audio: true }); return "granted"; }
+    catch (e) { return (e as DOMException).name; }
+  });
+  await browser.close();
+}
+server.stop();
+console.log(JSON.stringify(out, null, 2));

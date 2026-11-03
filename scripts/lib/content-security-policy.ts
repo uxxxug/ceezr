@@ -151,7 +151,11 @@ export function originOf(value: string | undefined): string | null {
  * - `style-src 'self' <بصماتُ الأنماطِ المُدمَجةِ>` — الأنماطُ صارت في المستندِ
  *   بقرارِ `F1-09` (طلبُ شبكةٍ أقلُّ)، فبصمتُها **شرطُ عملِ التطبيق**: البندانِ
  *   مقترنانِ لا مستقلّانِ.
- * - `img-src 'self' data:` — `data:` لأنّ أيقونةً مُدمَجةً في CSS تُقرأ صورةً.
+ * - `img-src 'self' data: blob:` — `data:` لأنّ أيقونةً مُدمَجةً في CSS تُقرأ صورةً، و`blob:`
+ *   (`WR-34`، ADR 0305) لمعاينةِ صورةِ المحادثةِ على الجهازِ قبلَ إرسالِها. وصورُ المحادثةِ
+ *   المستلَمةُ تُقرأُ من الأصلِ نفسِه برابطٍ موقَّعٍ قصير (`OBJECT_STORAGE_PUBLIC_URL` = أصلُ التطبيق).
+ * - `media-src 'self' blob:` — `WR-34`: الرسالةُ الصوتيّةُ تُشغَّلُ من الرابطِ الموقَّعِ (الأصلُ
+ *   نفسُه) أو من تسجيلٍ محلّيٍّ قبلَ إرسالِه (`blob:`). ولا أصلَ خارجيَّ.
  * - `connect-src` — الأصلُ نفسُه، ومعه أصلُ الواجهةِ إن كان مطلقاً في زمنِ البناء.
  * - `base-uri 'none'` — يمنع تحويلَ كلِّ مسارٍ نسبيٍّ بوسمِ `<base>` مُحقَن.
  * - `form-action 'none'` — لا نموذجَ في التطبيقِ، فالإرسالُ إلى أيِّ مكانٍ ممنوعٌ.
@@ -177,7 +181,8 @@ export function buildCsp(inputs: CspInputs): string {
     "default-src 'none'",
     `script-src ${scripts}`,
     `style-src ${styles}`,
-    "img-src 'self' data:",
+    "img-src 'self' data: blob:",
+    "media-src 'self' blob:",
     `connect-src ${connect}`,
     "base-uri 'none'",
     "form-action 'none'",

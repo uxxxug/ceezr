@@ -920,6 +920,20 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     whyNotRun: null,
   },
   {
+    file: "tests/integration/wr-34-chat-media.test.ts",
+    suites: ["WR-34 — وسائطُ المحادثةِ: المسارُ الكاملُ على قاعدةٍ حقيقيّة"],
+    skipped: 14,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "المُدَّعى في `WR-34` (ADR 0305) أنَّ الصورةَ والتسجيلَ يُرفَعانِ ويُخزَّنانِ ويُسترجَعانِ في الاتّجاهين، وأنَّ غيرَ الطرفِ والمحادثةَ الأخرى يُرَدّانِ من القاعدة، وأنَّ معرّفَ العميلِ يمنعُ صفّاً ثانياً عندَ إعادةِ المحاولة، وأنَّ الحصّةَ والكنسَ والاستبقاءَ أحكامُ دوالَّ في PostgreSQL — وهذا لا يقيسُه محرِّكٌ مُصنَّع.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بها postgis والهجرات مطبّقة (ومنها 20261103150000). يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي».",
+    owner: "منفّذ المستودع",
+    criticalPath: "دورةُ الرحلةِ والإسناد",
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+  {
     file: "tests/integration/order-chat.test.ts",
     suites: ["WR-04 — محادثةُ طرفَي الطلبِ على قاعدةٍ حقيقيّة"],
     skipped: 12,

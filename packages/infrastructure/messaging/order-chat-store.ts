@@ -8,7 +8,9 @@
  */
 
 import type {
+  OrderChatAttachment,
   OrderChatLocation,
+  OrderChatMediaStore,
   OrderChatMessage,
   OrderChatRole,
   OrderChatStore,
@@ -29,6 +31,9 @@ const REJECTIONS: readonly OrderChatStoreRejection[] = [
   "MESSAGE_KIND_INVALID",
   "LOCATION_INVALID",
   "CLIENT_ID_INVALID",
+  "ATTACHMENT_INVALID",
+  "ATTACHMENT_NOT_FOUND",
+  "ATTACHMENT_QUOTA",
 ];
 
 type Payload = Readonly<Record<string, unknown>>;
@@ -109,11 +114,16 @@ export function readChatMessage(value: unknown): OrderChatMessage | null {
     return null;
   }
   const kind = value.kind === undefined || value.kind === null ? "text" : value.kind;
-  if (kind !== "text" && kind !== "location") return null;
+  if (kind !== "text" && kind !== "location" && kind !== "image" && kind !== "voice") return null;
   let location: OrderChatLocation | null = null;
   if (kind === "location") {
     location = readStoredLocation(value.payload);
     if (location === null) return null;
+  }
+  let attachment: OrderChatAttachment | null = null;
+  if (kind === "image" || kind === "voice") {
+    // `WR-34` — وسيطٌ بلا سجلِّ مرفقٍ مقروءٍ ⇒ يُعرَضُ «غيرَ متاح» لا يُسقِطُ المحادثة.
+    attachment = readStoredAttachment(value.attachment, kind);
   }
   return {
     id: value.id,
@@ -125,6 +135,38 @@ export function readChatMessage(value: unknown): OrderChatMessage | null {
     createdAt,
     kind,
     location,
+    ...(kind === "image" || kind === "voice" ? { attachment } : {}),
+  };
+}
+
+const MEDIA_MIME = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "audio/webm",
+  "audio/mp4",
+  "audio/ogg",
+]);
+
+/** `WR-34` — سجلُّ المرفقِ من مردِّ القاعدة؛ ما لا يُقرأُ يصيرُ «غيرَ متاح» بلا رابط. */
+export function readStoredAttachment(
+  value: unknown,
+  kind: "image" | "voice",
+): OrderChatAttachment | null {
+  if (!isRecord(value) || typeof value.id !== "string" || value.kind !== kind) return null;
+  const mimeType =
+    typeof value.mime_type === "string" && MEDIA_MIME.has(value.mime_type) ? value.mime_type : null;
+  const byteSize = readInt(value.byte_size);
+  if (mimeType === null || byteSize === null) return null;
+  return {
+    id: value.id,
+    kind,
+    mimeType,
+    byteSize,
+    width: readInt(value.width),
+    height: readInt(value.height),
+    durationMs: readInt(value.duration_ms),
+    available: value.available === true,
   };
 }
 
@@ -176,6 +218,7 @@ export function readChatThread(payload: Payload): OrderChatThread | null {
     myLastReadSeq,
     counterpartLastReadSeq,
     unread,
+    hasOlder: payload.has_older === true,
   };
 }
 
@@ -218,10 +261,13 @@ export function createOrderChatStore(sql: Sql): OrderChatStore {
       if (!TELEGRAM_ID_PATTERN.test(input.telegramUserId)) {
         return err({ rejection: "CHAT_NOT_FOUND" });
       }
+      // `WR-34` — الصفحةُ بالوسائط: الذيلُ (`after` = null) أو الأقدمُ (`before`) أو التزايديّ.
+      const before = input.beforeSeq ?? null;
+      const after = before === null && input.tail === true ? null : input.afterSeq;
       const result = await call(
         sql,
-        "select list_order_messages($1::bigint, $2::uuid, $3::bigint, $4::integer) as result",
-        [input.telegramUserId, input.orderId, input.afterSeq, input.limit],
+        "select list_order_messages_page($1::bigint, $2::uuid, $3::bigint, $4::bigint, $5::integer) as result",
+        [input.telegramUserId, input.orderId, after, before, input.limit],
       );
       if (!result.ok) return result;
       if (result.value.ok !== true) return err(rejectionFrom(result.value));
@@ -283,6 +329,101 @@ export function createOrderChatStore(sql: Sql): OrderChatStore {
       if (!result.ok) return result;
       if (result.value.ok !== true) return err(rejectionFrom(result.value));
       return ok(undefined);
+    },
+  };
+}
+
+/**
+ * `WR-34` (ADR 0305) — سجلّاتُ مرفقاتِ المحادثة: حجزٌ ثمّ ربطٌ بالرسالةِ في معاملةٍ واحدة،
+ * وإسقاطُ المعلَّق، وتفويضُ القراءة. كلُّ حكمٍ في القاعدة (الطرفان، والنافذة، والحصّة).
+ */
+export function createOrderChatMediaStore(sql: Sql): OrderChatMediaStore {
+  return {
+    reserve: async (input) => {
+      if (!TELEGRAM_ID_PATTERN.test(input.telegramUserId)) {
+        return err({ rejection: "CHAT_NOT_FOUND" });
+      }
+      const result = await call(
+        sql,
+        "select reserve_order_chat_attachment($1::bigint, $2::uuid, $3::uuid, $4::text, $5::text, $6::integer, $7::integer, $8::integer, $9::integer) as result",
+        [
+          input.telegramUserId,
+          input.orderId,
+          input.clientMessageId,
+          input.kind,
+          input.mimeType,
+          input.byteSize,
+          input.width,
+          input.height,
+          input.durationMs,
+        ],
+      );
+      if (!result.ok) return result;
+      if (result.value.ok !== true) return err(rejectionFrom(result.value));
+      if (result.value.status === "duplicate") {
+        const message = readChatMessage(result.value.message);
+        if (message === null) return err(malformed);
+        return ok({ status: "duplicate", message });
+      }
+      const attachmentId = result.value.attachment_id;
+      const objectPath = result.value.object_path;
+      if (
+        result.value.status !== "reserved" ||
+        typeof attachmentId !== "string" ||
+        typeof objectPath !== "string"
+      ) {
+        return err(malformed);
+      }
+      return ok({ status: "reserved", attachmentId, objectPath });
+    },
+
+    attach: async (input) => {
+      if (!TELEGRAM_ID_PATTERN.test(input.telegramUserId)) {
+        return err({ rejection: "CHAT_NOT_FOUND" });
+      }
+      const result = await call(
+        sql,
+        "select post_order_message_kind($1::bigint, $2::uuid, $3::uuid, $4::text, null, $5::text::jsonb) as result",
+        [
+          input.telegramUserId,
+          input.orderId,
+          input.clientMessageId,
+          input.kind,
+          JSON.stringify({ attachment_id: input.attachmentId }),
+        ],
+      );
+      if (!result.ok) return result;
+      if (result.value.ok !== true) return err(rejectionFrom(result.value));
+      const status = result.value.status;
+      const message = readChatMessage(result.value.message);
+      if ((status !== "added" && status !== "duplicate") || message === null) return err(malformed);
+      return ok({ status, message });
+    },
+
+    discard: async (attachmentId) => {
+      const result = await call(sql, "select discard_order_chat_attachment($1::uuid) as result", [
+        attachmentId,
+      ]);
+      if (!result.ok) return result;
+      const path = result.value.object_path;
+      return ok(typeof path === "string" ? path : null);
+    },
+
+    authorizeRead: async (input) => {
+      if (!TELEGRAM_ID_PATTERN.test(input.telegramUserId)) {
+        return err({ rejection: "ATTACHMENT_NOT_FOUND" });
+      }
+      const result = await call(
+        sql,
+        "select authorize_order_chat_attachment_read($1::bigint, $2::uuid, $3::uuid) as result",
+        [input.telegramUserId, input.orderId, input.attachmentId],
+      );
+      if (!result.ok) return result;
+      if (result.value.ok !== true) return err(rejectionFrom(result.value));
+      const objectPath = result.value.object_path;
+      const mimeType = result.value.mime_type;
+      if (typeof objectPath !== "string" || typeof mimeType !== "string") return err(malformed);
+      return ok({ objectPath, mimeType });
     },
   };
 }

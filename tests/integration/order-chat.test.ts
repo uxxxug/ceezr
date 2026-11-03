@@ -422,8 +422,12 @@ describeIf("WR-04 — محادثةُ طرفَي الطلبِ على قاعدةٍ
       ).toBe("LOCATION_INVALID");
     }
     expect(
-      (await postKind(RIDER_TG, orderId, crypto.randomUUID(), "image", { lat: 1, lng: 1 })).error,
+      (await postKind(RIDER_TG, orderId, crypto.randomUUID(), "video", { lat: 1, lng: 1 })).error,
     ).toBe("MESSAGE_KIND_INVALID");
+    // `WR-34` (ADR 0305): الصورةُ نوعٌ مقبولٌ الآن، لكن بمرفقٍ محجوزٍ فقط — لا بحمولةٍ حرّة.
+    expect(
+      (await postKind(RIDER_TG, orderId, crypto.randomUUID(), "image", { lat: 1, lng: 1 })).error,
+    ).toBe("ATTACHMENT_INVALID");
     expect(messagesOf(await list(DRIVER_TG, orderId))).toHaveLength(0);
     // والقيدُ في الجدولِ نفسِه يمنعُ كتابةً تتجاوزُ الدالّة.
     let blocked = false;

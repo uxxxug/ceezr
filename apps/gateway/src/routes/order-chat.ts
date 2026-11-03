@@ -2,6 +2,9 @@
  * الغرض: `WR-04` — مساراتُ محادثةِ طرفَي الطلبِ:
  *   `GET /v1/orders/:orderId/chat?after=<seq>` و`POST /v1/orders/:orderId/chat/messages`
  *   و`POST /v1/orders/:orderId/chat/read`.
+ *   `WR-34` (ADR 0305): `POST /v1/orders/:orderId/chat/media?kind=&client_message_id=&duration_ms=`
+ *   (جسمٌ ثنائيٌّ خام، يُفحَصُ ويُنظَّفُ في الخادم) و`GET /v1/orders/:orderId/chat/attachments/:id`
+ *   (رابطٌ موقَّعٌ قصيرٌ لطرفِ المحادثةِ وحدَه، `Cache-Control: no-store`).
  * الحالة: منفّذ فعلياً.
  * ينتمي إلى: apps/gateway/src/routes
  * يُستخدم من: `apps/gateway/src/server.ts` عبرَ تركيبٍ اختياريٍّ.
@@ -20,6 +23,10 @@ import {
   postOrderChatMessage,
   readOrderChat,
 } from "../../../../packages/application/messaging/order-chat.ts";
+import {
+  postOrderChatMedia,
+  readOrderChatAttachment,
+} from "../../../../packages/application/messaging/order-chat-media.ts";
 import { navigationUrlFor } from "./place-links.ts";
 import { readBounded } from "./telegram-webhook.ts";
 
@@ -31,7 +38,9 @@ export interface OrderChatRouteDependencies {
 /** رسالةٌ بألفِ محرفٍ عربيٍّ ومعرّفٍ — والحدُّ حدُّ نقلٍ لا قيمةٌ تجاريّة. */
 export const ORDER_CHAT_MAX_BYTES = 4096;
 
-const STATUS_BY_ERROR: Readonly<Record<OrderChatPublicErrorCode, 401 | 404 | 409 | 422 | 503>> = {
+const STATUS_BY_ERROR: Readonly<
+  Record<OrderChatPublicErrorCode, 401 | 404 | 409 | 413 | 415 | 422 | 429 | 503>
+> = {
   SESSION_REQUIRED: 401,
   SESSION_EXPIRED: 401,
   SESSION_INVALID: 401,
@@ -49,6 +58,17 @@ const STATUS_BY_ERROR: Readonly<Record<OrderChatPublicErrorCode, 401 | 404 | 409
   MESSAGE_KIND_INVALID: 422,
   LOCATION_INVALID: 422,
   CHAT_STORE_NOT_AVAILABLE: 503,
+  // `WR-34` — الوسائط.
+  MEDIA_DISABLED: 503,
+  MEDIA_TOO_LARGE: 413,
+  MEDIA_TYPE_UNSUPPORTED: 415,
+  MEDIA_INVALID: 422,
+  MEDIA_DURATION_INVALID: 422,
+  MEDIA_QUOTA: 429,
+  ATTACHMENT_INVALID: 422,
+  // لا فرقَ بينَ «لا ملفَّ» و«ليسَ ملفَّكَ» ولا «ملفُّ محادثةٍ أخرى».
+  ATTACHMENT_NOT_FOUND: 404,
+  MEDIA_STORE_UNAVAILABLE: 503,
 };
 
 function rejected(c: Context, code: OrderChatPublicErrorCode) {
@@ -92,8 +112,54 @@ export function wireMessage(message: OrderChatMessage) {
             from: message.translation.from,
             to: message.translation.to,
           },
+    attachment:
+      message.attachment === undefined || message.attachment === null
+        ? null
+        : {
+            id: message.attachment.id,
+            kind: message.attachment.kind,
+            mime_type: message.attachment.mimeType,
+            byte_size: message.attachment.byteSize,
+            width: message.attachment.width,
+            height: message.attachment.height,
+            duration_ms: message.attachment.durationMs,
+            available: message.attachment.available,
+          },
     created_at: message.createdAt,
   };
+}
+
+/** `WR-34` — قراءةٌ ثنائيّةٌ محدودةٌ بالقياسِ الفعليِّ للتدفّق، لا بالترويسةِ وحدَها. */
+export async function readBoundedBytes(
+  body: ReadableStream<Uint8Array> | null,
+  maxBytes: number,
+): Promise<Uint8Array | "TOO_LARGE"> {
+  if (body === null) return new Uint8Array(0);
+  const reader = body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (value === undefined) continue;
+      total += value.byteLength;
+      if (total > maxBytes) {
+        await reader.cancel();
+        return "TOO_LARGE";
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  const merged = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    merged.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return merged;
 }
 
 async function readJson(c: Context): Promise<unknown | "TOO_LARGE" | "INVALID"> {
@@ -117,6 +183,8 @@ export function createOrderChatRoutes(deps: OrderChatRouteDependencies): Hono {
       accessToken: bearerTokenFrom(c.req.header("authorization")),
       orderId: c.req.param("orderId"),
       afterSeq: c.req.query("after"),
+      beforeSeq: c.req.query("before"),
+      tail: c.req.query("tail"),
     });
     if (!result.ok) return rejected(c, result.error);
     const thread = result.value;
@@ -140,6 +208,50 @@ export function createOrderChatRoutes(deps: OrderChatRouteDependencies): Hono {
       unread: thread.unread,
       // `WR-04` (ADR 0277) — الإفصاحُ: رسائلُ المحادثةِ تُترجَمُ آليًّا عبرَ خدمةٍ خارجيّة.
       translation_active: thread.translationActive === true,
+      // `WR-34` — صفحاتُ الأقدمِ وقدرةُ الوسائط (الحدودُ من الخادمِ لا من العميل).
+      has_older: thread.hasOlder === true,
+      media: {
+        enabled: thread.media?.enabled === true,
+        image_max_bytes: thread.media?.imageMaxBytes ?? 0,
+        voice_max_bytes: thread.media?.voiceMaxBytes ?? 0,
+        voice_max_ms: thread.media?.voiceMaxMs ?? 0,
+      },
+    });
+  });
+
+  app.post("/v1/orders/:orderId/chat/media", async (c) => {
+    if (deps.chat === undefined) return rejected(c, "CHAT_STORE_NOT_AVAILABLE");
+    const declared = Number(c.req.header("content-length") ?? Number.NaN);
+    const result = await postOrderChatMedia(deps.chat, {
+      accessToken: bearerTokenFrom(c.req.header("authorization")),
+      orderId: c.req.param("orderId"),
+      kind: c.req.query("kind"),
+      clientMessageId: c.req.query("client_message_id"),
+      durationMs: c.req.query("duration_ms"),
+      declaredBytes: Number.isFinite(declared) ? declared : null,
+      readBody: (maxBytes) => readBoundedBytes(c.req.raw.body, maxBytes),
+    });
+    if (!result.ok) return rejected(c, result.error);
+    return c.json(
+      { ok: true, status: result.value.status, message: wireMessage(result.value.message) },
+      result.value.status === "added" ? 201 : 200,
+    );
+  });
+
+  app.get("/v1/orders/:orderId/chat/attachments/:attachmentId", async (c) => {
+    c.header("Cache-Control", "no-store");
+    if (deps.chat === undefined) return rejected(c, "CHAT_STORE_NOT_AVAILABLE");
+    const result = await readOrderChatAttachment(deps.chat, {
+      accessToken: bearerTokenFrom(c.req.header("authorization")),
+      orderId: c.req.param("orderId"),
+      attachmentId: c.req.param("attachmentId"),
+    });
+    if (!result.ok) return rejected(c, result.error);
+    return c.json({
+      ok: true,
+      url: result.value.url,
+      expires_at: result.value.expiresAt,
+      mime_type: result.value.mimeType,
     });
   });
 

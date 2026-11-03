@@ -1,0 +1,4 @@
+const map: Record<string, string> = { react: "preact/compat", "react-dom": "preact/compat", "react/jsx-runtime": "preact/jsx-runtime", "react/jsx-dev-runtime": "preact/jsx-runtime", "react-dom/client": "preact/compat/client" };
+const r = await Bun.build({ entrypoints: ["./entry.tsx"], outdir: "./out", target: "browser", minify: false,
+  plugins: [{ name: "alias", setup(b) { b.onResolve({ filter: /^(react|react-dom|preact)(\/.*)?$/ }, (a) => ({ path: Bun.resolveSync(map[a.path] ?? a.path, `${process.cwd()}/../apps/miniapp`) })); } }] });
+console.log(r.success, r.outputs.map((o) => o.path), r.logs.slice(0, 5));
