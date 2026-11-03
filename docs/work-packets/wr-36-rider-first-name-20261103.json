@@ -1,9 +1,7 @@
 {
   "id": "wr-36-rider-first-name-20261103",
   "goal": "تنفيذُ قرارِ المالكِ (WR-32 §5-ج، المُستلَّمِ في أمرِ الاستلامِ 2026-11-03): رسائلُ بوتِ السائقِ المتعلّقةُ بتقييمِ الراكبِ واكتمالِ الرحلةِ تعرضُ الاسمَ الأوّلَ وحدَه في اللغاتِ الثلاثِ، معَ اختبارٍ يمنعُ رجوعَ الاسمِ الكاملِ مستقبلًا.",
-  "canonical_source": [
-    "docs/evidence/compliance/WR-36-rider-first-name-20261103.md"
-  ],
+  "canonical_source": ["docs/evidence/compliance/WR-36-rider-first-name-20261103.md"],
   "implementation": [
     "packages/application/bots/rating-dialog.ts",
     "packages/shared/i18n/ar.json",
@@ -13,12 +11,8 @@
     "tests/unit/wr-36-rider-first-name.test.ts",
     "tests/integration/mutual-ratings.test.ts"
   ],
-  "state": [
-    "docs/SYSTEM_STATE.md"
-  ],
-  "roadmap": [
-    "ROADMAP.md"
-  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
   "affected_docs": [
     "docs/evidence/compliance/WR-36-rider-first-name-20261103.md",
     "docs/roadmap/execution/STATUS.md"
