@@ -27,6 +27,11 @@ export interface DeliverNoticesOutcome {
   readonly sent: number;
   readonly failed: number;
   readonly retried: number;
+  /**
+   * إشعاراتُ نهايةٍ خرجت بإحالةٍ إلى الدعمِ لا برابطِ قروبٍ (مدينةٌ بلا رابطٍ معتمَدٍ،
+   * أو رابطٌ تالفٌ، أو سائقٌ غيرُ موثَّق) — تُسجَّلُ في ملخّصِ المهمّةِ (WR-35).
+   */
+  readonly withoutGroupLink: number;
 }
 
 /** تاريخٌ للعرض: يومٌ فقط. ساعةُ الانتهاء لا تعني السائق ولا يقرؤها. */
@@ -56,14 +61,44 @@ function planLabel(plan: string | undefined, language: string): string {
  * • انتهاءُ اشتراكٍ مدفوع دعوةٌ إلى تجديدٍ يعرفه السائق أصلاً.
  * • الإلغاءُ نهايةٌ طلبها هو، فالتذكيرُ بأنّها بطلبه يمنع شكواه من قطعٍ لم يقع.
  */
+/**
+ * شكلُ رابطِ القروبِ المقبولِ — نفسُ نمطِ `claim_subscription_notices` (WR-35).
+ * دفاعٌ ثانٍ: حمولةٌ قديمةٌ أو يدويّةٌ لا تُرسِلُ للسائقِ نصًّا ليس رابطَ تلغرام.
+ */
+const GROUP_LINK_PATTERN =
+  /^https:\/\/t\.me\/(\+[A-Za-z0-9_-]{8,}|joinchat\/[A-Za-z0-9_-]{8,}|[A-Za-z][A-Za-z0-9_]{3,31})\/?$/;
+
+/** الرابطُ الصالحُ للإرسالِ أو `null` — فيُحالُ السائقُ إلى الدعم. */
+export function usableGroupLink(notice: SubscriptionNotice): string | null {
+  const link = (notice.payload.group_link ?? "").trim();
+  if (link === "" || !GROUP_LINK_PATTERN.test(link)) return null;
+  const status = notice.payload.group_link_status;
+  if (status !== undefined && status !== "ok") return null;
+  return link;
+}
+
+/** اسمُ المدينةِ بلغةِ السائقِ، أو «مدينتك» إن غاب. الأرديّةُ تقرأ الحرفَ العربيَّ. */
+function cityLabel(notice: SubscriptionNotice): string {
+  const tr = t(notice.languageCode);
+  const name =
+    notice.languageCode === "en" ? notice.payload.city_name_en : notice.payload.city_name_ar;
+  return name !== undefined && name.trim() !== "" ? name : tr("driver.notice_group_city_fallback");
+}
+
+/** هل يحمل الإشعارُ «الطريقَ الثاني» (القروب أو الدعم)؟ التفعيلُ وحدَه لا. */
+function carriesNextStep(kind: SubscriptionNotice["kind"]): boolean {
+  return kind !== "activated";
+}
+
 export function noticeText(notice: SubscriptionNotice): string {
   const tr = t(notice.languageCode);
   const plan = planLabel(notice.payload.plan, notice.languageCode);
-  const groupLink = notice.payload.group_link ?? "";
+  const groupLink = usableGroupLink(notice);
+  const city = cityLabel(notice);
   const nextStep =
-    groupLink === ""
-      ? tr("driver.notice_group_ask_support")
-      : tr("driver.notice_group_link", { link: groupLink });
+    groupLink === null
+      ? tr("driver.notice_group_ask_support", { city })
+      : tr("driver.notice_group_link", { link: groupLink, city });
 
   switch (notice.kind) {
     case "activated":
@@ -96,8 +131,10 @@ export async function deliverSubscriptionNotices(
   let sent = 0;
   let failed = 0;
   let retried = 0;
+  let withoutGroupLink = 0;
 
   for (const notice of claimed.value) {
+    if (carriesNextStep(notice.kind) && usableGroupLink(notice) === null) withoutGroupLink += 1;
     const published = await deps.publisher.publish({
       chatId: notice.chatId,
       text: noticeText(notice),
@@ -116,5 +153,5 @@ export async function deliverSubscriptionNotices(
     else retried += 1;
   }
 
-  return ok({ claimed: claimed.value.length, sent, failed, retried });
+  return ok({ claimed: claimed.value.length, sent, failed, retried, withoutGroupLink });
 }

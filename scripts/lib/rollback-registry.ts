@@ -1599,6 +1599,17 @@ export const ROLLBACK_DECLARATIONS: readonly RollbackDeclaration[] = [
     criticalPath: "دورةُ الرحلةِ والإسناد",
     documentedIn: null,
   },
+  {
+    migration: "20261103163500_wr_35_unsubscribed_group_links.sql",
+    change: "revoke_function:claim_subscription_notices(1)",
+    why: "WR-35 — `create or replace` لـ`claim_subscription_notices` بالتوقيعِ والمردِّ نفسِهما (يُضافُ حقلُ `skipped` وحدَه): قبلَ الحجزِ يُلغى (`canceled`) إشعارُ المحظورِ (`RECIPIENT_BLOCKED`) وإشعارُ النهايةِ الذي تجاوزه تجديدٌ (`SUPERSEDED_BY_RENEWAL`)، ويُحدَّثُ رابطُ قروبِ غيرِ المشتركين من إعدادِ المدينةِ لحظةَ الحجزِ مع `group_link_status`. والسحبُ إعادةُ قفلِ السطحِ كما كانَ: لـ`service_role` وحدَها قبلَ وبعدُ. **ولا كسرَ لنسخةٍ سابقةٍ**: النسخةُ القديمةُ تتجاهلُ الحقولَ الزائدةَ في الحمولةِ وفي المردِّ، وتُرسِلُ الرابطَ كما يصلُها. والعودةُ إعادةُ تطبيقِ نصِّ الدالّةِ من `20260908020000` — تراجعٌ سلوكيٌّ (عودةُ إرسالِ نهايةٍ بعدَ تجديدٍ) لا فقدُ عقدٍ؛ والصفوفُ الملغاةُ تبقى سجلًّا لا تُحذَف.",
+    breaksPreviousRelease: false,
+    rollbackPath: "code-only",
+    coupledDeploy: true,
+    owner: "منفّذ المستودع",
+    criticalPath: "الدفعُ والاشتراك",
+    documentedIn: null,
+  },
 ];
 
 /**
