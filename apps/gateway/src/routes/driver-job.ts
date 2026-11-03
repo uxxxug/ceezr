@@ -37,6 +37,7 @@
 
 import { type Context, Hono } from "hono";
 import {
+  abortDriverRide,
   completeDriverRide,
   type DriverJobDeps,
   type DriverJobPublicErrorCode,
@@ -81,6 +82,10 @@ const STATUS_BY_ERROR: Readonly<
   PHASE_MISMATCH: 409,
   ALREADY_ARRIVED: 409,
   TRANSITION_REFUSED: 409,
+  // (WR-31) قطعُ الرحلةِ — الطورُ لا يُقطَعُ منه تعارُضٌ، والسببُ المفرطُ
+  // قيمةٌ غيرُ مقبولةٍ لا عطبَ خدمةٍ ولا منعَ صلاحيةٍ.
+  ORDER_NOT_ABORTABLE: 409,
+  REASON_TOO_LONG: 422,
 };
 
 function rejected(c: Context, rejection: DriverJobRejection) {
@@ -270,6 +275,50 @@ export function createDriverJobRoutes(deps: DriverJobRouteDependencies): Hono {
       completed_at: result.value.completedAt,
       // المدّةُ **مقيسةٌ في الكاتبِ** — تُنقَلُ ولا تُحسَبُ ههنا.
       duration_seconds: result.value.durationSeconds,
+    });
+  });
+
+  /**
+   * (WR-31) «قطعتُ الرحلةَ» — قطعٌ **قبلَ الوصولِ** لا إنهاءٌ: الطلبُ يصيرُ
+   * `cancelled` والسائقُ يعودُ متاحاً وإشعارُ `ABORTED` يُودَعُ داخلَ العبارةِ.
+   * والسببُ نصٌّ اختياريٌّ يُقيَّدُ في السجلِّ — الحدَّ يُحكِمُه الكاتبُ.
+   */
+  app.post("/v1/driver/job/:orderId/abort", async (c) => {
+    if (deps.job === undefined) {
+      deps.log?.("driver_job.abort_disabled", {});
+      return rejected(c, unavailable("JOB_STORE_NOT_AVAILABLE"));
+    }
+
+    let body: unknown = {};
+    try {
+      body = await c.req.json();
+    } catch {
+      body = {};
+    }
+    const reason =
+      typeof body === "object" && body !== null && "reason" in body
+        ? (body as { reason?: unknown }).reason
+        : undefined;
+
+    const result = await abortDriverRide(deps.job, {
+      accessToken: bearerTokenFrom(c.req.header("authorization")),
+      orderId: c.req.param("orderId"),
+      reason,
+    });
+    if (!result.ok) {
+      deps.log?.("driver_job.abort_rejected", { error: result.error.code });
+      return rejected(c, result.error);
+    }
+
+    deps.log?.("driver_job.aborted", {
+      order_id: result.value.orderId,
+      was_status: result.value.wasStatus,
+    });
+    return c.json({
+      ok: true,
+      order_id: result.value.orderId,
+      aborted_at: result.value.abortedAt,
+      was_status: result.value.wasStatus,
     });
   });
 

@@ -39,7 +39,9 @@ export type RiderTripEvent =
   /** `WR-06` — فاتَ موعدُ المجدولِ قبلَ إطلاقِه (تعطّلُ النظام) فأُلغي. */
   | "SCHEDULE_MISSED"
   /** `WR-22` (ADR 0276) — انتهت مدّةُ البحثِ بلا سائقٍ فأُنهيَ الطلبُ `failed`. */
-  | "SEARCH_EXPIRED";
+  | "SEARCH_EXPIRED"
+  /** `WR-31` — قطعَ السائقُ الرحلةَ قبلَ الوصولِ فأُلغيَ الطلبُ `cancelled`. */
+  | "ABORTED";
 
 /** `WR-06` — الأحداثُ التي لا تُرسَلُ إلّا والطلبُ في حالتِها؛ وإلّا فقدَ الخبرُ معناه. */
 export const RIDER_TRIP_EVENT_REQUIRES_STATUS: Readonly<
@@ -49,6 +51,9 @@ export const RIDER_TRIP_EVENT_REQUIRES_STATUS: Readonly<
   SCHEDULE_REMINDER: ["scheduled"],
   SEARCH_STARTED: ["searching"],
   SEARCH_EXPIRED: ["failed"],
+  // (WR-31) الخبرُ الصادقُ: رحلةٌ قُطِعَت لا رحلةً تُتبَع — فإن لم تكنِ
+  // الطلبَةُ `cancelled` فاتَ معنى القطعِ فلا تُرسَل.
+  ABORTED: ["cancelled"],
 };
 
 /** ما يلزمُ لمخاطبةِ الراكبِ — يُقرأُ حيّاً من القاعدةِ لحظةَ الإخطارِ. */
@@ -158,6 +163,10 @@ export function riderTripText(
       return tr("tracking.rider_trip_started", params);
     case "COMPLETED":
       return tr("tracking.rider_trip_completed", params);
+    // (WR-31) خبرٌ صادقٌ للراكبِ: رحلتُهُ قُطِعَت قبلَ الوصولِ — لا يُقالُ
+    // «اكتملت» ولا يُخفى القطعُ، والراكبُ يُخبَرُ ليبحثَ عن سائقٍ آخر.
+    case "ABORTED":
+      return tr("tracking.rider_trip_aborted", params);
   }
 }
 

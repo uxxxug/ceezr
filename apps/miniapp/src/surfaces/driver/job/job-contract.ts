@@ -117,6 +117,17 @@ export interface DriverJobCompletedResponse {
 }
 
 /**
+ * (WR-31) «قطعتُ الرحلةَ» — الرحلةُ **لا تكتملُ**: الطلبُ صارَ `cancelled`
+ * والسائقُ عادَ متاحاً، والطورُ الذي قُطِعَ منهُ يُنقَلُ ليُقالَ لا ليُخفى.
+ */
+export interface DriverJobAbortedResponse {
+  readonly ok: true;
+  readonly order_id: string;
+  readonly aborted_at: string;
+  readonly was_status: "matched" | "in_progress";
+}
+
+/**
  * فعلُ «تعذّرَ الإكمالُ» (`PD-020` · `ADR 0159`) — **بلاغُ سلامةٍ لا تغييرُ
  * حالةٍ**: الرحلةُ تبقى على حالِها والفريقُ يقرَّرُ. والرفضُ جوابٌ لا عطبُ
  * طلبٍ (رمزُ حالةٍ 200) — سائقٌ في لحظةِ عُجزٍ لا يُدرَّبُ على إعادةِ الصياغةِ.

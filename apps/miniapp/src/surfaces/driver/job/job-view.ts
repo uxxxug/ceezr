@@ -57,6 +57,9 @@ const KNOWN_ERRORS: ReadonlySet<string> = new Set([
   "PHASE_MISMATCH",
   "ALREADY_ARRIVED",
   "TRANSITION_REFUSED",
+  // (WR-31) رمزا القطعِ — نصٌّ لكلِّ رمزٍ لا «عطلٌ مجهولٌ» يُقالُ للسائقِ.
+  "ORDER_NOT_ABORTABLE",
+  "REASON_TOO_LONG",
 ]);
 
 export function jobErrorKey(code: string): string {
@@ -79,7 +82,14 @@ export function isRetryableJobError(code: string): boolean {
  * إعادةَ القراءةِ**: كِلاهما يعني أنَّ ما في الشاشةِ أقدمُ من القاعدةِ.
  */
 export function shouldReloadAfterJobError(code: string): boolean {
-  return code === "PHASE_MISMATCH" || code === "ALREADY_ARRIVED" || code === "JOB_NOT_FOUND";
+  return (
+    code === "PHASE_MISMATCH" ||
+    code === "ALREADY_ARRIVED" ||
+    code === "JOB_NOT_FOUND" ||
+    // (WR-31) الطلبُ لا يُقطَعُ منه: ما في الشاشةِ أقدمُ من القاعدةِ — إعادةُ
+    // قراءةٍ لا إعادةُ ضغطٍ على قطعٍ يُرَدُّ بالرفضِ عينِه.
+    code === "ORDER_NOT_ABORTABLE"
+  );
 }
 
 /** مفتاحُ نصِّ الزرِّ ومفتاحُ عنوانِ الطَورِ — لكلِّ فعلٍ اسمُه لا رمزُه. */
@@ -129,6 +139,12 @@ export interface ActiveJobModel {
   readonly phaseKey: string;
   readonly action: ApiDriverJobAction;
   readonly actionLabelKey: string;
+  /**
+   * (WR-31) هل الرحلةُ قابلةٌ للقطعِ — **نقلُ لا اشتقاقٌ**: الحالةُ نشرَها
+   * الخادمُ (`matched` · `in_progress`) فتُنقَلُ رايةً لا تُستنبَطُ من أختامِ
+   * الزمنِ، والحكمُ النافذُ حكمُ القاعدةِ (`ORDER_NOT_ABORTABLE`).
+   */
+  readonly canAbort: boolean;
   /** النقطةُ التي **تُلاحُ إليها الآنَ** — بحكمِ الفعلِ القادمِ لا بتقديرٍ. */
   readonly navigateTo: JobPlaceModel;
   readonly pickup: JobPlaceModel;
@@ -160,6 +176,8 @@ export function toActiveJob(job: ApiDriverActiveJob): ActiveJobModel {
     phaseKey: JOB_PHASE_KEY[job.next_action],
     action: job.next_action,
     actionLabelKey: JOB_ACTION_LABEL_KEY[job.next_action],
+    // (WR-31) رايةُ القابليةِ للقطعِ تُنقَلُ من حالةِ الخادمِ المعلَنةِ.
+    canAbort: job.status === "matched" || job.status === "in_progress",
     navigateTo,
     pickup,
     dropoff,

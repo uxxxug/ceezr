@@ -34,6 +34,7 @@
  */
 
 import type {
+  DriverJobAbort,
   DriverJobArrival,
   DriverJobCompletion,
   DriverJobSnapshot,
@@ -55,7 +56,11 @@ export type DriverJobStoreRejection =
   /** ختمُ الوصولِ موجودٌ سلفاً — ليسَ عطباً ولا نجاحاً صامتاً. */
   | "ALREADY_ARRIVED"
   /** رفضٌ من الكاتبِ القائمِ بلا رمزٍ معروفٍ — يُنقَلُ ولا يُخترَعُ له معنًى. */
-  | "TRANSITION_REFUSED";
+  | "TRANSITION_REFUSED"
+  /** (WR-31) الطلبُ ليسَ في طورٍ يُقطَعُ منه — مُلكيّةٌ سليمةٌ لكن لا قطعَ بعدَ الإنهاءِ. */
+  | "ORDER_NOT_ABORTABLE"
+  /** (WR-31) سببُ القطعِ أطولُ من حدِّ السجلِّ — يُرفَضُ لا يُقَصُّ بصمتٍ. */
+  | "REASON_TOO_LONG";
 
 /** عطبُ مخزنٍ أو حمولةٌ لا تُفهَمُ — يُنشَرُ `503`، ولا يُخلَطُ برفضٍ مُصنَّفٍ. */
 export interface DriverJobStoreFailure {
@@ -97,6 +102,17 @@ export interface DriverJobStore {
     readonly telegramUserId: string;
     readonly orderId: string;
   }): Promise<Result<DriverJobCompletion, DriverJobStoreError>>;
+
+  /**
+   * (WR-31) **يكتبُ — قطعُ الرحلةِ**: `driver_abort_ride` القائمةُ تُلغي الطلبَ
+   * من طورِهِ وتُعيدُ السائقَ متاحاً **وتُودِعُ إشعارَ `ABORTED` في العبارةِ نفسِها** —
+   * لا مسارَ إيداعٍ مستقلَّ بعدها.
+   */
+  abortRide(input: {
+    readonly telegramUserId: string;
+    readonly orderId: string;
+    readonly reason: string | null;
+  }): Promise<Result<DriverJobAbort, DriverJobStoreError>>;
 
   /**
    * LOAD-01 (الدفعةُ 21) — الأطوارُ الثلاثةُ نفسُها **وإيداعُ إشعارِ الراكبِ في العبارةِ نفسِها**

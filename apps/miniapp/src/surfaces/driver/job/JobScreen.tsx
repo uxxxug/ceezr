@@ -1,6 +1,7 @@
 /**
- * الغرض: شاشةُ مَهمّةِ السائقِ النشطةِ — **زرٌّ واحدٌ للطَورِ الواحدِ** ورابطُ
- *   ملاحةٍ وراكبٌ بلا هويّةٍ تُتعقَّبُ (البند `F3-03` · `SD-05`).
+ * الغرض: شاشةُ مَهمّةِ السائقِ النشطةِ — **زرٌّ للطَورِ الواحدِ** وزرُّ قطعٍ أحمرُ
+ *   بجانبِهِ، ورابطُ ملاحةٍ وراكبٌ بلا هويّةٍ تُتعقَّبُ (البند `F3-03` · `SD-05`
+ *   · `WR-31`).
  * الحالة: منفَّذٌ فعليّاً — البند `F3-03`.
  * ينتمي إلى: apps/miniapp/src/surfaces/driver/job
  * يُستخدم من: `DriverRoot.tsx`
@@ -9,11 +10,14 @@
  * يحرسُه: scripts/check-driver-job-contract.ts
  * الحاكم: docs/adr/0118-a-phase-is-a-human-stamp-not-a-distance-inference.md
  *
- * ## لِمَ زرٌّ واحدٌ ظاهرٌ في كلِّ لحظةٍ
+ * ## لِمَ زرُّ الطَورِ واحدٌ وزرُّ القطعِ أحمرُ إلى جانبِهِ (WR-31)
  *
- * لأنَّ السائقَ يقرأُ هذه الشاشةَ **وهوَ يقودُ**: ثلاثةُ أزرارٍ معروضةٍ معاً
+ * لأنَّ السائقَ يقرأُ هذه الشاشةَ **وهوَ يقودُ**: أزرارُ الأطوارِ معروضةً معاً
  * تُنتِجُ ضغطةً خاطئةً تُردُّ `PHASE_MISMATCH` فتُقرأُ عطلاً، وتُنتِجُ أسوأَ من
- * ذاكَ — إنهاءَ رحلةٍ لم تبدأْ. والخادمُ يقولُ **ما يُفعَلُ الآنَ** فيُعرَضُ.
+ * ذاكَ — إنهاءَ رحلةٍ لم تبدأْ. والخادمُ يقولُ **ما يُفعَلُ الآنَ** فيُعرَضُ زرُّ
+ * الطَورِ واحداً. وزرُّ القطعِ الأحمرُ (قرارُ المالكِ منَ التجربةِ الميدانيةِ
+ * 2026-11-03) فعلٌ **هدميٌّ مؤكَّدٌ بخطوتَينِ** لا زرَّ طورٍ: راكبٌ يعبثُ أو
+ * طارئٌ لا يُنتظَرُ لهما ختمُ طورٍ لقطعِ رحلتِهِ.
  *
  * ## ولِمَ لا مؤقّتَ ولا عدَّ تصاعديّاً في هذه الشاشةِ
  *
@@ -23,8 +27,9 @@
  *
  * ## وما لا تفعلُه هذه الشاشةُ عن قصدٍ — (`ح-5`)
  *
- *   ــ **لا تُلغي رحلةً**: لا مسارَ إلغاءٍ للسائقِ ههنا، وسياستُه مُجمَّدةٌ
- *      بقرارٍ (`F2-06`) — وزرٌّ بلا كاتبٍ خيانةُ عرضٍ.
+ *   ــ **لا هدمَ بلا كاتبٍ**: قطعُ الرحلةِ (`WR-31`) لهُ كاتبٌ قائمٌ
+ *      (`driver_abort_ride`) وتأكيدٌ بخطوتَينِ، وتجميدُ `F2-06` فُكَّ بقرارِ
+ *      المالكِ منَ التجربةِ الميدانيةِ (2026-11-03) لا زرٌّ بلا كاتبٍ.
  *   ــ **لا تتّصلُ براكبٍ ولا تُراسِلُه**: العقدُ لا يحملُ هاتفاً ولا معرِّفاً.
  *   ــ **لا تُظهِرُ زرَّ نجدةٍ**: الدَّينُ المُعلَنُ مُنشَطٌ —
  *      زرُّ الاستغاثةِ في `JobScreen.tsx` يستدعي `POST /v1/driver/safety/sos`
@@ -40,6 +45,12 @@
  * أعلاه من أنَّ نجدةَ السائقِ **دَينٌ مُعلَنٌ** **باقٍ وصفاً لِما كانَ**: ذاكَ
  * كانَ لأنَّ مسارَ `F2-10` يُركِّبُ الدورَ راكباً حرفاً، وقد صارَ للسائقِ
  * حاكمُهُ بدورِهِ (`GET /v1/driver/safety/sos`) بلا تركيبِ دورٍ في الشاشةِ.
+ *
+ * ## إضافةُ `WR-31` (2026-11-03)
+ *
+ * صارَ للسائقِ **زرُّ «قطعُ الرحلةِ» الأحمرُ** بجانبِ زرِّ الطَورِ: قطعٌ قبلَ
+ * الوصولِ (راكبٌ يعبثُ أو طارئٌ) يُنهي الطلبَ `cancelled` ويُعيدُ السائقَ
+ * متاحاً ويفتحُ الملخّصَ وفيهِ تقييمُ الراكبِ.
  */
 
 import { useCallback, useEffect, useId, useState } from "react";
@@ -55,6 +66,7 @@ import { OrderChat } from "../../chat/OrderChat.tsx";
 import type { SosSurfaceResponse, SosTriggerResponse } from "../../rider/sos/sos-contract.ts";
 import { offerLineText } from "../offers/offers-view.ts";
 import {
+  abortDriverRide,
   completeDriverRide,
   type DriverActiveJobResponse,
   type DriverCannotCompleteResponse,
@@ -87,6 +99,8 @@ export interface JobScreenProps {
   readonly arrive?: (orderId: string) => Promise<unknown>;
   readonly start?: (orderId: string) => Promise<unknown>;
   readonly complete?: (orderId: string) => Promise<unknown>;
+  /** (WR-31) «قطعتُ الرحلةَ» — يُحقَنُ للاختبارِ كما أخواتُه. */
+  readonly abort?: (orderId: string, reason: string | null) => Promise<unknown>;
   /**
    * فعلُ «تعذّرَ الإكمالُ» (`PD-020`) — بلاغُ سلامةٍ لا تغييرُ حالةٍ، يُحقَنُ
    * في الاختبارِ ولا يُخترَعُ جوابُهُ.
@@ -99,6 +113,11 @@ export interface JobScreenProps {
   readonly openLink?: (url: string) => unknown;
   /** يُستدعى عند إتمامِ الرحلةِ لفتحِ شاشةِ الملخصِّ (`F12-05`). */
   readonly onCompleted?: (orderId: string) => void;
+  /**
+   * (WR-31) يُستدعى عند قطعِ الرحلةِ لفتحِ شاشةِ الملخصِّ — وفيها تقييمُ
+   * الراكبِ الذي قطعَ السائقُ رحلتَهُ معَه.
+   */
+  readonly onAborted?: (orderId: string) => void;
 }
 
 type JobState =
@@ -134,6 +153,16 @@ type IncidentState = {
   readonly status: string;
   readonly teamDeliveryStatus: string;
 } | null;
+
+/**
+ * (WR-31) حالةُ زرِّ القطعِ — خطوةُ تأكيدٍ تُطفَأُ بعدَ كلِّ محاولةٍ فلا تبقى
+ * مُسلَّحةً في خلفيّةِ شاشةِ قيادةٍ، والرفضُ يُقالُ نصَّهُ لا يُخفى.
+ */
+type AbortState =
+  | { readonly kind: "idle" }
+  | { readonly kind: "armed" }
+  | { readonly kind: "busy" }
+  | { readonly kind: "failed"; readonly code: string };
 
 /** حالةُ زرِّ الاستغاثةِ (`DEC-29`). */
 type SosState =
@@ -191,15 +220,17 @@ export function JobScreen({
   language = MINIAPP_DEFAULT_LANGUAGE,
   onBack,
   showTitle = true,
-  onCompleted,
   readJob = readDriverActiveJob,
   arrive = markDriverArrived,
   start = startDriverRide,
   complete = completeDriverRide,
+  abort = abortDriverRide,
   reportCannotComplete = reportDriverCannotComplete,
   readSafetyNarrative = readDriverSafetyNarrative,
   triggerSos = triggerDriverSos,
   openLink = (url: string) => openExternalLink(url),
+  onCompleted,
+  onAborted,
 }: JobScreenProps) {
   const t = miniAppTranslator(language);
   const formId = useId();
@@ -208,6 +239,9 @@ export function JobScreen({
   const [cannot, setCannot] = useState<CannotState>({ kind: "idle" });
   const [incident, setIncident] = useState<IncidentState>(null);
   const [sos, setSos] = useState<SosState>({ kind: "idle" });
+  // (WR-31) القطعُ حالةٌ مستقلّةٌ عن أفعالِ الطورِ: هدمٌ مؤكَّدٌ لا يُخلَطُ بها.
+  const [abortState, setAbortState] = useState<AbortState>({ kind: "idle" });
+  const [abortReason, setAbortReason] = useState("");
 
   /**
    * سردُ البلاغِ القائمِ (`PD-020`) — يُقرأُ **من القاعدةِ** في كلِّ تركيبٍ
@@ -280,6 +314,30 @@ export function JobScreen({
     void load();
   }, [load]);
 
+  /**
+   * (WR-31) «قطعتُ الرحلةَ» — قطعٌ مؤكَّدٌ بخطوتَينِ لا يُخالطُهُ زرُّ طورٍ: يُقالُ
+   * نصُّ رفضِهِ ولا يُخفى، والقاعدةُ حكمتْ فلا يُعادُ الضغطُ على قطعٍ خُتِمَ.
+   */
+  const sendAbort = useCallback(
+    async (job: ActiveJobModel) => {
+      setAbortState({ kind: "busy" });
+      const reason = abortReason.trim() === "" ? null : abortReason.trim();
+      try {
+        await abort(job.orderId, reason);
+        setAbortState({ kind: "idle" });
+        setAbortReason("");
+        // **القاعدةُ حكمتْ**: المَهمّةُ انتهَت قطعًا — إلى الملخّصِ وفيه تقييمُ
+        // الراكبِ، لا يُنتظَرُ ضغطُ زرِّ «الملخّصِ» بعدَ زرِّ القطعِ.
+        if (onAborted !== undefined) onAborted(job.orderId);
+      } catch (thrown) {
+        const code = codeOf(thrown);
+        setAbortState({ kind: "failed", code });
+        if (shouldReloadAfterJobError(code)) await load();
+      }
+    },
+    [abort, abortReason, load, onAborted],
+  );
+
   const runAction = useCallback(
     async (job: ActiveJobModel) => {
       setAct({ kind: "busy" });
@@ -293,6 +351,11 @@ export function JobScreen({
           completedOrderId: job.action === "COMPLETE_RIDE" ? job.orderId : undefined,
         });
         // **القاعدةُ تقولُ الطَورَ التاليَ**: لا تُحرَّكُ الشاشةُ بتخمينٍ محليٍّ.
+        // (WR-30) وبعدَ «أنهِ الرحلةَ» يُفتَحُ الملخّصُ **مباشرةً** — فيهِ تقييمُ
+        // الراكبِ — لا يُدفَنُ خلفَ زرٍّ يُنسى أن يُضغَطَ.
+        if (job.action === "COMPLETE_RIDE" && onCompleted !== undefined) {
+          onCompleted(job.orderId);
+        }
         await load();
       } catch (thrown) {
         const code = codeOf(thrown);
@@ -300,7 +363,7 @@ export function JobScreen({
         if (shouldReloadAfterJobError(code)) await load();
       }
     },
-    [arrive, complete, load, start],
+    [arrive, complete, load, onCompleted, start],
   );
 
   if (state.kind === "loading") {
@@ -572,7 +635,63 @@ export function JobScreen({
         >
           {t(job.actionLabelKey)}
         </button>
+        {/*
+          (WR-31) زرُّ القطعِ الأحمرُ — إلى جانبِ زرِّ الطَورِ لا مكانَه: قطعٌ
+          قبلَ الوصولِ بسببهِ (راكبٌ يعبثُ أو طارئٌ) وتأكيدٌ بخطوتَينِ بعده.
+        */}
+        {job.canAbort ? (
+          <button
+            type="button"
+            className="djb__abort"
+            disabled={abortState.kind === "busy" || act.kind === "busy"}
+            onClick={() => setAbortState({ kind: "armed" })}
+          >
+            {t("driver.job.abort.label")}
+          </button>
+        ) : null}
       </div>
+
+      {/*
+        (WR-31) تأكيدُ القطعِ بخطوتَينِ — سببٌ حُرٌّ اختياريٌّ يُقيَّدُ في السجلِّ،
+        والرفضُ يُقالُ نصَّهُ والشاشةُ تُعيدُ القراءةَ إن كانَ ما فيها أقدمَ.
+      */}
+      {job.canAbort &&
+      (abortState.kind === "armed" ||
+        abortState.kind === "busy" ||
+        abortState.kind === "failed") ? (
+        <div className="djb__abort-confirm">
+          {abortState.kind === "failed" ? (
+            <p className="djb__abort-error" role="alert">
+              {t(jobErrorKey(abortState.code))}
+            </p>
+          ) : null}
+          <p className="djb__abort-question">{t("driver.job.abort.confirmQuestion")}</p>
+          <input
+            className="djb__abort-reason"
+            type="text"
+            value={abortReason}
+            maxLength={500}
+            placeholder={t("driver.job.abort.reasonPlaceholder")}
+            onChange={(event) => setAbortReason(event.target.value)}
+          />
+          <button
+            type="button"
+            className="djb__abort-send"
+            disabled={abortState.kind === "busy"}
+            onClick={() => void sendAbort(job)}
+          >
+            {t("driver.job.abort.confirmSend")}
+          </button>
+          <button
+            type="button"
+            className="djb__abort-cancel"
+            disabled={abortState.kind === "busy"}
+            onClick={() => setAbortState({ kind: "idle" })}
+          >
+            {t("driver.job.abort.cancel")}
+          </button>
+        </div>
+      ) : null}
 
       {/*
         قسمُ «تعذّرَ الإكمالُ» (`PD-020` · `ADR 0159`) — بلاغُ سلامةٍ لا تغييرُ

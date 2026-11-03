@@ -462,6 +462,7 @@
   "tracking.rider_driver_arrived": "📍 وصل السائق إلى نقطة الالتقاط — طلبك {order}\n🚗 السائق: {driver}\n🔢 اللوحة: {plate}\n🚙 المركبة: {vehicle}\nالسائق بانتظارك الآن.",
   "tracking.rider_trip_started": "🚗 بدأت رحلتك {order}. رحلة موفّقة.",
   "tracking.rider_trip_completed": "✅ وصلت — اكتملت رحلتك {order}.\nشكراً لاستخدامك وَصْلة.",
+  "tracking.rider_trip_aborted": "⚠️ قُطِعَت رحلتك {order} قبلَ الوصولِ.\nيمكنك طلب سائقٍ آخر.",
   "tracking.rider_link": "📍 تابع موقع سائقك من هذا الرابط (مؤقّت وينتهي بانتهاء الرحلة):\n{url}",
   "tracking.share_button": "📍 شارك موقعي الحي",
   "tracking.revoke_button": "🚫 إلغاء رابط التتبّع",

@@ -301,6 +301,8 @@ export async function buildMessageGallery(options: GalleryOptions): Promise<Mess
     SEARCH_STARTED: "بدء البحث عن سائق للطلب المجدول",
     SCHEDULE_MISSED: "إلغاء مجدول فات موعده",
     SEARCH_EXPIRED: "انتهاء مدة البحث بلا سائق",
+    // (WR-31) خبرُ القطعِ — الصادقُ في المعرضِ كما هوَ في بوتِ الراكبِ.
+    ABORTED: "قطع السائق للرحلة قبل الوصول",
   };
   const galleryFacts = {
     ...tripFacts,
