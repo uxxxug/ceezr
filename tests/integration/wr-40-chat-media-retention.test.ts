@@ -47,15 +47,35 @@ function fakeStore() {
 }
 
 /** طلبٌ منتهٍ منذُ `days` يومًا معَ مرفقٍ رُفعَ منذُ `age` يومًا. */
+/** سائقٌ مزروعٌ: الطلبُ المنتهي يتطلّبُ سائقًا مُسندًا (قيدُ
+ * `orders_matched_requires_driver`) — لا علاقةَ لهُ بمسارِ الاستبقاء. */
+let seededDriverId = "";
+
+async function seedDriver(): Promise<string> {
+  const [row] = await sql<{ id: string }[]>`
+    insert into users (city_id, telegram_id, role, full_name, phone)
+    values (${cityId}, 900_000_403, 'driver', 'سائقُ الاستبقاءِ', '+966500000403') returning id
+  `;
+  if (row === undefined) throw new Error("تعذّر زرعُ السائقِ");
+  userIds.push(row.id);
+  const [driver] = await sql<{ id: string }[]>`
+    insert into drivers (city_id, user_id, verification_status, vehicle_type, plate_number)
+    values (${cityId}, ${row.id}, 'verified'::verification_status, 'سيدان', 'ح ب 403') returning id
+  `;
+  if (driver === undefined) throw new Error("تعذّر زرعُ صفِّ السائقِ");
+  return driver.id;
+}
+
 async function seedCompletedOrderWithAttachment(days: number, age: number) {
   const [order] = await sql<{ id: string }[]>`
     insert into orders (city_id, rider_id, service, status, pickup, dropoff, pickup_label, dropoff_label,
-      completed_at)
+      completed_at, assigned_driver_id)
     values (
       ${cityId}, ${riderId}, 'transport'::service_type, 'completed'::order_status,
       st_setsrid(st_makepoint(39.1925, 21.4858), 4326)::geography,
       st_setsrid(st_makepoint(39.1728, 21.5433), 4326)::geography,
-      'نقطةُ الانطلاق', 'الحرم', now() - (${days} || ' days')::interval
+      'نقطةُ الانطلاق', 'الحرم', now() - (${days} || ' days')::interval,
+      ${seededDriverId}
     ) returning id
   `;
   if (order === undefined) throw new Error("تعذّر زرعُ الطلب");
@@ -106,6 +126,7 @@ beforeAll(async () => {
   `;
   if (rider === undefined) throw new Error("تعذّر زرعُ الراكبة");
   riderId = rider.id;
+  seededDriverId = await seedDriver();
 });
 
 afterAll(async () => {
