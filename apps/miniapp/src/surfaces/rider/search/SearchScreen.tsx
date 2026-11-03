@@ -130,6 +130,12 @@ export interface SearchScreenIntent {
   readonly offerSar?: number | null;
   /** `WR-05` — سياسةُ المبلغ: `fixed` · `suggested` · `open`. */
   readonly offerMode?: RiderOfferMode;
+  /**
+   * `WR-33` — إقرارُ «تنبيهِ التحويلاتِ الماليّةِ المسبقة» (`PREPAY_WARNING_ACK_VERSION`). يضعُه
+   * زرُّ «فهمت — أرسل الطلب» في بوّابةِ التنبيه، ويُعادُ حرفًا في كلِّ محاولةٍ لنفسِ النيّة. الخادمُ
+   * يرفضُ الإنشاءَ بدونه (`PREPAY_WARNING_ACK_REQUIRED`).
+   */
+  readonly prepayWarningAck?: string;
 }
 
 export interface SearchScreenProps {
@@ -149,6 +155,7 @@ export interface SearchScreenProps {
     readonly offerMode?: RiderOfferMode;
     readonly pickupPlace?: PlaceWire | null;
     readonly dropoffPlace?: PlaceWire | null;
+    readonly prepayWarningAck?: string;
   }) => Promise<RequestRideResponse>;
   readonly read?: (orderId: string) => Promise<RideSearchResponse>;
   readonly cancel?: (input: {
@@ -298,6 +305,10 @@ export function SearchScreen({
         pickupAt: intent.pickupAt ?? null,
         offerSar: intent.offerSar ?? null,
         ...(intent.offerMode === undefined ? {} : { offerMode: intent.offerMode }),
+        // `WR-33` — الإقرارُ جزءٌ من النيّة: يُعادُ في كلِّ محاولةٍ لنفسِ الطلبِ ولا يُعادُ عرضُ التنبيه.
+        ...(intent.prepayWarningAck === undefined
+          ? {}
+          : { prepayWarningAck: intent.prepayWarningAck }),
       });
       if (!mounted.current || ticket !== issued.current) return;
       if (!response.accepted) {

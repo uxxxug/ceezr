@@ -818,6 +818,9 @@ async function runScenarioSteps(corr: ScenarioCorr, closeAt: number): Promise<Sc
         originLng: pickup.lng,
         destinationLat: center.lat + rnd(-0.02, 0.02),
         destinationLng: center.lng + rnd(-0.02, 0.02),
+        // `WR-33` — إقرارُ تنبيهِ التحويلاتِ المسبقة (= `PREPAY_WARNING_ACK_VERSION`؛ يحرسُ تطابقَه
+        // `tests/unit/wr-33-prepay-warning-wiring.test.ts`). بدونه يرفضُ الخادمُ الإنشاء.
+        prepayWarningAck: "prepay-warning-v1",
       },
       timeoutMs: 20_000,
     });

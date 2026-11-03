@@ -19,6 +19,7 @@ import { createNegotiationApp } from "../../../packages/application/negotiation/
 import { PortFailureError } from "../../../packages/application/ports/index.ts";
 import type { OperatingCityDeps } from "../../../packages/application/rider-city/operating-city.ts";
 import type { EmergencyContactDeps } from "../../../packages/application/safety/emergency-contact.ts";
+import { requirePrepayWarningAck } from "../../../packages/application/transport/prepay-warning-guard.ts";
 import type { RideRequestCommand } from "../../../packages/application/transport/ride-request-ports.ts";
 import { createFulfillmentLifecycle } from "../../../packages/application/wasla/fulfillment-lifecycle.ts";
 import { isSupportedLanguage } from "../../../packages/domain/i18n-translation/value-objects.ts";
@@ -958,7 +959,10 @@ const rides =
             createMiniAppSessionReader(config.miniappSessionSecret),
             sessionRevocationStore,
           ),
-          rides: withNewOrderDispatch(createRideRequestCommand(container.sql)),
+          // `WR-33` — حارسُ تنبيهِ التحويلاتِ المسبقة يلفُّ منفذَ الكتابةِ قبلَ أيِّ نداءٍ للقاعدة.
+          rides: withNewOrderDispatch(
+            requirePrepayWarningAck(createRideRequestCommand(container.sql)),
+          ),
           now: () => new Date(),
         },
         search: {
@@ -1107,7 +1111,10 @@ const deliveries =
             createMiniAppSessionReader(config.miniappSessionSecret),
             sessionRevocationStore,
           ),
-          rides: withNewOrderDispatch(createRideRequestCommand(container.sql)),
+          // `WR-33` — حارسُ تنبيهِ التحويلاتِ المسبقة يلفُّ منفذَ الكتابةِ قبلَ أيِّ نداءٍ للقاعدة.
+          rides: withNewOrderDispatch(
+            requirePrepayWarningAck(createRideRequestCommand(container.sql)),
+          ),
           now: () => new Date(),
         },
         log,

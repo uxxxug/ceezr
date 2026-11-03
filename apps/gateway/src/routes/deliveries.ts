@@ -62,6 +62,8 @@ const STATUS_BY_ERROR: Readonly<Record<DeliveryCreateErrorCode, 400 | 401 | 403 
   RIDER_NOT_REGISTERED: 403,
   // SEC-22 — الحارسُ في `request_ride` يقعُ لخدمةِ التوصيلِ أيضاً (الدالّةُ نفسُها).
   ACCOUNT_BLOCKED: 403,
+  // `WR-33` — طلبٌ بلا إقرارِ تنبيهِ التحويلاتِ المسبقة: يُصلِحُه العميلُ بعرضِ التنبيه.
+  PREPAY_WARNING_ACK_REQUIRED: 400,
   RIDE_STORE_NOT_AVAILABLE: 503,
   PARCEL_DESCRIPTION_INVALID: 400,
   // `WR-05` — سياسةُ المبلغ: عطبُ طلبٍ يُصلِحُه الراكب.
@@ -160,6 +162,9 @@ export function createDeliveryRoutes(deps: DeliveryRouteDependencies): Hono {
         // `LOC-TRUST-01` — مكانا الطردِ بعقدِ النقلِ نفسِه (رابطٌ وملاحظاتٌ ومصدر).
         pickupPlace: fields.pickupPlace,
         dropoffPlace: fields.dropoffPlace,
+        // `WR-33` — إقرارُ تنبيهِ التحويلاتِ المسبقة. كان سيُسقَطُ هنا لو لم يُمرَّر صراحةً
+        // (الجسمُ يُعادُ بناؤه حقلًا حقلًا) فيُرفَضُ كلُّ توصيلٍ عند حارسِ المنفذ.
+        prepayWarningAck: fields.prepayWarningAck,
       },
     });
     if (!result.ok) return rejected(c, result.error);
