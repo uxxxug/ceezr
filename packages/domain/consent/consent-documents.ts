@@ -105,11 +105,16 @@ export const DECLARED_CONSENT_DOCUMENTS: readonly ConsentDocument[] = Object.fre
     // `WR-32` (طلبُ المالكِ 2026-11-03): رسالةُ خصوصيّةِ الراكبِ وسمعتِه — تُعرَضُ مرّةً
     // عندَ أوّلِ دخولٍ للراكبِ (جديداً كانَ أو مسجَّلاً قبلَها)، ومرّةً بعدَ كلِّ إصدارٍ
     // جديدٍ. والإصدارُ الجديدُ يُضافُ نصُّه بمفتاحٍ جديدٍ ويبقى نصُّ القديمِ في القواميسِ.
+    //
+    // `2026-11-04` (WR-37): وحّدتِ العبارةُ القانونيّةُ معَ نصِّ سياسةِ الخصوصيّةِ
+    // المعتمَدةِ (2026-10-13): «إلا بموافقتك أو بأمر قضائي» بدلَ «في حدود ما يُلزمنا به
+    // النظام» — لا توسيعَ للإفصاحِ ولا صياغةً مُختلَقةً: نصُّ السياسةِ حرفاً. والإصدارُ
+    // الجديدُ يُعيدُ عرضَ الرسالةِ مرّةً على من أقرَّ بالإصدارِ السابقِ.
     kind: "rider_privacy_notice" as const,
-    version: "2026-11-03",
+    version: "2026-11-04",
     titleKey: "consent.rider_privacy_notice.title",
     summaryKey: "consent.rider_privacy_notice.summary",
-    textKey: "consent.rider_privacy_notice.2026-11-03.text",
+    textKey: "consent.rider_privacy_notice.2026-11-04.text",
     requiredForOnboarding: true,
     audience: "rider" as const,
     presentation: "notice" as const,
