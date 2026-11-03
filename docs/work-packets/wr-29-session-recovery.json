@@ -1,0 +1,45 @@
+{
+  "id": "wr-29-session-recovery",
+  "goal": "ملاحظةُ التجربةِ الميدانيّةِ (2026-11-03): قد يدخلُ المستخدمُ وصلةً فلا يجدُ جلستَهُ أو رحلتَهُ وهوَ في رحلةٍ جاريةٍ — وبخاصّةٍ الراكبَ. الدليلُ الميدانيُّ: رفضُ جلسةِ الراكبِ AUTH_DATE_STALE في 09:42:32 بينما رحلتُهُ c4de3237 تكتملُ في 09:42:42. قرارُ المالكِ: استعادةٌ تلقائيّةٌ كاملةٌ — استردادٌ صامتٌ للجلسةِ وعودةٌ إلى الرحلةِ الجاريةِ، وإرشادٌ إلى إعادةِ الفتحِ من البوتِ إن تعذّرَ (ADR 0303 نقضَ استثناءَ F1-04).",
+  "canonical_source": [
+    "docs/evidence/field-trial/wr-29-30-31-20261103.md",
+    "docs/adr/0303-session-recovery-on-expiry.md"
+  ],
+  "implementation": [
+    "apps/miniapp/src/api/client.ts",
+    "apps/miniapp/src/api/wr-29-session-recovery.test.ts",
+    "apps/miniapp/src/identity/boot.ts",
+    "apps/miniapp/src/identity/renew.ts",
+    "apps/miniapp/src/shell/Shell.tsx",
+    "apps/miniapp/src/shell/wr-29-session-recovery.test.tsx",
+    "apps/miniapp/src/surfaces/rider/RiderRoot.tsx",
+    "apps/miniapp/src/surfaces/rider/entry-view.ts",
+    "apps/miniapp/src/surfaces/rider/entry-view.test.ts",
+    "apps/miniapp/src/surfaces/rider/wr-29-active-ride-follow.test.tsx",
+    "scripts/lib/execution-roadmap.ts"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["docs/ROADMAP-MASTER.md"],
+  "affected_docs": [
+    "docs/roadmap/execution/STATUS.md",
+    "docs/adr/0303-session-recovery-on-expiry.md",
+    "docs/evidence/field-trial/wr-29-30-31-20261103.md"
+  ],
+  "decision": "حدُّ النقلِ يسألُ والهيكلُ يُقيمُ: registerSessionRecovery يسجّلُهُ Shell وحدَه (إقامةُ جلسةٍ صامتةٍ ثمّ تركيبُ الموجّهِ بمفتاحٍ جديدٍ كما في SS-05). عندَ رفضِ 401 برمزِ SESSION_EXPIRED/SESSION_INVALID، وعندَ الرفضِ المحليِّ لجلسةٍ منتهيةٍ في الذاكرةِ: محاولةُ استردادٍ واحدةٌ ثمّ إعادةُ النداءِ مرّةً واحدةً (recovery: deny فلا سلسلةَ). الفشلُ يُرمي الرفضَ الأصليَّ بلا تمويهٍ، وتهدئةُ 15 ثانيةً بعدَ الفشلِ تمنعُ الدورانَ (والنجاحُ يرفعُها)، والنداءاتُ المتزامنةُ تستردُّ باستردادٍ واحدٍ. والراكبُ الذي يفتحُ بلا هدفٍ في الرابطِ يُتبِعُ رحلتَهُ الجاريةَ بسؤالٍ واحدٍ كما يهبطُ السائقُ على مهمّتِه (WR-20).",
+  "tests": [
+    "bun test apps/miniapp/src/api/wr-29-session-recovery.test.ts — 12/12",
+    "bun test apps/miniapp/src/surfaces/rider/entry-view.test.ts — 7/7 (منها 3 جديدة)",
+    "bun test apps/miniapp/src/shell/wr-29-session-recovery.test.tsx — 2/2",
+    "bun test apps/miniapp/src/surfaces/rider/wr-29-active-ride-follow.test.tsx — 4/4",
+    "المجموعةُ الكاملةُ: bun test — 8249 pass / 0 fail"
+  ],
+  "evidence": "docs/evidence/field-trial/wr-29-30-31-20261103.md — الالتزامُ 97c1687c، والفحصُ الكاملُ نظيفٌ.",
+  "constraints": [
+    "لا سلسلةَ محاولاتٍ: استردادٌ واحدٌ وإعادةُ نداءٍ واحدةٌ لكلِّ نداءٍ أصليٍّ",
+    "لا صمتَ خطأٍ: فشلُ الاستردادِ يُرمي الرفضَ الأصليَّ كما هو",
+    "المساراتُ العامّةُ لا تستردُّ ولا تُرفَضُ محليّاً — كما كانت",
+    "مسارُ الإقلاعِ وتسلسلُهُ وحفظُ رمزِ التجديدِ في التخزينِ الآمنِ بلا تغييرٍ",
+    "القياسُ F1-08: كلُّ طلبٍ حقيقيٍّ يُسجَّلُ بنتيجتِهِ (الرفضُ الأولُ rejected كما وقعَ)"
+  ],
+  "limitations": "لم يُختبرِ الاستردادُ على تيليجرامَ حقيقيٍّ بعدُ — بابُ «اجتاز اختبار تيليجرام الفعلي» يُفتحُ لاحقاً. تركيبُ الموجّهِ بعدَ استردادٍ ناجحٍ يفقدُ حالةَ شاشةٍ عابرةً (وهو حكمُ SS-05 نفسُهُ ولا استمارةً نصفَ مملوءةٍ اليومَ). الاستردادُ لا يُميّزُ سببَ الرفضِ: سببٌ لا يُحسَمُ بفتحٍ جديدٍ يظهرُ رفضاً معروضاً بعدَ التهدئةِ لا دورانَ."
+}
