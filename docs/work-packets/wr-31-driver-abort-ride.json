@@ -18,6 +18,7 @@
     "apps/gateway/src/rate-limit/policy.ts",
     "packages/infrastructure/db/schema-contract.ts",
     "scripts/lib/skip-registry.ts",
+    "tests/unit/skip-audit.test.ts",
     "apps/gateway/src/admin/message-gallery.ts",
     "apps/miniapp/src/surfaces/driver/DriverRoot.tsx",
     "apps/miniapp/src/surfaces/driver/driver-flow.ts",
