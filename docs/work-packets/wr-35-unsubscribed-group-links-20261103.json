@@ -19,7 +19,8 @@
     "scripts/lib/skip-registry.ts",
     "tests/unit/wr-35-group-link-notice.test.ts",
     "tests/integration/wr-35-unsubscribed-group-links.test.ts",
-    "tests/integration/wr-35-no-docs-driver-cycle.test.ts"
+    "tests/integration/wr-35-no-docs-driver-cycle.test.ts",
+    "tests/unit/skip-audit.test.ts"
   ],
   "state": [
     "docs/SYSTEM_STATE.md"
@@ -37,6 +38,11 @@
       "kind": "unit",
       "command": "bun test tests/unit/wr-35-group-link-notice.test.ts",
       "result": "6/6"
+    },
+    {
+      "kind": "unit",
+      "command": "bun test",
+      "result": "8255 pass / 0 fail محليًا بعد تحديثِ عدّادِ سجلِّ التجاوزِ (222 ملفًّا / 1781 حالة)"
     },
     {
       "kind": "integration",
