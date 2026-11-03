@@ -1,0 +1,39 @@
+{
+  "id": "wr-36-rider-first-name-20261103",
+  "goal": "تنفيذُ قرارِ المالكِ (WR-32 §5-ج، المُستلَّمِ في أمرِ الاستلامِ 2026-11-03): رسائلُ بوتِ السائقِ المتعلّقةُ بتقييمِ الراكبِ واكتمالِ الرحلةِ تعرضُ الاسمَ الأوّلَ وحدَه في اللغاتِ الثلاثِ، معَ اختبارٍ يمنعُ رجوعَ الاسمِ الكاملِ مستقبلًا.",
+  "canonical_source": [
+    "docs/evidence/compliance/WR-36-rider-first-name-20261103.md"
+  ],
+  "implementation": [
+    "packages/application/bots/rating-dialog.ts",
+    "packages/shared/i18n/ar.json",
+    "packages/shared/i18n/en.json",
+    "packages/shared/i18n/ur.json",
+    "scripts/lib/execution-roadmap.ts",
+    "tests/unit/wr-36-rider-first-name.test.ts",
+    "tests/integration/mutual-ratings.test.ts"
+  ],
+  "state": [
+    "docs/SYSTEM_STATE.md"
+  ],
+  "roadmap": [
+    "ROADMAP.md"
+  ],
+  "affected_docs": [
+    "docs/evidence/compliance/WR-36-rider-first-name-20261103.md",
+    "docs/roadmap/execution/STATUS.md"
+  ],
+  "decision": "الكلمةُ الأولى من `CompletionSummary.rider.fullName` بقصِّ الفراغِ وتقسيمِ الكلماتِ وحدَها — لا تنويطَ للأسماءِ المركَّبةِ ولا تطبيعَ؛ والاسمُ الفارغُ يُستبدَلُ بكلمةٍ عامّةٍ بلغةِ السائقِ (`rating.rider_name_fallback`) لا بنصٍّ فارغٍ. النطاقُ رسالتا السائقِ (`rating.completed_driver` و`rating.ask_rating_rider`) وحدَهما؛ رسائلُ الراكبِ واسمُ السائقِ الكاملُ فيها لم يُمسَّ.",
+  "tests": [
+    "bun test tests/unit/wr-36-rider-first-name.test.ts — 13/13 (اللغاتُ الثلاثُ: الكاملُ لا يظهرُ، الأوّلُ يظهرُ، الكلمةُ الواحدةُ كما هي، الفارغُ ⇒ كلمةٌ عامّة، رسائلُ الراكبِ لا تتأثر)",
+    "bun test — 8378 pass / 0 fail محلّيًا",
+    "bun run typecheck + bun run lint — نظيفان"
+  ],
+  "evidence": "docs/evidence/compliance/WR-36-rider-first-name-20261103.md",
+  "constraints": [
+    "لا توسيعَ للنطاقِ: لا مسَّ لرسائلِ الراكبِ ولا لواجهاتِ Mini App ولا للقاعدة",
+    "لا نشرَ إنتاجيًّا ولا هجرة — البندُ طبقةُ تطبيقٍ وقواميسُ فقط",
+    "حارسُ انحدارٍ صريحٌ في اللغاتِ الثلاثِ يمنعُ عودةَ الاسمِ الكامل"
+  ],
+  "limitations": "لم يُقَس على تيليجرامَ حقيقيٍّ ولا في الإنتاج — يحتاجُ تجربةً ميدانيّةً منَ المالكِ (WR-41). الأسماءُ المركَّبةُ بوصلةٍ تظهرُ بكلمتِها الأولى."
+}

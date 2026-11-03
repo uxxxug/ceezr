@@ -220,6 +220,7 @@
   "rating.ride_not_completed": "⚠️ جو سفر ختم نہیں ہوا اُس کی درجہ بندی نہیں ہو سکتی۔",
   "rating.ride_not_startable": "⚠️ ابھی آپ کے پاس شروع کرنے کے لیے کوئی تفویض شدہ سفر نہیں ہے۔",
   "rating.ride_started": "🚗 سفر شروع ہو گیا۔ سفر بخیر — پہنچنے پر /complete بھیجیں۔",
+  "rating.rider_name_fallback": "مسافر",
   "rating.star_button": "{stars} ⭐",
   "rating.start_button": "🚗 سفر شروع کریں",
   "rating.started_rider": "🚗 آپ کا ڈرائیور {driver} روانہ ہو گیا — سفر {order} شروع ہو گیا۔\nپہنچنے پر آپ سے درجہ بندی مانگی جائے گی۔",
