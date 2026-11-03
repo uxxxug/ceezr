@@ -28,7 +28,7 @@ const doc = (kind: string, version: string, presentation?: string) => ({
 
 const TERMS = doc("terms_of_service", "2026-09-12", "document");
 const PRIVACY = doc("privacy_policy", "2026-10-13", "document");
-const NOTICE = doc("rider_privacy_notice", "2026-11-03", "notice");
+const NOTICE = doc("rider_privacy_notice", "2026-11-04", "notice");
 
 type State = "missing" | "satisfied" | "superseded";
 function status(states: Readonly<Record<string, State>>, documents = [TERMS, PRIVACY, NOTICE]) {
@@ -126,6 +126,7 @@ describe("WR-32 — شاشةُ الترحيبِ تعرضُ الرسالةَ", ()
       "consent.rider_privacy_notice.title",
       "consent.rider_privacy_notice.summary",
       "consent.rider_privacy_notice.2026-11-03.text",
+      "consent.rider_privacy_notice.2026-11-04.text",
       "welcome.notice_pending",
       "welcome.notice_acknowledged",
       "welcome.notice_superseded",
@@ -142,8 +143,47 @@ describe("WR-32 — شاشةُ الترحيبِ تعرضُ الرسالةَ", ()
   });
 
   it("النصُّ العربيُّ يَعِدُ بما يطابقُ النظامَ: رقمُك لا يظهرُ للسائقين", () => {
-    const text = (ar as Record<string, string>)["consent.rider_privacy_notice.2026-11-03.text"];
+    const text = (ar as Record<string, string>)["consent.rider_privacy_notice.2026-11-04.text"];
     expect(text).toContain("رقم جوالك");
     expect(text).toContain("لا يظهر للسائقين");
+  });
+});
+
+describe("WR-37 — العبارةُ القانونيّةُ مطابقةٌ لسياسةِ الخصوصيّةِ", () => {
+  const KEY = "consent.rider_privacy_notice.2026-11-04.text";
+
+  // العبارةُ المعتمَدةُ من نصِّ السياسةِ (2026-10-13) حرفاً في كلِّ لغةٍ
+  const APPROVED: Record<"ar" | "en" | "ur", string> = {
+    ar: "إلا بموافقتك أو بأمر قضائي",
+    en: "except with your consent or by court order",
+    ur: "آپ کی رضامندی یا عدالتی حکم",
+  };
+  // الصياغةُ القديمةُ المرفوضةُ (وعدٌ بالغٍ «ما يُلزمنا به النظام») — ممنوعٌ عودتُها
+  const REJECTED: Record<"ar" | "en" | "ur", string> = {
+    ar: "في حدود ما يُلزمنا",
+    en: "as far as the law requires",
+    ur: "جتنا قانون ہم پر لازم",
+  };
+
+  it.each([
+    ["ar", ar],
+    ["en", en],
+    ["ur", ur],
+  ] as [keyof typeof APPROVED, Record<string, unknown>][])(
+    "الرسالةُ (%s) تحملُ العبارةَ المعتمَدةَ ولا تحملُ المرفوضةَ",
+    (_lang, dict) => {
+      const text = (dict as Record<string, string>)[KEY];
+      expect(text).toContain(APPROVED[_lang]);
+      expect(text).not.toContain(REJECTED[_lang]);
+    },
+  );
+
+  it("عبارةُ البوتِ (`rider.privacy_notice`) تحملُ العبارةَ المعتمَدةَ ولا القديمةَ في اللغاتِ الثلاثِ", async () => {
+    const { translate } = await import("../../../../../../packages/shared/i18n/index.ts");
+    for (const lang of ["ar", "en", "ur"] as const) {
+      const text = translate(lang, "rider.privacy_notice");
+      expect(text).toContain(APPROVED[lang]);
+      expect(text).not.toContain(REJECTED[lang]);
+    }
   });
 });

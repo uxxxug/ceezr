@@ -1,0 +1,35 @@
+{
+  "id": "wr-37-privacy-legal-phrase-20261104",
+  "goal": "تنفيذُ البندِ (ب) من أمرِ الاستلامِ 2026-11-03: توحيدُ العبارةِ القانونيّةِ في إشعارِ خصوصيّةِ الراكبِ (بوت + رسالةُ أوّلِ دخولٍ في Mini App) معَ النصِّ المعتمَدِ في سياسةِ الخصوصيّةِ (2026-10-13) في اللغاتِ الثلاثِ، بلا توسيعٍ للإفصاحِ ولا صياغةٍ مُختلَقة.",
+  "canonical_source": ["docs/evidence/compliance/WR-37-privacy-legal-phrase-20261104.md"],
+  "implementation": [
+    "packages/domain/consent/consent-documents.ts",
+    "packages/shared/i18n/ar.json",
+    "packages/shared/i18n/en.json",
+    "packages/shared/i18n/ur.json",
+    "packages/shared/i18n/miniapp/ar.json",
+    "packages/shared/i18n/miniapp/en.json",
+    "packages/shared/i18n/miniapp/ur.json",
+    "apps/miniapp/src/surfaces/rider/welcome/wr-32-rider-notice.test.ts",
+    "scripts/lib/execution-roadmap.ts"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [
+    "docs/evidence/compliance/WR-37-privacy-legal-phrase-20261104.md",
+    "docs/roadmap/execution/STATUS.md"
+  ],
+  "decision": "العبارةُ المعتمَدةُ حرفيًّا من نصِّ السياسةِ: «إلا بموافقتك أو بأمر قضائي» / \"except with your consent or by court order\" / «آپ کی رضامندی یا عدالتی حکم» — لا توسيعَ ولا اختراعَ. إصدارُ رسالةِ Mini App يصعدُ إلى 2026-11-04 (مفتاحُ نصٍّ جديدٌ، والقديمُ 2026-11-03 يبقى في القواميسِ لسجلِّ من أقرَّ به) فيُعادُ عرضُها مرّةً على من أقرَّ بالسابق. إشعارُ البوتِ يُعدَّلُ في موضعهِ بلا إصدارٍ (نصٌّ تشغيليٌّ لا وثيقةَ موافقة).",
+  "tests": [
+    "bun test apps/miniapp/src/surfaces/rider/welcome/wr-32-rider-notice.test.ts — 14/14 (منها 4 حارسِ انحدارٍ لـ WR-37: العبارةُ المعتمَدةُ موجودةٌ والقديمةُ «في حدود ما يُلزمنا به النظام» ممنوعةٌ في اللغاتِ الثلاثِ، في الرسالةِ وإشعارِ البوت)",
+    "bun test tests/unit/wr-32-rider-privacy-notice.test.ts + consent-decision — 26/26",
+    "check-consent-documents: ✅ (1988 مفتاحاً بثلاثِ لغاتٍ) | check-i18n: ✅ | typecheck + lint: نظيفان"
+  ],
+  "evidence": "docs/evidence/compliance/WR-37-privacy-legal-phrase-20261104.md",
+  "constraints": [
+    "لا توسيعَ لنطاقِ الإفصاحِ ولا وعدٍ جديد: العبارةُ من نصِّ السياسةِ المعتمَدِ حرفيًّا",
+    "الصياغةُ القديمةُ («في حدود ما يُلزمنا به النظام») محظورةٌ بحارسِ انحدارٍ في اللغاتِ الثلاث",
+    "لا نشرَ إنتاجيًّا ولا هجرةَ ولا حذفَ سجلٍّ: نصُّ الإصدارِ القديمِ باقٍ في القواميس"
+  ],
+  "limitations": "لم يُعرَض على راكبٍ حقيقيٍّ (قائمةُ القبولِ WR-41) ولم يُنشَر — النشرُ ينتظرُ موافقةَ المالك. لا مسَّ لقاعدةِ البيانات: صعودُ الإصدارِ يعتمدُ آليّةَ user_consents القائمة (سجلُّ من أقرَّ بالسابقِ يبقى، والجديدُ يُعادُ عرضُه)."
+}
