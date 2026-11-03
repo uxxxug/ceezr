@@ -33,6 +33,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { registerSessionRecovery } from "../api/client.ts";
 import type { BootFailureReason } from "../identity/boot.ts";
 import { RoleRouter } from "../routing/RoleRouter.tsx";
 import { applyDocumentDirection } from "../styles/direction.ts";
@@ -137,6 +138,26 @@ export function Shell({ identity, telemetry }: ShellProps) {
   useEffect(() => {
     void runBoot();
   }, [runBoot]);
+
+  /**
+   * `WR-29` (ADR 0303) — استردادٌ تلقائيٌّ كاملٌ عندَ انتهاءِ الجلسةِ أثناءَ
+   * الاستخدامِ (قرارُ المالكِ بعدَ التجربةِ الميدانيّةِ): إقامةٌ صامتةٌ للجلسةِ
+   * (تجديدٌ من التخزينِ الآمنِ وإلّا مبادلةُ `initData`) ثمّ تركيبُ الموجّهِ
+   * بمفتاحٍ جديدٍ كما في إعادةِ المصادقةِ (`SS-05`) — فيهبطُ الراكبُ على رحلتِهِ
+   * الجاريةِ (`RiderRoot`) والسائقُ على مهمّتِه (`WR-20`) لا على شاشةِ خطأٍ.
+   * وإن تعذَّرَ الاستردادُ رُدَّ الخطأُ الأصليُّ كما هو: فالاستردادُ يُخفى،
+   * والرفضُ لا.
+   */
+  useEffect(() => {
+    registerSessionRecovery(async () => {
+      const result = await identity.establishSession(telemetry === undefined ? {} : { telemetry });
+      if (!result.established) return false;
+      setBoot({ kind: "ready" });
+      setSessionEpoch((value) => value + 1);
+      return true;
+    });
+    return () => registerSessionRecovery(null);
+  }, [identity, telemetry]);
 
   if (boot.kind === "booting") {
     return (

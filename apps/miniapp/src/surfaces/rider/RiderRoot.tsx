@@ -151,7 +151,8 @@ import type { ROOT_TABS } from "../../shell/root-tabs.ts";
 import { RootTabBar, ScreenFrame, ScreenTransition } from "../../shell/ScreenFrame.tsx";
 import { currentScreenKey } from "../../shell/screen-stack.ts";
 import { Skeleton } from "../../system/Skeleton.tsx";
-import { riderEntryState } from "./entry-view.ts";
+import { isDefaultRiderEntry, riderEntryState } from "./entry-view.ts";
+import { fetchActiveRideId } from "./home/active-ride.ts";
 import { HomeScreen } from "./home/HomeScreen.tsx";
 import {
   initialRiderFlow,
@@ -272,6 +273,25 @@ export default function RiderRoot({ language, onLanguageChanged, entry }: Langua
     const timer = setTimeout(prefetchDeferredRiderScreens, 0);
     return () => clearTimeout(timer);
   }, []);
+  /**
+   * `WR-29` (ADR 0303): الراكبُ الذي فتحَ التطبيقَ **بلا هدفٍ في الرابطِ** — ومنهُ
+   * من عادَ بعدَ استردادِ جلسةٍ أثناءَ رحلةٍ — يُتبِعُ رحلتَهُ الجاريةَ إن وُجدَت،
+   * كما يهبطُ السائقُ على مهمّتِه (`WR-20`). سؤالٌ واحدٌ خفيفٌ عندَ الدخولِ لا
+   * دوريّةَ ولا صمتَ خطأٍ: الرحلةُ الغائبةُ عاديّةٌ والفتحُ الرئيسُ كما هو.
+   */
+  useEffect(() => {
+    if (!isDefaultRiderEntry(landing)) return;
+    let cancelled = false;
+    fetchActiveRideId()
+      .then((orderId) => {
+        if (!cancelled && orderId !== null) setFollowed(orderId);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+    // الهبوطُ لا يتغيّرُ بعدَ التركيبِ الأولى — والتعليقُ يمسكُ قصدَ الحدِّ.
+  }, [landing]);
   // الوجهةُ المختارةُ والمُصادَقةُ صارتا في `flow` (`rider-flow.ts`)، ويبقى حكمُهما:
   /**
    * الوجهةُ **المُصادَقةُ** — لا المختارةُ. ولا تُدمَجُ معَ `chosen`: الأولى مرَّت
