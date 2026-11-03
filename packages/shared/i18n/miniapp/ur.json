@@ -1824,6 +1824,7 @@
   "driver.offers.pickupAt.at": "آنے کا وقت: {time}",
   "driver.offers.pickupAt.am": "صبح",
   "driver.offers.pickupAt.pm": "شام",
+  "driver.offers.riderRating": "مسافر کی ریٹنگ: {value} ★ ({count})",
   "rider.search.candidate.title": "ایک ڈرائیور نے آپ کی درخواست قبول کی",
   "rider.search.candidate.body": "مہلت ختم ہونے سے پہلے اس ڈرائیور کو منتخب کریں یا رد کریں۔ رد کرنے یا مہلت ختم ہونے پر ہم تلاش جاری رکھیں گے۔",
   "rider.search.candidate.driver": "ڈرائیور",

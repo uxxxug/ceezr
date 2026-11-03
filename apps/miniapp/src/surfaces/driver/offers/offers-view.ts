@@ -253,6 +253,8 @@ export interface OfferCardModel {
   readonly offerTerms: OfferLine | null;
   /** `WR-06` — وقتُ الحضورِ ISO، و`null` = الآن. */
   readonly pickupAt: string | null;
+  /** `WR-30` — تقييمُ الراكبِ الإحصائيّ، و`null` = بلا تقييمٍ (أو بوّابةٌ أقدم). */
+  readonly riderRating: RiderRatingLine | null;
 }
 
 export function toOfferCard(card: ApiDriverOfferCard): OfferCardModel {
@@ -271,6 +273,7 @@ export function toOfferCard(card: ApiDriverOfferCard): OfferCardModel {
     dropoffNotes: card.dropoff_notes ?? null,
     offerTerms: offerLine(card.offer_mode, card.offer_sar),
     pickupAt: card.pickup_at ?? null,
+    riderRating: riderRatingLine(card.rider_rating_average, card.rider_rating_count),
   };
 }
 
@@ -370,6 +373,8 @@ export interface OfferDetailModel {
   readonly offerTerms: OfferLine | null;
   /** `WR-06` */
   readonly pickupAt: string | null;
+  /** `WR-30` — تقييمُ الراكبِ الإحصائيّ، و`null` = بلا تقييمٍ (أو بوّابةٌ أقدم). */
+  readonly riderRating: RiderRatingLine | null;
 }
 
 export function toOfferDetail(response: DriverOfferDetailResponse): OfferDetailModel {
@@ -399,6 +404,7 @@ export function toOfferDetail(response: DriverOfferDetailResponse): OfferDetailM
     dropoffOpenUrl: response.dropoff?.open_url ?? null,
     offerTerms: offerLine(response.offer_mode, response.offer_sar),
     pickupAt: response.pickup_at ?? null,
+    riderRating: riderRatingLine(response.rider_rating_average, response.rider_rating_count),
   };
 }
 
@@ -455,4 +461,30 @@ export function offerLine(
 
 export function offerLineText(t: (key: string) => string, line: OfferLine): string {
   return t(line.key).replace("{amount}", String(line.amount ?? ""));
+}
+
+/**
+ * `WR-30` — تقييمُ الراكبِ الإحصائيّ: معدَّلٌ بينَ ١ و٥ وعددُ تقييماتِه. لا
+ * تقييمَ بلا عددٍ، ولا عددَ صفراً يُقالُ عنه «صفرُ نجومٍ».
+ */
+export interface RiderRatingLine {
+  readonly average: number;
+  readonly count: number;
+}
+
+export function riderRatingLine(
+  average: number | null | undefined,
+  count: number | null | undefined,
+): RiderRatingLine | null {
+  if (typeof average !== "number" || typeof count !== "number") return null;
+  if (!Number.isFinite(average) || !Number.isInteger(count) || count <= 0) return null;
+  if (average < 1 || average > 5) return null;
+  return { average, count };
+}
+
+/** `WR-30` — «تقييمُ الراكبِ: ٤٫٥ ★ (١٢)» — سطرٌ واحدٌ للوحِ وللتفاصيلِ سواءً. */
+export function riderRatingText(t: (key: string) => string, rating: RiderRatingLine): string {
+  return t("driver.offers.riderRating")
+    .replace("{value}", rating.average.toFixed(1))
+    .replace("{count}", String(rating.count));
 }

@@ -51,6 +51,18 @@ export function isDriverOfferStatus(value: unknown): value is DriverOfferStatus 
   return typeof value === "string" && (DRIVER_OFFER_STATUSES as readonly string[]).includes(value);
 }
 
+/**
+ * `WR-30` — تقييمُ الراكبِ كما نالَه من سائقينَ سابِقين: **مُعدَّلٌ وعددٌ لا
+ * هويّةَ**. لا اسمَ ولا هاتفَ ولا معرِّفَ — فالعرضُ يذهبُ إلى كلِّ سائقي
+ * الجولةِ، وما يُنشَرُ لهم إحصاءٌ لا كشفٌ.
+ */
+export interface DriverRiderRating {
+  /** بينَ ١ و٥ — كما أعادَهُ `recompute_ratee_averages`. */
+  readonly average: number;
+  /** عددُ التقييماتِ — صفرٌ لا يُبنى منه نموذجٌ أصلًا. */
+  readonly count: number;
+}
+
 /** حالاتُ الطلبِ — تُنقَلُ كما هيَ لتقولَ الشاشةُ «سُبِقتَ» لا «عطبٌ». */
 export const DRIVER_ORDER_STATUSES = [
   "scheduled",
@@ -94,6 +106,8 @@ export interface DriverOfferCard {
   readonly dropoffExtras?: DriverPlaceExtras | null;
   /** `WR-05` — معنى المبلغِ قبلَ القبول. غائبٌ = لم يُقرَأ. */
   readonly offerTerms?: DriverOfferTerms;
+  /** `WR-30` — تقييمُ الراكبِ الإحصائيّ. غائبٌ = لم يُقرَأ (بوّابةٌ أقدم). */
+  readonly riderRating?: DriverRiderRating;
 }
 
 /**
@@ -182,6 +196,8 @@ export interface DriverOfferDetail {
   readonly notes: string | null;
   /** `WR-05` — معنى المبلغِ قبلَ القبول. غائبٌ = لم يُقرَأ. */
   readonly offerTerms?: DriverOfferTerms;
+  /** `WR-30` — تقييمُ الراكبِ الإحصائيّ. غائبٌ = لم يُقرَأ (بوّابةٌ أقدم). */
+  readonly riderRating?: DriverRiderRating;
 }
 
 /** أثرُ القبولِ — **بلا هويّةِ راكبٍ**: سطحُ التواصلِ بندٌ آخرُ. */

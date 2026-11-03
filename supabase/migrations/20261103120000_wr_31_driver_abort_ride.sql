@@ -108,9 +108,12 @@ revoke all on function driver_abort_ride(bigint, uuid, text) from public, anon, 
 grant execute on function driver_abort_ride(bigint, uuid, text) to service_role;
 
 -- 2) حدثُ `ABORTED` في إخطاراتِ أطوارِ الرحلةِ للراكبِ — امتدادٌ لا استبدال:
---    الدالةُ نفسُها كما هيَ حرفيًّا (الإيداعُ الذرّيُّ ومنعُ التكرارِ والإرجاعُ
---    المتطابقُ)، يُزادُ الحدثُ وحدَهُ إلى قائمةِ القبولِ.
-create or replace function enqueue_rider_trip_notice(p_order_id uuid, p_event text)
+--    الدالةُ تُكتبُ هنا على جسمِها القائمِ **بعدَ آخرِ تعديلٍ لها** (20261018150000:
+--    ضمُّ `users` يسارًا وإرجاعُ `rider_telegram_id`، وقائمةُ الأحداثِ الكاملةُ مع
+--    أحداثِ الجدولةِ والبحثِ) لا على جسمِها الأولَ — فالكتابةُ على الجسمِ القديمِ
+--    تُسقِطُ حقلاً يعتمدُ عليه العميلُ (مُقيَّسٌ في اختبارِ التكاملِ لـWR-15)،
+--    وتُسقِطُ أحداثَ الجدولةِ (WR-06 ج · WR-22). يُزادُ `ABORTED` وحدَهُ.
+create or replace function public.enqueue_rider_trip_notice(p_order_id uuid, p_event text)
 returns jsonb
 language plpgsql
 security definer
@@ -120,15 +123,17 @@ declare
   v_order record;
   v_id uuid;
 begin
-  if p_event is null or p_event not in
-     ('MATCHED', 'ARRIVED', 'STARTED', 'COMPLETED', 'ABORTED') then
+  if p_event is null or p_event not in ('MATCHED', 'ARRIVED', 'STARTED', 'COMPLETED', 'ABORTED',
+                                       'SCHEDULED', 'SCHEDULE_REMINDER', 'SEARCH_STARTED', 'SCHEDULE_MISSED',
+                                       'SEARCH_EXPIRED') then
     return jsonb_build_object('ok', false, 'error', 'EVENT_INVALID');
   end if;
 
-  select o.id, o.city_id, r.user_id as rider_user_id
+  select o.id, o.city_id, r.user_id as rider_user_id, u.telegram_id::text as rider_telegram_id
     into v_order
     from orders o
     join riders r on r.id = o.rider_id
+    left join users u on u.id = r.user_id  -- يسارٌ: لا يغيّرُ «وُجِدَ الطلب» عمّا كان
    where o.id = p_order_id;
   if not found then
     return jsonb_build_object('ok', false, 'error', 'ORDER_NOT_FOUND');
@@ -147,9 +152,11 @@ begin
     select n.id into v_id from notification_outbox n
      where n.kind = 'rider_trip_notice'
        and n.dedup_key = 'rider_trip:' || v_order.id::text || ':' || p_event;
-    return jsonb_build_object('ok', true, 'created', false, 'delivery_id', v_id);
+    return jsonb_build_object('ok', true, 'created', false, 'delivery_id', v_id,
+                              'rider_telegram_id', v_order.rider_telegram_id);
   end if;
-  return jsonb_build_object('ok', true, 'created', true, 'delivery_id', v_id);
+  return jsonb_build_object('ok', true, 'created', true, 'delivery_id', v_id,
+                            'rider_telegram_id', v_order.rider_telegram_id);
 end $$;
 
 revoke all on function enqueue_rider_trip_notice(uuid, text) from public, anon, authenticated;

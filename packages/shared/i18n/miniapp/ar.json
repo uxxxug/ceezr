@@ -1824,6 +1824,7 @@
   "driver.offers.pickupAt.at": "وقت الحضور: {time}",
   "driver.offers.pickupAt.am": "ص",
   "driver.offers.pickupAt.pm": "م",
+  "driver.offers.riderRating": "تقييم الراكب: {value} ★ ({count})",
   "rider.search.candidate.title": "سائق قبل طلبك",
   "rider.search.candidate.body": "اختر هذا السائق أو ارفضه قبل انتهاء المهلة. إن رفضته أو انتهت المهلة نواصل البحث عن غيره.",
   "rider.search.candidate.driver": "السائق",

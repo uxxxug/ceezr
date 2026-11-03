@@ -3957,6 +3957,15 @@ a.sys__action {
   overflow-wrap: anywhere;
 }
 
+/* WR-30 — تقييمُ الراكبِ الإحصائيّ على بطاقةِ العرضِ وتفاصيلِه. */
+.dof__rider-rating {
+  margin: 0;
+  font-size: var(--ui-size-label);
+  font-weight: 700;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
 /* الإحداثيّتانِ نصٌّ تقنيٌّ يُنقَلُ إلى تطبيقِ خريطةٍ باليدِ حتّى تُبنى الخريطةُ
    (دَينٌ مُعلَنٌ): يُصغَّرُ خطُّه ويُثبَّتُ عرضُ رقمِه فيُقرأُ ويُنسَخُ. */
 .dof__coords {

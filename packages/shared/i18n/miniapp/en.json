@@ -1824,6 +1824,7 @@
   "driver.offers.pickupAt.at": "Pickup time: {time}",
   "driver.offers.pickupAt.am": "AM",
   "driver.offers.pickupAt.pm": "PM",
+  "driver.offers.riderRating": "Rider rating: {value} ★ ({count})",
   "rider.search.candidate.title": "A driver accepted your request",
   "rider.search.candidate.body": "Choose or decline this driver before the time runs out. If you decline or time runs out, we keep searching.",
   "rider.search.candidate.driver": "Driver",
