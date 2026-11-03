@@ -746,6 +746,18 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
   },
 
   {
+    // `WR-31`: قطعُ الرحلةِ انتقالُ حالةٍ واحدٌ كإخوتِهِ (arrived/start/complete/
+    // cannot-complete): جلسةٌ موقَّعةٌ، ومسارٌ مُقيَّدٌ بحالةِ الطلبِ لا يُكرَّرُ
+    // عبثاً، فصنفُهُ صنفُها.
+    method: "POST",
+    path: "/v1/driver/job/:orderId/abort",
+    file: "apps/gateway/src/routes/driver-job.ts",
+    exposure: "مُصادَقٌ بجلسةٍ",
+    limits: [],
+    exemption: null,
+  },
+
+  {
     method: "POST",
     path: "/v1/driver/location",
     file: "apps/gateway/src/routes/driver-location.ts",
@@ -1691,8 +1703,10 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
  * 147 → 150 في 2026-10-18 (ADR 0287): `GET /v1/rides/:id/trip-events` و`POST …/ack` مُصادَقانِ
  *   بجلسةٍ، و`POST /internal/realtime/rider-trip-signal` خدمةٌ لخدمةٍ بسرٍّ مشتركٍ.
  * 150 → 151 في 2026-10-30: `POST /internal/realtime/chat-signal` خدمةٌ لخدمةٍ بسرٍّ مشتركٍ (تعدُّدُ النسخ).
+ * 151 → 152 في 2026-11-03 (WR-31): `POST /v1/driver/job/:orderId/abort` — انتقالُ
+ *   حالةٍ كإخوتِهِ، مُصادَقٌ بجلسةٍ بلا حدٍّ.
  */
-export const ROUTE_POLICY_COUNT = 151;
+export const ROUTE_POLICY_COUNT = 152;
 export const LIMITED_ROUTE_COUNT = 10;
 /** 4 → 5 في 2026-10-18 (ADR 0287): `/internal/realtime/rider-trip-signal` بسرٍّ مشتركٍ كأختِه.
  *  5 → 6 في 2026-10-30: `/internal/realtime/chat-signal` بسرٍّ مشتركٍ كأختَيه. */
