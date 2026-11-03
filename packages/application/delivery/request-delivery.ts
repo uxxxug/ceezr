@@ -55,6 +55,12 @@ export async function requestDelivery(
   /** مفتاحُ التكرارِ — حتميٌّ من `update_id` لا عشوائيٌّ (D-01). */
   idempotencyKey: string,
   telegramUserId: string,
+  /**
+   * `WR-33` — إقرارُ تنبيهِ التحويلاتِ الماليّةِ المسبقة كما شهدَ به المُنادي (البوتُ بعدَ عرضِه).
+   * يُمرَّرُ إلى المنفذِ كما هو، والحكمُ لحارسِه `requirePrepayWarningAck` — رفضُه يعودُ
+   * `PortFailureError("rides", "PREPAY_WARNING_NOT_ACKNOWLEDGED")`.
+   */
+  prepayWarningAck: string | null = null,
 ): Promise<Result<RequestDeliveryResult, RequestDeliveryError>> {
   const request = makeDeliveryRequest(input);
   if (!request.ok) return request;
@@ -66,6 +72,7 @@ export async function requestDelivery(
     origin: { lat: request.value.pickup.latitude, lng: request.value.pickup.longitude },
     destination: { lat: request.value.dropoff.latitude, lng: request.value.dropoff.longitude },
     notes: request.value.parcelDescription,
+    prepayWarningAck,
   });
   if (!created.ok) {
     return { ok: false, error: new PortFailureError("rides", created.error.reason) };

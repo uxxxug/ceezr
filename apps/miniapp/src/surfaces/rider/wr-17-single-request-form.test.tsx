@@ -78,6 +78,8 @@ function model(over: Partial<RequestFormModel> = {}): RequestFormModel {
     setNotesTooLong: noop,
     pickedService: null,
     setPickedService: noop,
+    prepayPending: null,
+    setPrepayPending: noop,
     ...over,
   };
 }

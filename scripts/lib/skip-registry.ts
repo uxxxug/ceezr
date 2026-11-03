@@ -1256,6 +1256,20 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     whyNotRun: null,
   },
   {
+    file: "tests/integration/wr-33-prepay-warning-enforcement.test.ts",
+    suites: ["WR-33: لا طلبَ بلا إقرارِ تنبيهِ التحويلاتِ المسبقة — عبرَ المسارِ المكوَّن"],
+    skipped: 5,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "المُدَّعى في `WR-33` أنَّ طلبَ المشوارِ أو التوصيلِ **لا يُكتَبُ في `orders`** بلا إقرارِ تنبيهِ التحويلاتِ المسبقةِ عبرَ أيِّ مسارِ HTTP أو منفذِ البوت، وأنَّ إعادةَ المفتاحِ نفسِه تعيدُ الطلبَ نفسَه بلا صفٍّ ثانٍ. والدليلُ أثرُ القاعدةِ (عدُّ الصفوف) لا الردُّ وحدَه، وذاكَ لا يقيسُه محاكٍ في الذاكرة.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بها postgis والهجرات مطبّقة. يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي».",
+    owner: "منفّذ المستودع",
+    criticalPath: "دورةُ الرحلةِ والإسناد",
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+  {
     file: "tests/integration/driver-location-broadcast.test.ts",
     suites: [
       "سياسةُ النبضةِ — سببٌ مُسمّىً ومُدّةٌ من إعدادِ المدينةِ",

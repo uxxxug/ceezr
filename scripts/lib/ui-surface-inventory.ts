@@ -40,6 +40,8 @@ export const SURFACE_INVENTORY: readonly SurfaceGroup[] = [
       "notifications/NotificationsScreen.tsx",
       "privacy/PrivacyScreen.tsx",
       "quote/QuoteScreen.tsx",
+      // WR-33: بوابةُ تنبيهِ التحويلاتِ المسبقةِ — داخلَ شاشةِ الطلبِ قبلَ الإرسال.
+      "quote/PrepayWarningGate.tsx",
       "search/SearchScreen.tsx",
       // WR-09 (ADR 0266): بطاقةُ المرشَّحِ — داخلَ البحثِ والرحلةِ النشطة.
       "search/RideCandidateCard.tsx",
