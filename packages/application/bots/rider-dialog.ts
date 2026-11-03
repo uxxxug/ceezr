@@ -15,6 +15,7 @@ import { DEFAULT_SESSION_POLICY } from "../../domain/tracking/session.ts";
 import { initialLanguageFromHint, t } from "../../shared/i18n/index.ts";
 import type { Clock, OrderId, ServiceType } from "../../shared/kernel/index.ts";
 import { formatPickupMoment } from "../../shared/order-terms/index.ts";
+import { PREPAY_WARNING_ACK_VERSION } from "../../shared/prepay-warning/index.ts";
 import { requestDelivery } from "../delivery/request-delivery.ts";
 import { type BroadcastDependencies, broadcastOffers } from "../dispatch/broadcast-offers.ts";
 import {
@@ -29,6 +30,7 @@ import {
   selectNegotiationDriver,
   settleNegotiation,
 } from "../dispatch/rotate-negotiation-turn.ts";
+import { PortFailureError } from "../ports/index.ts";
 import type { ReputationReader } from "../reputation/index.ts";
 import { type TriggerSosDeps, TriggerSosError, triggerSos } from "../safety/trigger-sos.ts";
 import {
@@ -1519,6 +1521,8 @@ async function handleLocation(
       ...state,
       step: "awaiting_dropoff",
       draftPickup: location,
+      // `WR-33` — في النقلِ هذه آخرُ رسالةٍ قبلَ الإنشاء ويُعرَضُ فيها التنبيه؛ في التوصيلِ لا.
+      ...(isDelivery ? {} : { prepayWarningShown: true }),
     });
     if (!saved.ok) return technicalFailure(sender, state);
     // التوصيلُ يبقى له وصفُ الطردِ بعدَ الوجهةِ، فهذه ليست الخطوةَ الأخيرةَ فيه؛
@@ -1537,6 +1541,8 @@ async function handleLocation(
         ...state,
         step: "awaiting_parcel",
         draftDropoff: location,
+        // `WR-33` — المُدخَلُ الأخيرُ في التوصيلِ يُسبَقُ بتنبيهِ التحويلاتِ المسبقة.
+        prepayWarningShown: true,
       });
       if (!saved.ok) return technicalFailure(sender, state);
       return askFinalInputBeforeOrder(sender, state, "rider.ask_parcel");
@@ -1582,9 +1588,15 @@ async function handleParcel(
     { rides: deps.rides, matching: deps.matching },
     `telegram-update:${sender.telegramUserId}:${updateId}`,
     sender.telegramUserId,
+    prepayAckFor(state),
   );
 
   if (!requested.ok) {
+    if (isPrepayWarningRefusal(requested.error)) {
+      return reshowPrepayWarning(sender, state, deps, (s) =>
+        askFinalInputBeforeOrder(sender, s, "rider.ask_parcel"),
+      );
+    }
     if (requested.error.code === "DELIVERY_DROPOFF_REQUIRED") {
       return [reply(sender, tr("rider.delivery_dropoff_required"))];
     }
@@ -1638,7 +1650,39 @@ function askFinalInputBeforeOrder(
   const tr = t(state.language);
   // البيانُ أوّلاً: تلغرام يعرِضُ الرسائلَ بترتيبِ إرسالِها، فالترتيبُ ههنا هوَ
   // ترتيبُ القراءةِ. والقائمةُ على الرسالةِ الثانيةِ لأنَّها هيَ التي تنتظرُ فعلاً.
-  return [reply(sender, tr("rider.payment_notice")), reply(sender, tr(key), menu(state))];
+  // `WR-33` — تنبيهُ التحويلاتِ الماليّةِ المسبقة رسالةٌ مستقلّةٌ قصيرةٌ **ملاصقةٌ** لطلبِ
+  // المُدخَلِ الأخير، لا سطرٌ مدفونٌ داخلَ بيانِ الدفع: على الهاتفِ هي آخرُ ما يُقرَأُ قبلَ الإرسال.
+  return [
+    reply(sender, tr("rider.payment_notice")),
+    reply(sender, tr("rider.prepay_warning")),
+    reply(sender, tr(key), menu(state)),
+  ];
+}
+
+/** `WR-33` — الإقرارُ الذي يشهدُ به البوتُ: عُرِضَ التنبيهُ لمسوّدةِ هذا الطلبِ أم لا. */
+function prepayAckFor(state: DialogState): string | null {
+  return state.prepayWarningShown === true ? PREPAY_WARNING_ACK_VERSION : null;
+}
+
+function isPrepayWarningRefusal(error: { readonly code: string }): boolean {
+  return error instanceof PortFailureError && error.detail === "PREPAY_WARNING_NOT_ACKNOWLEDGED";
+}
+
+/**
+ * `WR-33` — رفضَ حارسُ الخادمِ الإنشاءَ لأنَّ هذه المسوّدةَ لم يُعرَض لها التنبيه (جلسةٌ أقدمُ من
+ * التنبيه، أو مسارٌ وصلَ إلى الإنشاءِ بلا المَعبَر). لا يُنشَأُ شيء: يُعرَضُ التنبيهُ الآنَ ويُعلَّمُ
+ * في الجلسة، ويُطلَبُ المُدخَلُ الأخيرُ ثانيةً — فالإرسالُ التالي يحملُ الإقرار.
+ */
+async function reshowPrepayWarning(
+  sender: Sender,
+  state: DialogState,
+  deps: RiderBotDependencies,
+  askAgain: (state: DialogState) => readonly BotReply[],
+): Promise<readonly BotReply[]> {
+  const marked: DialogState = { ...state, prepayWarningShown: true };
+  const saved = await deps.sessions.save(sender.telegramUserId, marked);
+  if (!saved.ok) return technicalFailure(sender, state);
+  return askAgain(marked);
 }
 
 async function createOrderAndMatch(
@@ -1662,8 +1706,16 @@ async function createOrderAndMatch(
     origin: { lat: pickup.latitude, lng: pickup.longitude },
     destination: dropoff === null ? null : { lat: dropoff.latitude, lng: dropoff.longitude },
     notes: null,
+    prepayWarningAck: prepayAckFor(state),
   });
-  if (!created.ok) return technicalFailure(sender, state);
+  if (!created.ok) {
+    if (created.error.reason === "PREPAY_WARNING_NOT_ACKNOWLEDGED") {
+      return reshowPrepayWarning(sender, state, deps, (s) =>
+        askFinalInputBeforeOrder(sender, s, "rider.ask_dropoff"),
+      );
+    }
+    return technicalFailure(sender, state);
+  }
 
   // الرفضُ مقيسٌ لا عطبٌ — لكنَّ البوتَ يُبلِّغُهُ بصدقٍ.
   if (!created.value.accepted) {

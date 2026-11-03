@@ -53,6 +53,12 @@ export interface RequestDeliveryInput {
   /** `LOC-TRUST-01` — مصدرُ النقطةِ ودقّتُها ووقتُها والرابطُ الأصليُّ والملاحظات. */
   readonly pickupPlace?: PlaceWire | null;
   readonly dropoffPlace?: PlaceWire | null;
+  /**
+   * `WR-33` — إقرارُ «تنبيهِ التحويلاتِ الماليّةِ المسبقة» (`PREPAY_WARNING_ACK_VERSION`). يضعُه
+   * زرُّ «فهمت — أرسل الطلب» في بوّابةِ التنبيه، ويُعادُ حرفًا في كلِّ محاولةٍ لنفسِ النيّة. الخادمُ
+   * يرفضُ الإنشاءَ بدونه (`PREPAY_WARNING_ACK_REQUIRED`).
+   */
+  readonly prepayWarningAck?: string;
 }
 
 /**

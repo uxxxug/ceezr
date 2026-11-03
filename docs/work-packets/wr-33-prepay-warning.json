@@ -1,0 +1,71 @@
+{
+  "id": "wr-33-prepay-warning",
+  "goal": "طلبُ المالكِ (استثناءٌ معتمدٌ على تجميدِ PRD-010): تنبيهُ «لا تحوّلْ أيَّ مبلغٍ مقدَّمًا» يظهرُ قبلَ التأكيدِ النهائيِّ لكلِّ طلبِ مشوارٍ أو توصيلٍ جديدٍ في كلِّ مساراتِ الإنشاء (Mini App وبوتِ الراكب)، ولا يُتجاوَزُ بمسارِ API مختلف — إنفاذٌ في الخادم.",
+  "canonical_source": [
+    "docs/evidence/WR-33-prepay-warning-20261103.md"
+  ],
+  "implementation": [
+    "packages/shared/prepay-warning/index.ts",
+    "packages/application/transport/prepay-warning-guard.ts",
+    "packages/application/transport/ride-request-ports.ts",
+    "packages/application/transport/request-ride.ts",
+    "packages/application/delivery/request-delivery.ts",
+    "packages/application/bots/rider-dialog.ts",
+    "packages/application/bots/types.ts",
+    "apps/gateway/src/index.ts",
+    "apps/gateway/src/container.ts",
+    "apps/gateway/src/routes/rides.ts",
+    "apps/gateway/src/routes/deliveries.ts",
+    "apps/gateway/src/bots/shared/redis-session.ts",
+    "apps/miniapp/src/surfaces/rider/quote/PrepayWarningGate.tsx",
+    "apps/miniapp/src/surfaces/rider/quote/QuoteScreen.tsx",
+    "apps/miniapp/src/surfaces/rider/search/SearchScreen.tsx",
+    "apps/miniapp/src/surfaces/rider/search/ride-api.ts",
+    "apps/miniapp/src/surfaces/rider/search/delivery-api.ts",
+    "apps/miniapp/src/surfaces/rider/search/request-by-service.ts",
+    "apps/miniapp/src/surfaces/rider/search/search-view.ts",
+    "apps/miniapp/src/styles/global.css",
+    "packages/shared/i18n/ar.json",
+    "packages/shared/i18n/en.json",
+    "packages/shared/i18n/ur.json",
+    "packages/shared/i18n/miniapp/ar.json",
+    "packages/shared/i18n/miniapp/en.json",
+    "packages/shared/i18n/miniapp/ur.json",
+    "deploy/capacity-run/load/miniapp-load.ts",
+    "deploy/capacity-run/load/isolate.ts",
+    "deploy/capacity-run/load/pg-recovery.ts",
+    "scripts/lib/skip-registry.ts",
+    "scripts/lib/execution-roadmap.ts",
+    "scripts/lib/ui-surface-inventory.ts",
+    "tests/unit/skip-audit.test.ts",
+    "tests/unit/rider-dialog.test.ts",
+    "tests/unit/wr-33-prepay-warning.test.ts",
+    "apps/miniapp/src/surfaces/rider/wr-17-single-request-form.test.tsx",
+    "apps/miniapp/src/surfaces/rider/wr-33-prepay-warning.test.tsx",
+    "tests/integration/wr-33-prepay-warning-enforcement.test.ts"
+  ],
+  "state": [
+    "docs/SYSTEM_STATE.md"
+  ],
+  "roadmap": [
+    "ROADMAP.md"
+  ],
+  "affected_docs": [
+    "docs/evidence/WR-33-prepay-warning-20261103.md",
+    "docs/roadmap/execution/STATUS.md"
+  ],
+  "decision": "حارسٌ واحدٌ requirePrepayWarningAck يلفُّ منفذَ الكتابةِ RideRequestCommand في جذرِ التركيبِ (rides وdeliveries في index.ts ومنفذُ البوتِ في container.ts) — كلُّ مساراتِ الإنشاءِ تنتهي إليه ودوالُّ request_ride* لـservice_role وحده. الإقرارُ حقلُ prepayWarningAck في جسمِ الطلبِ بقيمةِ رمزِ إصدارٍ (prepay-warning-v1) لا true، فتغييرُ النصِّ الجوهريُّ يرفعُ الإصدار. الإقرارُ لكلِّ طلبٍ مربوطٌ بمفتاحِ اللاتكرار: إعادةُ المحاولةِ تحملُه بلا إعادةِ عرض، والطلبُ الجديدُ يحتاجُ إقرارًا جديدًا. الرفضُ 400 PREPAY_WARNING_ACK_REQUIRED قبلَ أيِّ كتابة. بلا هجرةٍ ولا تخزينٍ للإقرار. Mini App: بوابةُ تنبيهٍ (alertdialog) بينَ زرِّ الإرسالِ والإنشاء. البوت: رسالةٌ مستقلّةٌ قبلَ السؤالِ الأخيرِ وعلامةُ جلسةٍ، والجلسةُ القديمةُ بلا علامةٍ يُعرَضُ لها التنبيهُ ويُعادُ السؤال.",
+  "tests": [
+    "TEST_DATABASE_URL=… bun test tests/integration/wr-33-prepay-warning-enforcement.test.ts — 5/5 على PostgreSQL حقيقيٍّ (303 هجرةً)",
+    "bun test tests/unit/wr-33-prepay-warning.test.ts — 16/16",
+    "bun test apps/miniapp/src/surfaces/rider/wr-33-prepay-warning.test.tsx — 8/8",
+    "bun test tests/unit/rider-dialog.test.ts tests/unit/skip-audit.test.ts — ناجحة"
+  ],
+  "evidence": "docs/evidence/WR-33-prepay-warning-20261103.md",
+  "constraints": [
+    "لا تغييرَ في الأسعارِ ولا السياساتِ التجاريّة",
+    "لا هجرةَ ولا لمسَ للإنتاج",
+    "ترتيبُ النشر: Mini App قبلَ البوابة؛ العميلُ القديمُ المخزَّنُ يأخذُ خطأً عامًّا حتى يتحدَّث"
+  ],
+  "limitations": "لا لقطةَ من جهازٍ حقيقيٍّ ولا Telegram WebView، ولم يُنشَرْ ولم يُختبَرْ على تيليجرامَ فعليّ. الإقرارُ لا يُحفَظُ في القاعدة. رسالةُ البوتِ تُرسَلُ ولا تُثبَّت."
+}
