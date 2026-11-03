@@ -1136,6 +1136,20 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     whyNotRun: null,
   },
   {
+    file: "tests/integration/wr-38-support-group-isolation.test.ts",
+    suites: ["WR-38 — عزلُ مسارِ الدعمِ"],
+    skipped: 5,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "المُدَّعى في `WR-38` أنَّ بطاقةَ الدعمِ تُوجَّهُ حصراً إلى قروبِ الدعمِ المعرَّفِ للمدينةِ في جدولِ المدنِ عبرَ `open_support_ticket` و`get_support_ticket_context`، وأنَّ قيدَيِ العزلِ `cities_group_ids_distinct` و`cities_group_ids_distinct_unsubscribed_support` يرفضانِ تطابقَ قروبِ الدعمِ مع قروبِ التصعيدِ أو قروبِ غيرِ المشتركينَ، وأنَّ دالةَ الإدارةِ ترفضُ القروباتِ المتطابقةَ بـ`DUPLICATE_GROUP_ID` قبلَ الوصولِ إلى القاعدةِ، وأنَّ مدينةً بلا قروبِ دعمٍ تُرفضُ تذكرتُها بـ`CITY_GROUP_MISSING`. وهذه أحكامُ قيودٍ ودوالَّ SQL حقيقيّةٍ لا يقيسُها محرِّكٌ مُصنَّع. (عضويةُ القروباتِ الفعليةِ في تيليجرامَ خارجُ القاعدةِ — قرارُ مالكٍ.)",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بالهجرات مطبَّقة (ومنها 20260810100000 و20260914220000). يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي».",
+    owner: "منفّذ المستودع",
+    criticalPath: null,
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+  {
     file: "tests/integration/wr-32-rider-privacy.test.ts",
     suites: [
       "WR-32 (أ) — رسالةُ الراكبِ في سجلِّ الموافقاتِ الحقيقيِّ",

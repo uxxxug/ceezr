@@ -1,0 +1,31 @@
+{
+  "id": "wr-38-support-group-isolation-20261104",
+  "goal": "تنفيذُ البندِ (ج) من أمرِ الاستلامِ 2026-11-03: برهانٌ أنَّ بطاقةَ الدعمِ تُوجَّهُ حصراً إلى قروبِ الدعمِ، وقروباتُ المدينةِ الثلاثةُ مستقلةٌ (قيدٌ + دالةُ إدارةٍ)، وتصنيفُ عضويةِ القروباتِ الفعليةِ BLOCKED لا افتراضَ أمانًا.",
+  "canonical_source": ["docs/evidence/compliance/WR-38-support-group-isolation-20261104.md"],
+  "implementation": [
+    "tests/unit/wr-38-support-group-path.test.ts",
+    "tests/integration/wr-38-support-group-isolation.test.ts",
+    "scripts/lib/skip-registry.ts",
+    "scripts/lib/execution-roadmap.ts",
+    "tests/unit/skip-audit.test.ts"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [
+    "docs/evidence/compliance/WR-38-support-group-isolation-20261104.md",
+    "docs/roadmap/execution/STATUS.md"
+  ],
+  "decision": "القيدانِ (`cities_group_ids_distinct` و`cities_group_ids_distinct_unsubscribed_support`) ودالةُ `admin_update_city_group_ids` موجودةٌ منذُ المرحلةِ 5 (20260810100000) — فلم تُضَف قيودٌ جديدةٌ ولا هجرة: أُضيفَ البرهانُ لا التصميمَ. برهانُ المصدرِ يقرأُ آخرَ تعريفٍ للدالتينِ في الهجراتِ (الأحدثُ حاكمٌ)، وبرهانُ القاعدةِ يعملُ في CI على قاعدةٍ حقيقيةٍ بـTEST_DATABASE_URL. عضويةُ القروباتِ الفعليةِ في تيليجرامَ خارجَ الكودِ والقاعدةِ: صنّفت BLOCKED — قرارُ مالكٍ، ولا يُفترض أنّها آمنةٌ، ولا رسائلَ اختبارٍ ببياناتٍ شخصيةٍ.",
+  "tests": [
+    "bun test tests/unit/wr-38-support-group-path.test.ts — 4/4 (برهانُ المصدرِ: آخرُ تعريفٍ لـopen_support_ticket وget_support_ticket_context يقرأُ telegram_support_group_id حصراً، القيدانِ موجودانِ، طبقةُ التطبيقِ تنشرُ على قروبِ السياقِ وحده)",
+    "bun test tests/integration/wr-38-support-group-isolation.test.ts — 5 حالاتٍ تعملُ في CI بـTEST_DATABASE_URL (محليًا skip مُصرَّحٌ به في سجلِّ التجاوزِ): التوجيهُ إلى قروبِ الدعمِ، رفضُ القيدِ للتطابقِ، DUPLICATE_GROUP_ID، CITY_GROUP_MISSING",
+    "check-skip-classification: ✅ (سجلُ التجاوزِ مُحدَّثٌ) | check-state-sync/check-system-state/check-execution-roadmap/check-docs-hygiene/check-evidence-manifests: ✅"
+  ],
+  "evidence": "docs/evidence/compliance/WR-38-support-group-isolation-20261104.md",
+  "constraints": [
+    "لا هجرةَ ولا تعديلَ قاعدةِ بياناتٍ: القيودُ موجودةٌ — أُضيفَ البرهانُ",
+    "لا رسائلَ اختبارٍ تحتوي بياناتٍ شخصيةٍ (لا إرسالَ لتيليجرامَ أصلًا من هذهِ الحزمةِ)",
+    "عضويةُ القروباتِ لا يُفترض أنّها آمنةٌ: BLOCKED حتى يتحقّقَ المالكُ"
+  ],
+  "limitations": "برهانُ القاعدةِ يعملُ في CI (TEST_DATABASE_URL) لا محليًّا في هذهِ البيئةِ (بلا قاعدةٍ). تحقّقُ العضويةِ الفعليةِ في تيليجرامَ BLOCKED — يحتاجُ حساباتِ المالكِ وأجهزتَه. لم يُنشر — النشرُ ينتظرُ موافقةَ المالك."
+}
