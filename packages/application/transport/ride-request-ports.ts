@@ -49,6 +49,11 @@ export type RideStoreFailureReason =
    * كتابةٍ في القاعدةِ — الطلبُ لم يُنشَأْ.
    */
   | "ACCOUNT_BLOCKED"
+  /**
+   * `WR-33` — الأمرُ لا يحملُ إقرارَ «تنبيهِ التحويلاتِ الماليّةِ المسبقة» بالإصدارِ الحاليّ.
+   * يرفضُه الحارسُ `requirePrepayWarningAck` **قبلَ** المحوّلِ، فلا كتابةَ ولا نداءَ للقاعدة.
+   */
+  | "PREPAY_WARNING_NOT_ACKNOWLEDGED"
   | "NOT_CONFIGURED"
   | "STORE_ERROR";
 
@@ -144,6 +149,12 @@ export interface RideRequestCommand {
      */
     readonly pickupPlace?: PlaceMeta | null;
     readonly dropoffPlace?: PlaceMeta | null;
+    /**
+     * `WR-33` — إقرارُ «تنبيهِ التحويلاتِ الماليّةِ المسبقة» كما أرسلتْه الواجهةُ التي عرضتْه
+     * (`PREPAY_WARNING_ACK_VERSION`). اختياريٌّ في **النوع** لأنَّ المحوّلَ نفسَه لا يقرؤه؛ وإلزاميٌّ
+     * في **التشغيل** لأنَّ كلَّ تركيبٍ إنتاجيٍّ يلفُّ المحوّلَ بـ `requirePrepayWarningAck`.
+     */
+    readonly prepayWarningAck?: string | null;
   }): Promise<Result<RideRequestVerdict, RideStoreFailure>>;
 }
 

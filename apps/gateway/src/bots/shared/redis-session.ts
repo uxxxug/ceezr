@@ -133,6 +133,8 @@ export function coerceDialogState(parsed: unknown): DialogState | null {
     draftNationalId: nationalId,
     draftVehiclePhotoFileId: vehiclePhoto,
     draftPreferredAreaLabel: preferredAreaLabel,
+    // `WR-33` — يُحفَظُ إن كان `true` حرفًا، وما سواه (غيابٌ في جلسةٍ قديمة) = لم يُعرَض.
+    ...(candidate.prepayWarningShown === true ? { prepayWarningShown: true } : {}),
   };
 }
 

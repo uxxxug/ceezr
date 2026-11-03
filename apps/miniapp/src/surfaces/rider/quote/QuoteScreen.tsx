@@ -64,6 +64,7 @@ import {
   type MiniAppLanguage,
   miniAppTranslator,
 } from "../../../../../../packages/shared/i18n/miniapp/core.ts";
+import { PREPAY_WARNING_ACK_VERSION } from "../../../../../../packages/shared/prepay-warning/index.ts";
 import {
   classifyFailure,
   failureFromThrown,
@@ -86,7 +87,7 @@ import {
 import { type DeviceFixResult, readFreshDeviceFix } from "../destination/device-fix.ts";
 import { newIdempotencyKey } from "../search/search-view.ts";
 import { SosEntry } from "../sos/SosEntry.tsx";
-
+import { PrepayWarningGate } from "./PrepayWarningGate.tsx";
 import { type QuoteRideResponse, quoteRide as quoteViaApi } from "./quote-api.ts";
 import {
   destinationIsPickup,
@@ -99,7 +100,7 @@ import {
   refusalRemedy,
   serviceCards,
 } from "./quote-view.ts";
-import { judgeRequestForm, notesFieldFor } from "./request-form.ts";
+import { judgeRequestForm, notesFieldFor, type RequestIntent } from "./request-form.ts";
 
 export interface QuoteScreenProps {
   /** الوجهةُ كما صادَقَتْها `SR-03` — تُمرَّرُ ولا يُعادُ البحثُ عنها. */
@@ -158,6 +159,11 @@ export interface QuoteScreenProps {
     readonly offerSar?: number | null;
     /** `WR-05` — سياسةُ المبلغ. */
     readonly offerMode?: QuoteOfferMode;
+    /**
+     * `WR-33` — إقرارُ تنبيهِ التحويلاتِ المسبقة. **إلزاميٌّ** في هذا العقد: لا تخرجُ نيّةٌ من
+     * الشاشةِ إلّا من زرِّ الإقرارِ في `PrepayWarningGate`.
+     */
+    readonly prepayWarningAck: string;
   }) => void;
   readonly initialLanguage?: MiniAppLanguage;
 }
@@ -258,6 +264,11 @@ export function QuoteScreen({
   /** `WR-17` — مدخلٌ بلا خدمةٍ مختارةٍ يسألُ عنها داخلَ النموذج، لا ببطاقاتٍ بأزرارِ طلب. */
   const [pickedService, setPickedService] = useState<"transport" | "delivery" | null>(null);
   /**
+   * `WR-33` — نيّةٌ نجحَ حكمُها وتنتظرُ إقرارَ تنبيهِ التحويلاتِ المسبقة. `null` = البوّابةُ مغلقة.
+   * تبدأُ `null` في كلِّ `QuoteScreen` جديدةٍ (= كلِّ طلبٍ جديد)، فيُعرَضُ التنبيهُ لكلِّ طلب.
+   */
+  const [prepayPending, setPrepayPending] = useState<RequestIntent | null>(null);
+  /**
    * `UI-PICKUP-01` · `LOC-TRUST-01`: مكانُ الالتقاطِ **كما أكّدَه الراكبُ** — بموقعِ جهازِه
    * أو اقتراحٍ أو رابطٍ أو إحداثيّات. وكانَ `null` يعني «موقعَ الجهازِ» يُقرأُ بصمتٍ ويُعتمَدُ
    * بلا عرضٍ ولا تأكيد (PRD-008: نقطةٌ راكدةٌ قربَ معلَمٍ بعيد). الآنَ لا يُعتمَدُ مكانٌ بصمت:
@@ -283,6 +294,8 @@ export function QuoteScreen({
   const ask = useCallback(async () => {
     const ticket = ++issued.current;
     setSystem(null);
+    // `WR-33` — اقتباسٌ جديدٌ (مكانٌ تغيّر) يُبطِلُ نيّةً معلَّقةً بُنيت على المكانِ القديم.
+    setPrepayPending(null);
     if (manualPickup === null) {
       setState({ kind: "pickup_required" });
       return;
@@ -468,6 +481,8 @@ export function QuoteScreen({
           setNotesTooLong,
           pickedService,
           setPickedService,
+          prepayPending,
+          setPrepayPending,
         }}
       />
     );
@@ -519,6 +534,9 @@ export interface RequestFormModel {
   readonly setNotesTooLong: (value: boolean) => void;
   readonly pickedService: "transport" | "delivery" | null;
   readonly setPickedService: (value: "transport" | "delivery") => void;
+  /** `WR-33` — النيّةُ المعلَّقةُ على إقرارِ تنبيهِ التحويلاتِ المسبقة (`null` = لا بوّابة). */
+  readonly prepayPending: RequestIntent | null;
+  readonly setPrepayPending: (value: RequestIntent | null) => void;
 }
 
 export interface RequestFormProps {
@@ -575,6 +593,8 @@ export function RequestForm({
     setNotesTooLong,
     pickedService,
     setPickedService,
+    prepayPending,
+    setPrepayPending,
   } = form;
   const setPickingPickup = (_: true) => onChangePickup();
   const cityLine = (name: { readonly ar: string; readonly en: string }) => (
@@ -622,8 +642,22 @@ export function RequestForm({
     setNotesTooLong(!verdict.ok && verdict.field === "notes");
     setOfferError(verdict.ok || verdict.field !== "offer" ? null : verdict.error);
     setPickupError(!verdict.ok && verdict.field === "pickupAt");
-    if (verdict.ok) onRequest(verdict.intent);
+    // `WR-33` — الحكمُ الناجحُ لا يُرسِلُ: يفتحُ بوّابةَ تنبيهِ التحويلاتِ المسبقة، والإرسالُ منها وحدَها.
+    if (verdict.ok) setPrepayPending(verdict.intent);
   };
+  if (prepayPending !== null && onRequest !== undefined) {
+    return (
+      <div className="qt__result">
+        <PrepayWarningGate
+          language={language}
+          onConfirm={() =>
+            onRequest({ ...prepayPending, prepayWarningAck: PREPAY_WARNING_ACK_VERSION })
+          }
+          onCancel={() => setPrepayPending(null)}
+        />
+      </div>
+    );
+  }
   return (
     <div className="qt__result">
       {/*
@@ -859,9 +893,9 @@ export function RequestForm({
           {/*
            * ## طريقةُ الدفعِ **قبلَ** زرِّ الإرسالِ لا بعدَه — الخطوةُ ٩ (ADR 0169)
            *
-           * زرُّ `rider.quote.request` نقطةُ اللاعودة: لا شاشةَ تأكيدٍ بعدَه، بل تُسلَّمُ النيّةُ
-           * فتُنادي `SearchScreen` الإنشاءَ فورًا. فالبيانُ نفيٌ صريحٌ قبلَه: لا قبضَ ولا حفظَ ولا
-           * تحديدَ مبلغٍ من المنصّة — والمبلغُ الذي يكتبُه الراكبُ عرضُه هوَ (`WR-05` · ADR 0264).
+           * زرُّ `rider.quote.request` يفتحُ بعدَ `WR-33` بوّابةَ تنبيهِ التحويلاتِ المسبقة، ومنها وحدَها
+           * تُسلَّمُ النيّةُ فتُنادي `SearchScreen` الإنشاءَ فورًا. فالبيانُ نفيٌ صريحٌ قبلَه: لا قبضَ ولا
+           * حفظَ ولا تحديدَ مبلغٍ من المنصّة — والمبلغُ الذي يكتبُه الراكبُ عرضُه هوَ (`WR-05` · ADR 0264).
            */}
           <section className="qt__payment" aria-label={t("rider.quote.payment.title")}>
             <h2 className="qt__subtitle">{t("rider.quote.payment.title")}</h2>

@@ -44,6 +44,12 @@ export interface ServiceRequestInput {
   /** `LOC-TRUST-01` — مصدرُ النقطةِ ودقّتُها ووقتُها والرابطُ الأصليُّ والملاحظات. */
   readonly pickupPlace?: PlaceWire | null;
   readonly dropoffPlace?: PlaceWire | null;
+  /**
+   * `WR-33` — إقرارُ «تنبيهِ التحويلاتِ الماليّةِ المسبقة» (`PREPAY_WARNING_ACK_VERSION`). يضعُه
+   * زرُّ «فهمت — أرسل الطلب» في بوّابةِ التنبيه، ويُعادُ حرفًا في كلِّ محاولةٍ لنفسِ النيّة. الخادمُ
+   * يرفضُ الإنشاءَ بدونه (`PREPAY_WARNING_ACK_REQUIRED`).
+   */
+  readonly prepayWarningAck?: string;
 }
 
 /**
@@ -74,6 +80,8 @@ export function requestByService(
       ...(input.offerMode === undefined ? {} : { offerMode: input.offerMode }),
       ...(input.pickupPlace == null ? {} : { pickupPlace: input.pickupPlace }),
       ...(input.dropoffPlace == null ? {} : { dropoffPlace: input.dropoffPlace }),
+      // `WR-33` — الجسمُ يُبنى حقلًا حقلًا، فالإقرارُ يُمرَّرُ صراحةً وإلّا رُفِضَ كلُّ توصيل.
+      ...(input.prepayWarningAck === undefined ? {} : { prepayWarningAck: input.prepayWarningAck }),
     };
     return requestDelivery(deliveryInput, fetchFn ?? (apiFetch as unknown as ApiFetchFn));
   }

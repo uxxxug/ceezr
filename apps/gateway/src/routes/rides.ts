@@ -207,6 +207,8 @@ const STATUS_BY_ERROR: Readonly<Record<RequestRidePublicErrorCode, 400 | 401 | 4
   RIDER_NOT_REGISTERED: 404,
   // SEC-22 — الموقوفُ يُرفَضُ بصفةِ حسابِهِ لا بعطبِ الخدمةِ: `403` لا `503`.
   ACCOUNT_BLOCKED: 403,
+  // `WR-33` — طلبٌ بلا إقرارِ تنبيهِ التحويلاتِ المسبقة: يُصلِحُه العميلُ بعرضِ التنبيه.
+  PREPAY_WARNING_ACK_REQUIRED: 400,
   RIDE_STORE_NOT_AVAILABLE: 503,
 };
 

@@ -345,6 +345,12 @@ export interface DialogState {
   readonly draftVehiclePhotoFileId: string | null;
   /** اسم المنطقة المفضّلة محفوظاً حتى تصل إحداثيتها — البند 2.4. */
   readonly draftPreferredAreaLabel: string | null;
+  /**
+   * `WR-33` — عُرِضَ تنبيهُ التحويلاتِ الماليّةِ المسبقة لمسوّدةِ **هذا** الطلب (قبلَ المُدخَلِ الأخير).
+   * اختياريٌّ لأنَّه أُضيفَ بعدَ جلساتٍ قائمة: غيابُه = لم يُعرَض، فيُعرَضُ قبلَ أيِّ إنشاء.
+   * ويسقطُ مع الجلسةِ عند إنشاءِ الطلبِ (`sessions.clear`) فيُعرَضُ ثانيةً للطلبِ التالي.
+   */
+  readonly prepayWarningShown?: boolean;
 }
 
 export const INITIAL_STATE: DialogState = {
