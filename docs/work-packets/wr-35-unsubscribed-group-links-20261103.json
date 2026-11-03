@@ -2,9 +2,7 @@
   "id": "wr-35-unsubscribed-group-links-20261103",
   "title": "رابط قروب سائقي المدينة غير المشتركين عند انتهاء الاشتراك المجاني + تحقق دورة السائق بلا وثائق (WR-35)",
   "date": "2026-11-03",
-  "roadmap_items": [
-    "WR-35"
-  ],
+  "roadmap_items": ["WR-35"],
   "goal": "طلبُ المالكِ (استثناءٌ معتمَدٌ على تجميدِ PRD-010): عندَ انتهاءِ الاشتراكِ المجانيِّ يصلُ السائقَ رابطُ قروبِ سائقي مدينتِه غيرِ المشتركين بالروابطِ الخمسةِ المعتمَدة، بصياغةٍ لا توحي بأنّ الانضمامَ يعيدُ التجربةَ أو يفعّلُ الحساب؛ وتحقّقٌ من أن لا شرطَ مخفيًّا يحجبُ السائقَ بلا وثائقَ بعدَ WR-28.",
   "implementation": [
     "supabase/migrations/20261103163500_wr_35_unsubscribed_group_links.sql",
@@ -22,12 +20,8 @@
     "tests/integration/wr-35-no-docs-driver-cycle.test.ts",
     "tests/unit/skip-audit.test.ts"
   ],
-  "state": [
-    "docs/SYSTEM_STATE.md"
-  ],
-  "roadmap": [
-    "ROADMAP.md"
-  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
   "affected_docs": [
     "docs/evidence/subscription/WR-35-unsubscribed-group-links-20261103.md",
     "docs/roadmap/execution/STATUS.md"
