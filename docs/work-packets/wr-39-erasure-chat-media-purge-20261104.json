@@ -21,13 +21,8 @@
     "scripts/lib/skip-registry.ts",
     "tests/unit/skip-audit.test.ts"
   ],
-  "state": [
-    "docs/SYSTEM_STATE.md",
-    "packages/shared/config/erasure-policy.ts"
-  ],
-  "roadmap": [
-    "ROADMAP.md"
-  ],
+  "state": ["docs/SYSTEM_STATE.md", "packages/shared/config/erasure-policy.ts"],
+  "roadmap": ["ROADMAP.md"],
   "affected_docs": [
     "docs/evidence/compliance/WR-39-erasure-chat-media-purge-20261104.md",
     "docs/adr/0306-erasure-purges-chat-media-immediately-via-worker.md",

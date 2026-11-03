@@ -6,7 +6,10 @@
 #   1) قاعدةُ التطبيقِ `waslah` (pg_dump -Fc)، ويُتحقَّقُ منها بـpg_restore -l.
 #   2) مخزنُ الوثائقِ (ADR 0294) إن كانت حاويتُه قائمة:
 #      أ) أدوارُه (pg_dumpall --roles-only) وقاعدتُه الوصفيّةُ `storage` (pg_dump -Fc) — **أوّلاً**،
-#      ب) ثمّ البايتاتُ (tar لـ/var/lib/storage) وبيانُ sha256 لكلِّ ملف.
+#      ب) ثمّ البايتاتُ (tar لـ/var/lib/storage) وبيانُ sha256 لكلِّ ملفّ،
+#         **ما عدا دلوَّ محادثةِ الطلب** (WR-40): بايتاتُ الوسائطِ عابرةٌ بالتصميمِ
+#         (استبقاءٌ: 7 أيّامٍ من انتهاءِ الطلبِ أو 30 من الرفعِ أيّهما أسبق، والمحوُ
+#         الفوريُّ يسبقُهما)، فلا تدخلُ نسخةً احتياطيّةً محلّيّةً ولا خارجَ الموقع.
 #      الترتيبُ مقصود: كائنٌ يُرفَعُ بينَ الخطوتين يظهرُ ملفًّا بلا صفٍّ (يتيمٌ لا يضرّ)،
 #      ولا يظهرُ أبدًا صفٌّ بلا ملفّ — وهو العطبُ الذي يُفقِدُ وثيقةَ سائق.
 #   3) ملفّاتُ الإعداد: /etc/wasla/* القائمةُ منها، و/opt/wasla/{.env,compose.yml,haproxy.cfg}.
@@ -34,9 +37,15 @@ if [ "$(docker inspect -f '{{.State.Running}}' "$STORAGE_CONTAINER" 2>/dev/null)
   docker exec "$STORAGE_DB_CONTAINER" pg_dumpall -U postgres --roles-only > "$D/storage-roles-$TS.sql"
   "$H/pg-snapshot-dump.sh" "$STORAGE_DB_CONTAINER" storage "$SD" "$D/storage-db-$TS.rowstats" > /dev/null
   (cd "$D" && sha256sum "${SD##*/}") > "$SD.sha256"
-  docker exec "$STORAGE_CONTAINER" tar -C /var/lib/storage -cf - . > "$SF.part"
+  # WR-40: دلوُّ وسائطِ محادثةِ الطلبِ خارجَ الأرشيفِ والبيانِ معاً — الاسمُ من بيئةِ
+  # التخزينِ نفسِها (ORDER_CHAT_MEDIA_BUCKET في /etc/wasla) والافتراضيُّ اسمُ الدلوِّ
+  # في الشيفرة. لاحَظَ التمشي: البايتاتُ المحذوفةُ (محوُ حسابٍ أو استبقاءٌ) لا تعودُ
+  # من أيِّ نسخةٍ احتياطيّة.
+  CHAT_MEDIA_BUCKET=${ORDER_CHAT_MEDIA_BUCKET:-order-chat-media}
+  case "$CHAT_MEDIA_BUCKET" in *[!a-z0-9._-]*|'') CHAT_MEDIA_BUCKET=order-chat-media;; esac
+  docker exec "$STORAGE_CONTAINER" tar -C /var/lib/storage -cf - --exclude="./$CHAT_MEDIA_BUCKET" . > "$SF.part"
   tar -tf "$SF.part" > /dev/null
-  docker exec "$STORAGE_CONTAINER" sh -c 'cd /var/lib/storage && find . -type f -exec sha256sum {} + | sort -k2' > "$SM"
+  docker exec "$STORAGE_CONTAINER" sh -c "cd /var/lib/storage && find . -type f ! -path './$CHAT_MEDIA_BUCKET/*' -exec sha256sum {} + | sort -k2" > "$SM"
   mv "$SF.part" "$SF"; (cd "$D" && sha256sum "${SF##*/}") > "$SF.sha256"
   storage_note="storage_files=$(wc -l < "$SM") storage_tar=$(stat -c %s "$SF")"
 fi

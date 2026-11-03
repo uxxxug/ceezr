@@ -1136,6 +1136,20 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     whyNotRun: null,
   },
   {
+    file: "tests/integration/wr-40-chat-media-retention.test.ts",
+    suites: ["WR-40 — استبقاءُ وسائطِ المحادثة: أيُّ النافذتَينِ أسبق"],
+    skipped: 3,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "المُدَّعى في `WR-40` أنَّ استبقاءَ مرفقِ المحادثةِ يحكمُه الأقربُ من نافذتَين — 7 أيّامٍ من انتهاءِ الطلبِ (`order_chat_read_window()`) أو 30 يوماً من الرفع — لا مجموعُهما ولا أكبرُهما، وأنَّ المكنسةَ تُتِمُّ السجلَّ (`deleted` معَ `deleted_at`) وتحذفُ الملفَّ، وأنَّ ما قبلَ الأقربِ لا يُمَسُّ. وهذه أحكامُ دالةِ مطالبةٍ SQL حقيقيّةٍ لا يقيسُها محرِّكٌ مُصنَّع.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بالهجرات مطبَّقة (ومنها 20261103150000). يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي».",
+    owner: "منفّذ المستودع",
+    criticalPath: null,
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+  {
     file: "tests/integration/wr-39-erasure-media-purge.test.ts",
     suites: ["WR-39 — المحوُ الفوريُّ لملفّاتِ محادثةِ الحسابِ"],
     skipped: 6,

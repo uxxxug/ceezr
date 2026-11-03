@@ -244,6 +244,9 @@ export const TABLE_RETENTION: Readonly<Record<string, RetentionClass>> = {
    * `WR-34` (ADR 0305): مرفقاتُ المحادثةِ (صورٌ وتسجيلات) — يحكمُها عاملُ
    * `sweep-chat-media`: يُحذَفُ الملفُّ بعدَ سبعةِ أيّامٍ من انتهاءِ الطلبِ أو
    * ثلاثينَ يوماً من رفعِه، والمعلَّقُ بعدَ ربعِ ساعة. والصفُّ يبقى أثراً بلا ملفّ.
+   * `WR-40` (ADR 0307): بايتاتُ الدلوِّ نفسِها خارجَ النسخِ الاحتياطيّةِ
+   * (المحلّيّةِ والخارجيّةِ) — الحذفُ نهائيٌّ لا عودةَ منه من الأرشيف، وأسبقيّةُ
+   * المحوِ الفوريِّ (ADR 0306) على هذا الاستبقاءِ موثّقةٌ في `erasure-policy.ts`.
    */
   order_chat_attachments: RETENTION_CLASSES.selfGoverned,
   order_messages: RETENTION_CLASSES.pendingDecision,

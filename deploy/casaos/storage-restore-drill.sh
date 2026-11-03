@@ -63,15 +63,21 @@ for _ in $(seq 60); do
 docker exec "$DB" psql -U postgres -d storage -Atc \
   "select bucket_id || '/' || name from storage.objects order by 1" > "$TMP/objects"
 HASH='const [p]=process.argv.slice(1);fetch("http://127.0.0.1:5000/object/"+p.split("/").map(encodeURIComponent).join("/"),{headers:{authorization:"Bearer "+process.env.SERVICE_KEY}}).then(async r=>{if(!r.ok){console.log("HTTP"+r.status);return}const b=new Uint8Array(await r.arrayBuffer());console.log(require("crypto").createHash("sha256").update(b).digest("hex"))}).catch(()=>console.log("ERR"))'
-total=0; same=0; diff=0
+total=0; same=0; diff=0; media_skipped=0
+# WR-40: بايتاتُ دلوِّ محادثةِ الطلبِ ليست في النسخِ الاحتياطيّةِ أصلاً (استبقاءٌ
+# قصيرٌ ومحوٌ فوريّ)، فمقارنتُها بينَ الإنتاجِ والتمرينِ ستفشلُ بالضرورةِ — تُتخطّى
+# صفوفُها (البايتاتُ في الإنتاجِ وحده) ولا تُحتسَبَ انحرافاً.
+CHAT_MEDIA_BUCKET=${ORDER_CHAT_MEDIA_BUCKET:-order-chat-media}
 while IFS= read -r obj; do
-  [ -n "$obj" ] || continue; total=$((total+1))
+  [ -n "$obj" ] || continue
+  case "$obj" in "$CHAT_MEDIA_BUCKET"/*) media_skipped=$((media_skipped+1)); continue;; esac
+  total=$((total+1))
   a=$(docker exec wasla-storage-1 node -e "$HASH" "$obj"); b=$(docker exec "$API" node -e "$HASH" "$obj")
   if [ "$a" = "$b" ] && [ "${#a}" = 64 ]; then same=$((same+1)); else diff=$((diff+1)); echo "mismatch object#$total prod=${a:0:12} drill=${b:0:12}"; fi
 done < "$TMP/objects"
 rows=$(docker exec "$DB" psql -U postgres -d storage -Atc "select count(*) from storage.objects")
 buckets=$(docker exec "$DB" psql -U postgres -d storage -Atc "select string_agg(id||':'||public::text||':'||coalesce(file_size_limit::text,'-'), ',') from storage.buckets")
-echo "drill backup=$TS files_manifest_equal=$files_ok storage_rowstats=$rs object_rows=$rows compared_live=$total equal_live=$same different_live=$diff buckets=$buckets"
+echo "drill backup=$TS files_manifest_equal=$files_ok storage_rowstats=$rs object_rows=$rows compared_live=$total equal_live=$same different_live=$diff media_bucket_skipped=$media_skipped buckets=$buckets"
 [ "$files_ok" = yes ] && [ "$rs" != MISMATCH ] || { echo "drill-FAIL"; exit 1; }
 if [ "${STORAGE_LIVE_COMPARE:-strict}" != info ]; then
   [ "$diff" = 0 ] && [ "$same" = "$total" ] || { echo "drill-FAIL live_objects_differ"; exit 1; }
