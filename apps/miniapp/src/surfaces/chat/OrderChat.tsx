@@ -229,7 +229,10 @@ function revoke(url: string | null | undefined): void {
   }
 }
 
-function micMessage(labels: OrderChatLabels, reason: VoiceStartFailure | "too_short"): string {
+export function micMessage(
+  labels: OrderChatLabels,
+  reason: VoiceStartFailure | "too_short",
+): string {
   if (reason === "denied") return labels.micDenied;
   if (reason === "unsupported") return labels.micUnsupported;
   if (reason === "no_device") return labels.micNoDevice;
@@ -237,7 +240,7 @@ function micMessage(labels: OrderChatLabels, reason: VoiceStartFailure | "too_sh
   return labels.micFailed;
 }
 
-function mediaFailureMessage(labels: OrderChatLabels, reason: ChatMediaFailure): string {
+export function mediaFailureMessage(labels: OrderChatLabels, reason: ChatMediaFailure): string {
   if (reason === "too_large") return labels.mediaTooLarge;
   if (reason === "unsupported") return labels.mediaUnsupported;
   if (reason === "quota") return labels.mediaQuota;
@@ -264,7 +267,7 @@ interface RowProps {
 }
 
 /** سطرٌ مؤكَّد — `memo` كي لا يُعادَ رسمُ مئاتِ الفقاعاتِ عندَ كلِّ حرفٍ في الحقل. */
-const MessageRow = memo(function MessageRow({
+export const MessageRow = memo(function MessageRow({
   message: m,
   seen,
   showingOriginal,
@@ -890,7 +893,10 @@ export function OrderChat({
               {labels.status}: {statusText}
             </span>
           </p>
-          {isDriver && !safetyDismissed && labels.driverSafetyNotice !== undefined ? (
+          {/* التنبيهُ يظهرُ لحظةَ الفتح (قبلَ أوّلِ قراءةٍ أيضاً) — النصوصُ تمرُّ من شاشةِ السائقِ وحدَها. */}
+          {(snapshot === null || isDriver) &&
+          !safetyDismissed &&
+          labels.driverSafetyNotice !== undefined ? (
             <p className="ocht__safety" role="note">
               <span>{labels.driverSafetyNotice}</span>
               <button

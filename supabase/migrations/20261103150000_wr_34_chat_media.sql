@@ -28,7 +28,8 @@
 --   - جدولٌ جديدٌ فارغٌ؛ لا صفَّ قائمٌ يتغيّر. القيدان على `order_messages` NOT VALID
 --     فلا مسحَ للجدولِ تحتَ قفلٍ هنا، والصفوفُ القائمةُ كلُّها `text`/`location` تَصِحُّ.
 --   - حذفُ رسالةٍ (محوُ الحسابِ) يجعلُ `message_id = null` (`on delete set null`)
---     فيلتقطُ العاملُ الملفَّ ويحذفُه من المخزن — لا ملفَّ يبقى بلا رسالة.
+--     فيلتقطُ العاملُ الملفَّ ويحذفُه من المخزن — لا ملفَّ يبقى بلا رسالة. وكذلك زوالُ
+--     الطلبِ أو المستخدم (`set null` لا `cascade`) كي لا يضيعَ مسارُ ملفٍّ قبلَ حذفِه.
 --
 -- ## التراجع (آمن)
 --   1) شيفرةً: البوّابةُ السابقةُ تعملُ على هذا المخطَّطِ (انظر «التوافق»).
@@ -53,9 +54,11 @@
 
 create table if not exists order_chat_attachments (
   id                 uuid primary key default gen_random_uuid(),
-  order_id           uuid not null references orders(id) on delete cascade,
+  -- `set null` لا `cascade`: زوالُ الطلبِ أو المستخدمِ لا يُسقِطُ سجلَّ الملفِّ قبلَ أن يُحذَفَ
+  -- الملفُّ نفسُه من المخزن — فلا كائنَ يتيمَ بلا سجلٍّ يدلُّ عليه (المكنسةُ تلتقطُه).
+  order_id           uuid references orders(id) on delete set null,
   city_id            uuid not null references cities(id),
-  uploader_user_id   uuid not null references users(id) on delete cascade,
+  uploader_user_id   uuid references users(id) on delete set null,
   client_message_id  uuid not null,
   kind               text not null,
   mime_type          text not null,
@@ -779,13 +782,13 @@ as $$
       select a.id, a.object_path,
              case
                when a.status = 'pending' then 'orphan_pending'
-               when a.message_id is null then 'message_gone'
+               when a.message_id is null or a.order_id is null then 'message_gone'
                else 'retention'
              end as reason
         from order_chat_attachments a
         left join orders o on o.id = a.order_id
        where (a.status = 'pending' and a.created_at < now() - interval '15 minutes')
-          or (a.status = 'ready' and a.message_id is null)
+          or (a.status = 'ready' and (a.message_id is null or a.order_id is null))
           or (a.status = 'ready' and a.created_at < now() - interval '30 days')
           or (a.status = 'ready'
               and o.status in ('completed', 'cancelled', 'failed')
