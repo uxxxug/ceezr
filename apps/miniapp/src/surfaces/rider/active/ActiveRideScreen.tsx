@@ -170,6 +170,13 @@ export interface ActiveRideScreenProps {
   /** لوحةُ التسليمِ R5→R7: «طلب المساعدة» يفتحُ شاشةَ الاستغاثةِ نفسَها بتأكيدِها ذي الخطوتَين. */
   readonly onOpenHelp?: () => void;
   /**
+   * `WR-42` — «مشكلةٌ في هذهِ الرحلةِ»: مسارُ مساعدةٍ بسيطٌ من شاشةِ الرحلةِ
+   * الحيّةِ نفسِها. يفتحُ شاشةَ الدعمِ **ورقمُ الطلبِ مُرفَقٌ بها تلقائيًّا**
+   * فلا يُطلَبُ منَ الراكبِ صياغةُ رسالةٍ تقنيةٍ ولا نسخُ مُعرِّفٍ. غيابُه
+   * يُخفي الزرَّ (كما في الاختباراتِ المركَّبةِ) لا أن يُرسَمَ بلا مُستقبِلٍ.
+   */
+  readonly onReportProblem?: (orderId: string) => void;
+  /**
    * ADR 0287 — أحداثُ أطوارِ الرحلةِ في Mini App: إشارةٌ آنيةٌ ← جلبُ الأحداثِ ←
    * تطبيقُها بقراءةِ اللقطةِ ← إقرارٌ بما تغطّيه اللقطةُ. بغيابِه لا إقرارَ،
    * فتصلُ الأطوارُ بتيليجرامَ احتياطًا كما كانَت.
@@ -230,6 +237,7 @@ export function ActiveRideScreen({
   channelBaseUrl = "",
   onOpenShare,
   onOpenHelp,
+  onReportProblem,
   tripEvents: injectedTripEvents,
   liveTripEvents = false,
 }: ActiveRideScreenProps) {
@@ -771,6 +779,16 @@ export function ActiveRideScreen({
               <button type="button" className="ar__open-help" onClick={() => onOpenHelp()}>
                 <Glyph name="shield" className="ar__action-icon" />
                 {t("rider.active.openHelp")}
+              </button>
+            )}
+            {onReportProblem === undefined ? null : (
+              <button
+                type="button"
+                className="ar__open-help"
+                onClick={() => onReportProblem(orderId)}
+              >
+                <Glyph name="chat" className="ar__action-icon" />
+                {t("rider.active.reportProblem")}
               </button>
             )}
           </div>

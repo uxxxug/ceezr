@@ -1116,6 +1116,8 @@ export async function listLiveOrders(
       broadcast_round: number;
       pending_offers: number;
       negotiation_stage: string | null;
+      updated_at: string;
+      events: { created_at: string; action: string; payload: unknown }[] | null;
     }[]
   >`
     select o.id as order_id, c.code as city_code, o.service::text as service,
@@ -1124,12 +1126,20 @@ export async function listLiveOrders(
            du.full_name as driver_name,
            o.pickup_label, o.dropoff_label,
            o.created_at, o.searching_since, o.pickup_at, o.matched_at, o.started_at, o.broadcast_round,
+           o.updated_at,
            (select count(*) from order_offers off
              where off.order_id = o.id and off.status = 'pending' and off.expires_at > now())::int
              as pending_offers,
            (select n.status::text from unsubscribed_negotiations n
              where n.order_id = o.id and n.status in ('collecting', 'negotiating')
-             limit 1) as negotiation_stage
+             limit 1) as negotiation_stage,
+           (select coalesce(jsonb_agg(ev), '[]'::jsonb) from (
+              select a.created_at, a.action, a.payload
+                from audit_log a
+               where a.entity_type = 'order' and a.entity_id = o.id
+               order by a.created_at desc
+               limit 6
+            ) ev) as events
     from orders o
     join cities c on c.id = o.city_id
     join riders r on r.id = o.rider_id
@@ -1160,6 +1170,12 @@ export async function listLiveOrders(
     broadcastRound: row.broadcast_round,
     pendingOffers: row.pending_offers,
     negotiationStage: row.negotiation_stage,
+    updatedAt: String(row.updated_at),
+    events: (row.events ?? []).map((event) => ({
+      createdAt: String(event.created_at),
+      action: event.action,
+      payload: event.payload,
+    })),
   }));
 }
 

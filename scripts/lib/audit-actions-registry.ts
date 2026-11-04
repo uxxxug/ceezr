@@ -133,6 +133,7 @@ export const AUDITED_PRIVILEGED_ACTIONS: readonly AuditedPrivilegedAction[] = [
   { fn: "admin_set_user_blocked", actions: ["admin.user_blocked_changed"] },
   { fn: "admin_update_city_group_ids", actions: ["admin.city_group_ids_updated"] },
   { fn: "admin_update_setting", actions: ["admin.setting_updated"] },
+  { fn: "admin_intervene_order", actions: ["order.admin_intervention"] },
   { fn: "cancel_broadcast", actions: ["broadcast.canceled"] },
   { fn: "consume_admin_login_code", actions: ["admin.login_code_rejected"] },
   { fn: "create_broadcast", actions: ["broadcast.created"] },
@@ -192,8 +193,10 @@ export const AUDIT_EXEMPT_PRIVILEGED_FUNCTIONS: readonly AuditExemption[] = [
  * 24 → 25 في 2026-10-10 (`PD-042` · `ADR 0256`): `admin_review_driver_document`.
  * 25 → 27 في 2026-10-10 (`PD-042` · مراجعةُ PR #463): `admin_open_driver_document` (تدقيقُ الفتح)
  * و`admin_set_document_reviewer` (منحُ المراجِعِ وسحبُه).
+ * 27 → 28 في 2026-11-04 (`WR-42`): `admin_intervene_order` (التدخّلُ الإداريُّ
+ * في الطلبِ العالقِ: إلغاءٌ أو إتمامٌ مع أثرٍ وتدقيقٍ وإشعارٍ للطرفَينِ).
  */
-export const REQUIRED_AUDITED_FUNCTION_COUNT = 27;
+export const REQUIRED_AUDITED_FUNCTION_COUNT = 28;
 
 /** وعددُ الإعفاءاتِ كذلكَ: نموُّهُ خفيةً هوَ بعينِه ما يُخشى. */
 export const REQUIRED_EXEMPTION_COUNT = 1;

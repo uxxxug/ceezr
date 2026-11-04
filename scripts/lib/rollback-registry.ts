@@ -1610,6 +1610,28 @@ export const ROLLBACK_DECLARATIONS: readonly RollbackDeclaration[] = [
     criticalPath: "الدفعُ والاشتراك",
     documentedIn: null,
   },
+  {
+    migration: "20261104120000_wr_42_admin_order_intervention.sql",
+    change: "revoke_function:notification_kind_priority(1)",
+    why: "WR-42 — الهجرةُ تُعيدُ تعريفَ `notification_kind_priority` بـ`create or replace` لتُضيفَ النوعَ `admin_order_intervention` برتبةِ ٣ (متوسطةٍ)، والسحبُ بعدَه ليس تضييقًا بل إعادةُ قفلِ السطحِ كما كان: الدالّةُ كانت ممنوحةً لـ`service_role` وحدها قبلَ التغييرِ وتبقى كذلك بعده، و`create or replace` لا تُسقِطُ منحًا قائمًا أصلًا. والعودةُ بالكودِ وحده: إعادةُ نصِّ الدالّةِ من `20261012170000` تُزيلُ الرتبةَ الجديدةَ فتَقِفُ صفوفُ النوعِ الجديدِ على `else 1` (حرجةٍ) — تراجعٌ سلوكيٌّ في ترتيبِ المرورِ لا فقدُ عقدٍ؛ ولا يُنشَرُ النوعُ دونَ هجرتِه ولا يُرجَعُ الكودُ دونَ إرجاعِ الدالّةِ معه.",
+    breaksPreviousRelease: false,
+    rollbackPath: "code-only",
+    coupledDeploy: true,
+    owner: "منفّذ المستودع",
+    criticalPath: "دورةُ الرحلةِ والإسناد",
+    documentedIn: null,
+  },
+  {
+    migration: "20261104120000_wr_42_admin_order_intervention.sql",
+    change: "revoke_function:claim_notification_delivery(0)",
+    why: "WR-42 — الهجرةُ تُعيدُ تعريفَ `claim_notification_delivery` بـ`create or replace` لتُدخِلَ النوعَ `admin_order_intervention` في مواضعِهِ الأربعةِ (قائمةُ الأنواعِ، الإغناءُ، حرسُ العنوانِ، قائمةُ الأنواعِ التي بلا تسليمٍ مطلوبٍ)، وبقيةُ الفروعِ منسوخةٌ حرفًا بحرفٍ من `20261012200100`. والسحبُ بعدَه ليس تضييقًا بل إعادةُ قفلِ السطحِ كما كان: الدالّةُ كانت ممنوحةً لـ`service_role` وحدها قبلَ التغييرِ وتبقى كذلك بعدَه، و`create or replace` لا تُسقِطُ منحًا قائمًا أصلًا. والعودةُ بالكودِ وحده: الصورةُ السابقةُ لا تعرفُ النوعَ الجديدَ فتتجاوزُ صفوفَهُ المعلَّقةَ — فيبقى التسليمُ متّسقًا بينَ النسختينِ على أنواعِ دورةِ الرحلةِ، ولا تُنشَرُ الهجرةُ دونَ كودِها ولا يُرجَعُ الكودُ دونَ إرجاعِ الدالّةِ معه.",
+    breaksPreviousRelease: false,
+    rollbackPath: "code-only",
+    coupledDeploy: true,
+    owner: "منفّذ المستودع",
+    criticalPath: "دورةُ الرحلةِ والإسناد",
+    documentedIn: null,
+  },
 ];
 
 /**

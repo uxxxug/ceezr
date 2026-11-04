@@ -2,7 +2,8 @@
  * الغرض: `WR-39` — المحوُ الفوريُّ لملفّاتِ محادثةِ الحسابِ عندَ حذفِهِ، على
  *   قاعدةٍ حقيقيّةٍ: الإيصالُ يقولُ «طابورٌ يُلتقطُ» لا «حُذفَ»، والالتقاطُ
  *   محصورٌ بملفّاتِ المحوِّ وحدَهُ، والإتمامُ لا يمسُّ بمعرّفِ إنسانٍ آخرَ،
- *   والجاهزُ يصيرُ `deleted` والمعلَّقُ يُحذفُ صفُّهُ، والتكرارُ آمنٌ، وقبلَ
+ *   والجاهزُ يصيرُ `deleted` والمعلَّقُ يُحذفُ صفُّهُ، والتكرارُ آمنٌ (نداءٌ
+ *   ثانٍ من تيليجرامَ لا يجدُ أحداً — عقدُ `ALREADY_ERASED` المُعتمَدُ)، وقبلَ
  *   الإتمامِ كانتِ الصفوفُ في قبضةِ المكنسةِ الدوريّةِ (`message_gone`) —
  *   شبكةُ الأمانِ لا مسارًا وحيدًا.
  * الحالة: اختبار تكامل فعلي — يتطلّب TEST_DATABASE_URL بها الهجرات مطبَّقة
@@ -288,7 +289,7 @@ describeIf("WR-39 — المحوُ الفوريُّ لملفّاتِ محادث�
     expect(bRows?.n).toBe("1");
   });
 
-  it("التكرارُ آمنٌ: التقاطٌ ثانٍ فارغٌ، وإتمامٌ ثانٍ بلا أثرٍ، ومحوٌّ ثانٍ يُقرأُ نجاحًا", async () => {
+  it("التكرارُ آمنٌ: التقاطٌ ثانٍ فارغٌ، وإتمامٌ ثانٍ بلا أثرٍ، ومحوٌّ ثانٍ من تيليجرامَ لا يجدُ أحداً", async () => {
     const [claimed] = await sql<{ result: unknown }[]>`
       select claim_order_chat_media_purge(${aUserId}::uuid, 500) as result`;
     const empty = Array.isArray(claimed?.result) ? (claimed.result as unknown[]).length : -1;
@@ -298,10 +299,19 @@ describeIf("WR-39 — المحوُ الفوريُّ لملفّاتِ محادث�
       select complete_order_chat_media_purge(${seededAttachmentIds.slice(0, 2)}::uuid[], ${aUserId}::uuid) as result`;
     expect(again?.result).toEqual({ ok: true, removed: 0, expired: 0 });
 
+    // عقدُ المحوِّ المُعتمَدُ (سابقةٌ مكتوبةٌ في `account-data-rights.test.ts`
+    // و`driver-account-erasure.test.ts`): `ALREADY_ERASED` بابُهُ معرِّفٌ
+    // داخليٌّ لا تيليجرامَ — فالمعرِّفُ نفسُهُ صُفِّرَ في الجذرِ، والنداءُ
+    // الثاني بالمعرِّفِ القديمِ يقولُ `USER_NOT_FOUND` لا «نجاحٌ مُكرَّرٌ»،
+    // ولا يُكتَبُ إيصالُ محوٍّ ثانٍ.
     const [reErased] = await sql<{ result: Record<string, unknown> }[]>`
       select erase_my_account(${A_TG}::bigint) as result`;
-    expect(reErased?.result.ok).toBe(true);
-    expect(reErased?.result.reason).toBe("ALREADY_ERASED");
-    expect(reErased?.result.user_id).toBe(aUserId);
+    expect(reErased?.result.ok).toBe(false);
+    expect(reErased?.result.reason).toBe("USER_NOT_FOUND");
+
+    const [auditCount] = await sql<{ n: string }[]>`
+      select count(*)::text as n from audit_log
+       where action = 'account.erased' and actor_user_id = ${aUserId}::uuid`;
+    expect(auditCount?.n).toBe("1");
   });
 });

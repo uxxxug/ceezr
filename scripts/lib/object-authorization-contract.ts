@@ -168,6 +168,14 @@ export const OBJECT_ROUTE_EXEMPTIONS: readonly ObjectRouteExemption[] = [
   {
     file: "apps/gateway/src/routes/admin-ui.ts",
     method: "post",
+    template: "/live-orders/:id/intervene",
+    kind: "admin-guard",
+    reason:
+      "التدخُّلُ الإداريُّ في طلبٍ حيٍّ (إلغاء/إنهاء) سلطةُ إدارةٍ على طلبٍ بينَ راكبٍ وسائقٍ لا مِلكيّةُ أحَدِهِما؛ والمصدرُ وسيطُ جلسةِ الإدارةِ على الموجّهِ كلِّه، والفاعلُ يُقرأُ منَ الجلسةِ لا منَ النموذجِ، وصفةُ الفاعلِ تُحكَمُ ثانيةً في `admin_intervene_order` (admin/support) وهيَ security definer معَ أثرٍ وإخطارِ الطرفَينِ (WR-42).",
+  },
+  {
+    file: "apps/gateway/src/routes/admin-ui.ts",
+    method: "post",
     template: "/disputes/:id/close",
     kind: "admin-guard",
     reason:

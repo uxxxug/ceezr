@@ -157,9 +157,11 @@ describe("سياسةُ الإلغاءِ والزرُّ", () => {
     expect(cancelPolicyKey("SOMETHING")).toBe("rider.active.cancel.unknown");
   });
 
-  it("الزرُّ للحرِّ وحدَه: زرٌّ يُرفَضُ حتماً أسوأُ من غيابِه", () => {
+  it("الزرُّ لما تقبلُهُ القاعدةُ: بعدَ الإسنادِ يُرسَمُ (`WR-22` فتحَ الإلغاءَ و`WR-42` أزالَ الحجبَ)", () => {
     expect(showsCancelButton("FREE_BEFORE_ASSIGNMENT")).toBe(true);
-    expect(showsCancelButton("AFTER_ASSIGNMENT_UNDECIDED")).toBe(false);
+    // زرٌّ يُرفَضُ حتماً أسوأُ من غيابِه — وبعدَ `WR-22` نداءُ الإلغاءِ من
+    // `matched` مقبولٌ فعلًا، فحجبُهُ كانَ يُغلقُ الراكبَ في رحلةٍ عالقةٍ.
+    expect(showsCancelButton("AFTER_ASSIGNMENT_UNDECIDED")).toBe(true);
     expect(showsCancelButton("NOT_CANCELLABLE")).toBe(false);
   });
 });

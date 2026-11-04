@@ -1053,10 +1053,14 @@ describe("السجلُّ الحقيقيُّ — أرقامٌ مقيسةٌ مُث
     // `wr-38-support-group-isolation-20261104`): 226 —
     // `wr-38-support-group-isolation.test.ts` (خمسُ حالاتٍ على PostgreSQL حقيقيٍّ
     // في وظيفةِ التكاملِ).
-    expect(SKIP_REGISTRY).toHaveLength(228);
     // زيادةٌ (WR-40 · استبقاءُ الوسائطِ · 2026-11-04): 228 —
     // `wr-40-chat-media-retention.test.ts` (ثلاثُ حالاتٍ على PostgreSQL حقيقيٍّ
     // في وظيفةِ التكاملِ).
+    // زيادةٌ (WR-42 · التدخّلُ الإداريُّ في الطلباتِ العالقةِ · 2026-11-04 · حزمةُ
+    // `wr-42-admin-order-intervention-20261104`): 229 —
+    // `wr-42-admin-order-intervention.test.ts` (ثماني حالاتٍ على PostgreSQL
+    // حقيقيٍّ في وظيفةِ التكاملِ).
+    expect(SKIP_REGISTRY).toHaveLength(229);
     // زيادةٌ (WR-39 · المحوُ الفوريُّ للوسائطِ · 2026-11-04): 227 —
     // `wr-39-erasure-media-purge.test.ts` (ستُّ حالاتٍ على PostgreSQL حقيقيٍّ
     // في وظيفةِ التكاملِ).
@@ -1089,7 +1093,10 @@ describe("السجلُّ الحقيقيُّ — أرقامٌ مقيسةٌ مُث
     // زيادةٌ (WR-34 · 2026-11-03): 1800 — حالاتُ `wr-34-chat-media.test.ts` الأربعَ عشرة.
     // زيادةٌ (WR-32 · 2026-11-03): 1812 — حالاتُ `wr-32-rider-privacy.test.ts` الاثنتا عشرةَ.
     // زيادةٌ (WR-38 · عزلُ مسارِ الدعمِ · 2026-11-04): 1817 — حالاتُ `wr-38-support-group-isolation.test.ts` الخمس.
-    expect(SKIP_REGISTRY.reduce((sum, entry) => sum + entry.skipped, 0)).toBe(1826);
+    expect(SKIP_REGISTRY.reduce((sum, entry) => sum + entry.skipped, 0)).toBe(1836);
+    // زيادةٌ (WR-42 · التدخّلُ الإداريُّ · 2026-11-04): 1834 — حالاتُ
+    // `wr-42-admin-order-intervention.test.ts` الثماني، ثمَّ 1836 بعدَ ملاحظتَي
+    // المراجعةِ: حالتا `NULL` و`scheduled`.
     // زيادةٌ (WR-40 · 2026-11-04): 1826 — حالاتُ `wr-40-chat-media-retention.test.ts` الثلاثُ.
     // زيادةٌ (WR-39 · 2026-11-04): 1823 — حالاتُ `wr-39-erasure-media-purge.test.ts` الستُّ.
   });

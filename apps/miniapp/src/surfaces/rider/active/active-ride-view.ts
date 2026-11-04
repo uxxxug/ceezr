@@ -257,17 +257,20 @@ const CANCEL_POLICY_KEYS: Readonly<Record<string, string>> = {
 };
 
 /**
- * سياسةُ الإلغاءِ **نصٌّ إجرائيٌّ**: «يُلغى الآنَ» أو «الإلغاءُ بعدَ الإسنادِ لم
- * تُقرَّرْ قواعدُه» أو «لا يُلغى». ولا مالَ ولا نسبةَ ولا كلمةَ «رسمٍ» —
- * `ADR 0039` §٤ يُجمِّدُ ذلكَ حتّى `DEC-11`.
+ * سياسةُ الإلغاءِ **نصٌّ إجرائيٌّ**: «يُلغى الآنَ» أو «يُلغى وقد سُنِدَ سائقٌ»
+ * أو «لا يُلغى». ولا مالَ ولا نسبةَ ولا كلمةَ «رسمٍ» — `ADR 0039` §٤
+ * يُجمِّدُ ذلكَ حتّى `DEC-11`. (`WR-42`: النصُّ بعدَ الإسنادِ صارَ يعرضُ
+ * الزرَّ الذي تقبلُهُ القاعدةُ منذُ `WR-22` لا أن يُخفيَه.)
  */
 export function cancelPolicyKey(code: string): string {
   return CANCEL_POLICY_KEYS[code] ?? "rider.active.cancel.unknown";
 }
 
-/** وهل يُرسَمُ زرُّ الإلغاءِ؟ للحرِّ وحدَه: زرٌّ يُرفَضُ حتماً أسوأُ من غيابِه. */
+/** وهل يُرسَمُ زرُّ الإلغاءِ؟ لما تُقبِلُهُ القاعدةُ فعلًا: `WR-22` فتحَ
+ *  الإلغاءَ لما بعدَ الإسنادِ (`cancel_order_by_rider` تقبلُ `matched`)،
+ *  و`WR-42` أزالَ الرسمَ الكاذبَ الذي كانَ يُخفيهِ عن راكبٍ عالقٍ. */
 export function showsCancelButton(code: string): boolean {
-  return code === "FREE_BEFORE_ASSIGNMENT";
+  return code !== "NOT_CANCELLABLE";
 }
 
 const REFUSAL_KEYS: Readonly<Record<string, string>> = {

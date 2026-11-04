@@ -79,12 +79,30 @@ function subscriptionLine(
     : tr("support.card_subscription_expired", params);
 }
 
-/**
- * سطر الهوية: المعرّف الرقمي دائماً لأنه المفتاح المضمون للوصول للشخص،
+/** سطر الهوية: المعرّف الرقمي دائماً لأنه المفتاح المضمون للوصول للشخص،
  * والمعرّف النصّي معه إن وُجد لأنه أسهل على البشر.
  */
 function identityLine(telegramId: string, username: string | null): string {
   return username === null ? telegramId : `@${username} (${telegramId})`;
+}
+
+/**
+ * `WR-42` — حالةُ الطلبِ المُرفَقِ بلغةِ الفريقِ لا بأكوادِ الجذرِ الخام:
+ * «مُسنَد» أبلغُ من «matched» لمن يقررُ. المفتاحُ الغريبُ يظهرُ كما هوَ
+ * لا أن يُخفى: الحالةُ المجهولةُ معلومةٌ لا ظنٌّ.
+ */
+const ORDER_STATUS_LABELS: Readonly<Record<string, string>> = {
+  searching: "يبحث عن سائق",
+  matched: "مُسنَد",
+  in_progress: "جارٍ",
+  completed: "مكتمل",
+  cancelled: "ملغى",
+  aborted: "مقطوع",
+};
+
+function orderStatusLabel(status: string | null): string {
+  if (status === null) return "—";
+  return ORDER_STATUS_LABELS[status] ?? status;
 }
 
 function keyboardFor(card: SupportCard, tr: (key: string) => string): unknown {
@@ -128,12 +146,21 @@ export function createSupportCardPublisher(sender: SupportSender): SupportCardPu
           subscription: subscriptionLine(ticket.subscription, tr),
           message: ticket.message,
         });
+        // `WR-42` — سطرُ الطلبِ المُرفَقِ وحالتِه منَ الجذرِ: من يقرأُ البطاقةَ
+        // يرى «مُسنَد منذُ يومٍ» لا أن يسألَ الراكبَ عن رقمِ طلبٍ وحالتِه.
+        const withOrder =
+          ticket.orderId === null
+            ? text
+            : `${text}\n${tr("support.card_order", {
+                order: ticket.orderId.slice(0, 8),
+                status: orderStatusLabel(ticket.orderStatus),
+              })}`;
         // ADR 0253: سطرُ وقتِ الفقدِ حينَ قدّمَه صاحبُ البلاغِ وحدَه — لا سطرَ «غيرُ معروف».
         const lostAt = ticket.lostAt ?? null;
         const withLost =
           lostAt === null
-            ? text
-            : `${text}\n${tr("support.card_lost_at", { at: formatInstant(lostAt) })}`;
+            ? withOrder
+            : `${withOrder}\n${tr("support.card_lost_at", { at: formatInstant(lostAt) })}`;
         const keyboard = keyboardFor(card, tr);
         // سبيلُ الردِّ يُقالُ على البطاقةِ نفسِها: أمرٌ لا يعرفُه الفريقُ أمرٌ لا وجودَ له.
         const withHint = `${withLost}\n\n${tr("support.answer_hint", { ticket_short: ticket.id.slice(0, 8) })}`;

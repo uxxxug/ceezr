@@ -31,6 +31,9 @@ let sql: Sql;
 let cityHandle: ActiveCityHandle | undefined;
 let cityId = "";
 let riderId = "";
+/** معرّفُ المستخدمِ (users.id) للراكبةِ — `sender_user_id` و`uploader_user_id`
+ *  يقيّدانِ على `users(id)` لا على `riders(id)`. */
+let riderUserId = "";
 const userIds: string[] = [];
 
 /** مخزنُ كائناتٍ زائفٌ بالعقدِ نفسِه: الحذفُ المتكرّرُ نجاح. */
@@ -41,7 +44,7 @@ function fakeStore() {
     has: (p: string) => objects.has(p),
     remove: (paths: readonly string[]) => {
       for (const p of paths) objects.delete(p);
-      return { ok: true as const };
+      return Promise.resolve({ ok: true as const, value: undefined as undefined });
     },
   };
 }
@@ -81,16 +84,19 @@ async function seedCompletedOrderWithAttachment(days: number, age: number) {
   if (order === undefined) throw new Error("تعذّر زرعُ الطلب");
   const [message] = await sql<{ id: string }[]>`
     insert into order_messages (order_id, city_id, sender_user_id, sender_role, client_message_id, body)
-    values (${order.id}, ${cityId}, ${riderId}, 'rider', gen_random_uuid(), 'صورةُ البوابة')
+    values (${order.id}, ${cityId}, ${riderUserId}, 'rider', gen_random_uuid(), 'صورةُ البوابة')
     returning id
   `;
   if (message === undefined) throw new Error("تعذّر زرعُ الرسالة");
+  // القيدُ `order_chat_attachments_path_check` يشترطُ أن ينتهيَ المسارُ
+  // بمعرّفِ الصفِّ نفسِهِ — فالزرعُ بمعرّفٍ صريحٍ لا بعشوائيٍّ.
+  const attachmentId = crypto.randomUUID();
   const [attachment] = await sql<{ id: string; object_path: string }[]>`
     insert into order_chat_attachments
-      (order_id, city_id, uploader_user_id, client_message_id, kind, mime_type, byte_size,
+      (id, order_id, city_id, uploader_user_id, client_message_id, kind, mime_type, byte_size,
        width, height, object_path, status, message_id, created_at, ready_at)
-    values (${order.id}, ${cityId}, ${riderId}, gen_random_uuid(), 'image', 'image/jpeg', 2048,
-       100, 100, 'orders/' || ${order.id}::text || '/' || gen_random_uuid()::text,
+    values (${attachmentId}::uuid, ${order.id}, ${cityId}, ${riderUserId}, gen_random_uuid(), 'image', 'image/jpeg', 2048,
+       100, 100, 'orders/' || ${order.id}::text || '/' || ${attachmentId}::text,
        'ready', ${message.id}, now() - (${age} || ' days')::interval, now() - (${age} || ' days')::interval)
     returning id, object_path
   `;
@@ -126,6 +132,7 @@ beforeAll(async () => {
   `;
   if (rider === undefined) throw new Error("تعذّر زرعُ الراكبة");
   riderId = rider.id;
+  riderUserId = riderUser.id;
   seededDriverId = await seedDriver();
 });
 

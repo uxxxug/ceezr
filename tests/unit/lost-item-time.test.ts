@@ -107,6 +107,7 @@ describe("LOST-AT — بطاقةُ الدعم", () => {
     message: "حقيبة",
     attachmentFileId: null,
     orderId: null,
+    orderStatus: null,
     createdAt: NOW,
     lostAt,
     owner: {
