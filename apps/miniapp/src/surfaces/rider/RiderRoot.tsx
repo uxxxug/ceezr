@@ -667,6 +667,7 @@ export default function RiderRoot({ language, onLanguageChanged, entry }: Langua
             onBack={leaveActive}
             onOpenShare={() => setShareOpen(true)}
             onOpenHelp={onOpenSos}
+            onReportProblem={(orderId) => setSupport({ orderId })}
             liveTripEvents
           />
         </Deferred>

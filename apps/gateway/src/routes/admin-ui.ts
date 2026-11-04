@@ -318,6 +318,17 @@ function cityParam(value: string | undefined): string | null {
   return value === undefined || value === "" || value === "all" ? null : value;
 }
 
+/**
+ * `WR-42` — رسالةُ نتيجةِ التدخّلِ الإداريِّ تعودُ من مسارِ التدخّلِ في
+ * معامِلَي استعلامٍ (`flash`/`flash_kind`) فتُعرض مرةً واحدةً أعلى الصفحةِ
+ * عبرَ آليةِ الإشعارِ الموجودةِ في الهيكلِ، لا بصفٍّ جديدٍ في كلِّ صفحةٍ.
+ */
+function flashNotice(c: Context<AdminEnv>): { kind: "ok" | "error"; text: string } | undefined {
+  const text = (c.req.query("flash") ?? "").trim().slice(0, 300);
+  if (text === "") return undefined;
+  return { kind: c.req.query("flash_kind") === "error" ? "error" : "ok", text };
+}
+
 function positiveInt(value: string | undefined, fallback: number): number {
   if (value === undefined) return fallback;
   const parsed = Number.parseInt(value, 10);
@@ -1008,6 +1019,7 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
         stallSeconds: stall,
       }),
       { observedAt, staleAfterSeconds: LIVE_STALE_SECONDS },
+      flashNotice(c),
     );
   });
 
@@ -1046,6 +1058,74 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
     }
     log("admin.tracking_revoked", { orderId, count: revoked.value, onBehalfOf: riderTelegram });
     return c.redirect("/admin/live-orders", SEE_OTHER);
+  });
+
+  /*
+   * `WR-42` — التدخّلُ الإداريُّ في طلبٍ حيٍّ: إلغاءٌ أو إنهاءٌ بيدِ المشرفِ
+   * المسؤولِ بسببٍ مكتوبٍ. الحكمُ كلُّهُ في القاعدةِ (`admin_intervene_order`):
+   * الذرّيّةُ، ورفضُ الطلبِ المنتهي، وإخطارُ الراكبِ والسائقِ، وسجلُّ الفاعلِ
+   * والحالةِ قبلَ وبعد. والسببُ من نموذجٍ والفاعلُ من جلسةِ المسؤولِ لا من
+   * النموذجِ — فلا يستطيعُ أحدٌ انتحالَ مشرفٍ. والمسارُ يعيدُ التوجيهَ برسالةِ
+   * نتيجةٍ واحدةٍ لا يعيدُ صفحةَ خطأٍ خام.
+   */
+  app.post("/live-orders/:id/intervene", async (c) => {
+    const checked = await requireCsrf(c);
+    if (!checked.ok) return checked.response;
+
+    const orderId = c.req.param("id");
+    if (!UUID_PATTERN.test(orderId)) return c.text("INVALID_ORDER_ID", HTML_UNPROCESSABLE);
+
+    const form = await c.req.formData();
+    const action = formText(form, "action");
+    const reason = formText(form, "reason") ?? "";
+    if (action !== "cancel" && action !== "complete") {
+      return c.redirect(
+        `/admin/live-orders?flash=${encodeURIComponent("إجراء غير معروف.")}&flash_kind=error`,
+        SEE_OTHER,
+      );
+    }
+    if (reason.trim().length < 3) {
+      return c.redirect(
+        `/admin/live-orders?flash=${encodeURIComponent("سبب التدخّل مطلوب (3 محارف على الأقل).")}&flash_kind=error`,
+        SEE_OTHER,
+      );
+    }
+
+    const actorTelegramId = c.get("admin").telegramId;
+    const rows = await deps.sql<{ result: { ok?: boolean; error?: string | null } }[]>`
+      select admin_intervene_order(
+        ${orderId}::uuid, ${actorTelegramId}::bigint, ${action}, ${reason}
+      ) as result`;
+    const outcome = rows[0]?.result;
+
+    if (outcome === undefined || !outcome.ok) {
+      const code = outcome?.error ?? "INTERVENTION_FAILED";
+      log("admin.order_intervention_rejected", { orderId, action, code });
+      const said =
+        code === "ORDER_NOT_INTERVENABLE"
+          ? "الطلب انتهى فعلًا — لا يُتدخّل في طلب خُتم."
+          : code === "ORDER_NOT_COMPLETABLE"
+            ? "لا يُنهى إداريًّا إلا طلبٌ بدأ فعلًا — طلبٌ لم يبدأ يُلغى ولا يُنهى."
+            : code === "REASON_REQUIRED"
+              ? "سبب التدخّل مطلوب."
+              : code === "REASON_TOO_LONG"
+                ? "سبب التدخّل طويل (الحد 500 محرف)."
+                : `تعذّر التدخّل (${code}).`;
+      return c.redirect(
+        `/admin/live-orders?flash=${encodeURIComponent(said)}&flash_kind=error`,
+        SEE_OTHER,
+      );
+    }
+
+    log("admin.order_intervention", { orderId, action, actorTelegramId });
+    const said =
+      action === "cancel"
+        ? "أُلغي الطلب إداريًّا وأُخطر الطرفان."
+        : "أُنهيت الرحلة إداريًّا وأُخطر الطرفان.";
+    return c.redirect(
+      "/admin/live-orders?flash=" + encodeURIComponent(said) + "&flash_kind=ok",
+      SEE_OTHER,
+    );
   });
 
   /**

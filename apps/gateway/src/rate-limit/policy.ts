@@ -504,6 +504,15 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
 
   {
     method: "POST",
+    path: "/admin/live-orders/:id/intervene",
+    file: "apps/gateway/src/routes/admin-ui.ts",
+    exposure: "مُصادَقٌ بجلسةِ مسؤولٍ",
+    limits: [],
+    exemption: null,
+  },
+
+  {
+    method: "POST",
     path: "/admin/users/:id/blocked",
     file: "apps/gateway/src/routes/admin-ui.ts",
     exposure: "مُصادَقٌ بجلسةِ مسؤولٍ",
@@ -1727,8 +1736,10 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
  * 152 → 154 في 2026-11-03 (WR-34، ADR 0305): `POST /v1/orders/:orderId/chat/media` و
  *   `GET /v1/orders/:orderId/chat/attachments/:attachmentId` — مُصادَقانِ بجلسةٍ، والحدُّ حصّةُ
  *   القاعدةِ لكلِّ مرسِلٍ في الطلب.
+ * 154 → 155 في 2026-11-04 (WR-42): `POST /admin/live-orders/:id/intervene` — مُصادَقٌ بجلسةِ
+ *   مسؤولٍ بلا حدٍّ كإخوتِهِ في صفحةِ الطلباتِ الحيّةِ.
  */
-export const ROUTE_POLICY_COUNT = 154;
+export const ROUTE_POLICY_COUNT = 155;
 export const LIMITED_ROUTE_COUNT = 10;
 /** 4 → 5 في 2026-10-18 (ADR 0287): `/internal/realtime/rider-trip-signal` بسرٍّ مشتركٍ كأختِه.
  *  5 → 6 في 2026-10-30: `/internal/realtime/chat-signal` بسرٍّ مشتركٍ كأختَيه. */

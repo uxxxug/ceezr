@@ -117,6 +117,8 @@ export function createSupportTicketContextReader(sql: Sql): SupportTicketContext
             message: String(envelope.message ?? ""),
             attachmentFileId: toText(envelope.attachment_file_id),
             orderId: toText(envelope.order_id),
+            // `WR-42` — حالةُ الطلبِ المُرفَقِ منَ الجذرِ لا من نصِّ الرسالةِ.
+            orderStatus: toText(envelope.order_status),
             createdAt: created,
             lostAt: toDate(envelope.lost_at),
             owner: {

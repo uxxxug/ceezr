@@ -862,6 +862,7 @@ export async function buildMessageGallery(options: GalleryOptions): Promise<Mess
         : "السائق أخذ طريقاً أطول من المعتاد.",
     attachmentFileId: null,
     orderId: type === "subscription" ? null : FAKE.order,
+    orderStatus: type === "subscription" ? null : "matched",
     createdAt: new Date("2026-10-03T07:00:00Z"),
     owner: {
       fullName: type === "subscription" ? SAMPLE.driverName : SAMPLE.riderName,

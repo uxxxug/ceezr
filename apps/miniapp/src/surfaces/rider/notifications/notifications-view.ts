@@ -49,6 +49,7 @@ const KIND_KEYS: Readonly<Record<string, string>> = {
   order_chat_message: "rider.notifications.kind.order_chat_message",
   driver_location_reminder: "rider.notifications.kind.driver_location_reminder",
   driver_city_notice: "rider.notifications.kind.driver_city_notice",
+  admin_order_intervention: "rider.notifications.kind.admin_order_intervention",
 };
 
 export function kindKey(kind: string): string {

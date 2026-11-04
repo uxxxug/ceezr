@@ -140,6 +140,20 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     whyNotRun: null,
   },
   {
+    file: "tests/integration/wr-42-admin-order-intervention.test.ts",
+    suites: ["WR-42 — التدخّلُ الإداريُّ في الطلباتِ العالقةِ"],
+    skipped: 10,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "يُثبِت «WR-42 — التدخّلُ الإداريُّ في الطلباتِ العالقةِ» على PostgreSQL حقيقيةٍ بالهجراتِ مطبَّقة: إلغاءُ الطلبِ المُسنَدِ غيرِ المبدوءِ، وقطعُ الجاريةِ وإنهاؤُها بيدِ المشرفِ، وسجلُّ الفاعلِ والحالةِ، والإخطارُ المُودَعُ للطرفَينِ — القيودُ والمعاملاتُ لا يُثبِتُها بديلٌ في الذاكرة.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بالهجرات مطبَّقة. يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي»، ويفعله المطوّرُ محلّياً بحاويةِ postgres.",
+    owner: "منفّذ المستودع",
+    criticalPath: "دورةُ الرحلةِ والإسناد",
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+  {
     file: "tests/integration/driver-single-engaged-order.test.ts",
     suites: ["I1 · سائقٌ واحدٌ لا يحملُ التزاماً ثانياً — ADR 0286"],
     skipped: 3,

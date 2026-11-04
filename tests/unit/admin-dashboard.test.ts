@@ -227,6 +227,8 @@ describe("الصفحات الثماني", () => {
       broadcastRound: 1,
       pendingOffers: 0,
       negotiationStage: null,
+      updatedAt: NOW.toISOString(),
+      events: [],
     };
     const stall = 120;
     const html = renderLiveOrdersPage({
@@ -257,6 +259,67 @@ describe("الصفحات الثماني", () => {
     // `F16-03` — قطعُ روابطِ التتبُّعِ منَ اللوحةِ: زرٌّ في صفِّ كلِّ طلبٍ حيٍّ.
     expect(html).toContain('/revoke-tracking">');
     expect(html).toContain("قطع روابط التتبّع");
+  });
+
+  it("WR-42 — التدخّلُ الإداريُّ: سببٌ إلزاميٌّ وزرُّا الفعلِ، والإنهاءُ للجاريِ وحدَه، والمتعثّرُ المسنَدُ يُعلَّم", () => {
+    const base = {
+      cityCode: "JED",
+      service: "transport",
+      riderName: "عميل",
+      riderTelegramId: "9200",
+      driverName: "سائق",
+      pickupLabel: "الحرم",
+      dropoffLabel: "المطار",
+      broadcastRound: 1,
+      pendingOffers: 0,
+      negotiationStage: null,
+      updatedAt: new Date(NOW.getTime() - 600_000).toISOString(),
+    };
+    const html = renderLiveOrdersPage({
+      now: NOW,
+      csrfToken: "csrf-token",
+      cities: CITIES,
+      cityId: null,
+      stallSeconds: 120,
+      rows: [
+        {
+          ...base,
+          orderId: "66666666-6666-6666-6666-666666666666",
+          status: "matched",
+          createdAt: new Date(NOW.getTime() - 3_600_000).toISOString(),
+          matchedAt: new Date(NOW.getTime() - 3_600_000).toISOString(),
+          startedAt: null,
+          events: [
+            {
+              createdAt: new Date(NOW.getTime() - 3_600_000).toISOString(),
+              action: "order.matched",
+              payload: {},
+            },
+          ],
+        },
+        {
+          ...base,
+          orderId: "77777777-7777-7777-7777-777777777777",
+          status: "in_progress",
+          createdAt: new Date(NOW.getTime() - 600_000).toISOString(),
+          matchedAt: new Date(NOW.getTime() - 600_000).toISOString(),
+          startedAt: new Date(NOW.getTime() - 5_000).toISOString(),
+          events: [],
+        },
+      ],
+    });
+
+    // المتعثّرُ المسنَدُ (matched قديم) يُعلَّم كما يُعلَّم الباحثُ المتعثّرُ.
+    expect(html).toContain("badge--bad");
+    // والزرُّانِ في صفِّ كلِّ طلبٍ حيٍّ، والسببُ إلزاميٌّ.
+    expect(html).toContain('/intervene">');
+    expect(html).toContain('name="reason" required');
+    expect(html).toContain('value="cancel"');
+    // والإنهاءُ لا يُرسَمُ إلا لما بدأ فعلًا.
+    expect(html).toContain('value="complete"');
+    expect((html.match(/value="complete"/g) ?? []).length).toBe(1);
+    // وآخرُ الأحداثِ يُعرَضُ للمشغّلِ في الصفِّ نفسِهِ.
+    expect(html).toContain("order.matched");
   });
 
   it("الحضور: يجمع الملخّص والأحداث في صفحة واحدة", () => {

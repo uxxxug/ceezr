@@ -318,6 +318,8 @@ describe("UI-6 · الأفعالُ الخطرة", () => {
           broadcastRound: 1,
           pendingOffers: 0,
           negotiationStage: null,
+          updatedAt: NOW.toISOString(),
+          events: [],
           orderId: "66666666-6666-6666-6666-666666666666",
           status: "searching",
           createdAt: NOW.toISOString(),

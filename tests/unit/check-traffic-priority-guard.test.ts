@@ -29,6 +29,7 @@ function fixtureMigrations(): SqlMigration[] {
   const cases = [
     ["safety_incident", 1],
     ["order_cancelled", 1],
+    ["admin_order_intervention", 3],
     ["negotiation_turn_opened", 1],
     ["negotiation_turn_closed", 1],
     ["negotiation_agreed", 1],

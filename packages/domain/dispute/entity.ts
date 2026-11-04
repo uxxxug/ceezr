@@ -43,6 +43,9 @@ export interface SupportTicket {
   readonly message: string;
   readonly attachmentFileId: string | null;
   readonly orderId: string | null;
+  /** `WR-42` — حالةُ الطلبِ المُرفَقِ لحظةَ فتحِ التذكرةِ، تُقرأُ منَ `orders`
+   *  لا من نصِّ رسالةِ الراكبِ؛ قد تكونُ `null` إن حُذِفَ الطلبُ أو تغيّرَ بعدَ الفتحِ. */
+  readonly orderStatus: string | null;
   readonly createdAt: Date;
   /** ADR 0253: الوقتُ التقريبيُّ للفقدِ كما قدّمَه صاحبُ البلاغ — غيابُه أو `null` = لم يُقدَّم. */
   readonly lostAt?: Date | null;

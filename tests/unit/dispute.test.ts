@@ -29,6 +29,7 @@ function ticket(overrides: Partial<SupportTicket> = {}): SupportTicket {
     message: "حوّلت المبلغ ولم يُفعَّل الاشتراك",
     attachmentFileId: null,
     orderId: null,
+    orderStatus: null,
     createdAt: new Date("2026-08-07T10:00:00Z"),
     owner: {
       fullName: "أحمد العمري",

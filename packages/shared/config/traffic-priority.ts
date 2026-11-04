@@ -139,6 +139,9 @@ export const TRAFFIC_PRIORITY_RANK: Readonly<Record<TrafficPriorityClass, number
  *   والمُطالِبُ يعيدُ فحصَ الحاجةِ لحظةَ الإرسال.
  * - `driver_city_notice` ← **تشغيليٌّ** (متوسّطٌ، `WR-13`): إخطارُ السائقِ بانتقالِ مدينتِه
  *   حسبَ موقعِه أو بخروجِه من التغطية. خبرٌ لا مطالبةٌ ذاتُ مؤقّت.
+ * - `admin_order_intervention` ← **خبرُ مآلٍ** (متوسّطٌ، `WR-42`): إخطارُ السائقِ
+ *   بتدخّلٍ إداريٍّ قطعَ رحلتَه أو أنهاها. القرارُ مُتَّخَذٌ فعلًا ولا فعلَ يُنتظَرُ
+ *   منه، فلا حمايةَ الحرجِ التي لدى حالةِ الرحلةِ النشطةِ؛ وليسَ بذاتهِ مؤقّتًا.
  */
 export const NOTIFICATION_KIND_PRIORITY: Readonly<Record<NotificationKind, TrafficPriorityClass>> =
   {
@@ -158,6 +161,7 @@ export const NOTIFICATION_KIND_PRIORITY: Readonly<Record<NotificationKind, Traff
     lost_item_report: "medium",
     driver_location_reminder: "medium",
     driver_city_notice: "medium",
+    admin_order_intervention: "medium",
     safety_resolution_closed: "medium",
     safety_resolution_blocked: "medium",
     broadcast_recipient: "low",

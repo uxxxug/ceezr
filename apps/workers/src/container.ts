@@ -13,6 +13,10 @@ import type { OfferPublisher } from "../../../packages/application/dispatch/broa
 import { closeDeadOfferCards } from "../../../packages/application/dispatch/close-dead-offer-cards.ts";
 import { closeEscalationCards } from "../../../packages/application/dispatch/close-escalation-cards.ts";
 import {
+  type AdminInterventionMessenger,
+  createAdminInterventionHandler,
+} from "../../../packages/application/dispatch/deliver-admin-intervention-notification.ts";
+import {
   type CancellationMessenger,
   createOrderCancelledHandler,
 } from "../../../packages/application/dispatch/deliver-cancellation-notification.ts";
@@ -114,6 +118,7 @@ import {
   createRiderCandidateFactsReader,
   createRiderTripFactsReader,
 } from "../../../packages/infrastructure/notification/rider-trip-facts.ts";
+import { createTelegramAdminInterventionMessenger } from "../../../packages/infrastructure/notification/telegram-admin-intervention-notifier.ts";
 import {
   asIdentifyingSender,
   asOutboundSender,
@@ -474,6 +479,8 @@ export interface WorkerContainerOverrides {
   readonly unmatchedMessenger?: UnmatchedRiderMessenger;
   /** مُرسِلُ إخطارِ الإلغاءِ للسائقينِ — يُستبدَلُ في الاختبارِ بمُرسِلٍ يجمعُ. (BUG-004) */
   readonly cancellationMessenger?: CancellationMessenger;
+  /** مُرسِلُ إخطارِ التدخّلِ الإداريِّ للسائقِ — يُستبدَلُ في الاختبارِ بمُرسِلٍ يجمعُ. (WR-42) */
+  readonly adminInterventionMessenger?: AdminInterventionMessenger;
   /** مُرسِلُ بلاغِ المفقودِ للسائقِ — يُستبدَلُ في الاختبارِ بمُرسِلٍ يجمعُ. (F12-07) */
   readonly lostItemMessenger?: LostItemMessenger;
   /** بطاقة SOS قابلة للاستبدال في اختبار فشل تيليجرام ثم إعادة التسليم. */
@@ -829,6 +836,17 @@ export function buildWorkerContainer(
       asIdentifyingSender(withTrafficPriority(telegram, "order_cancelled")),
     );
   /**
+   * `WR-42` — إخطارُ التدخّلِ الإداريِّ للسائقِ: خبرُ مآلٍ متوسّطُ الرتبةِ (٣)
+   * ببوتِ السائقِ، لا إلغاءُ رحلةٍ (١)، لأنَّ القرارَ مُتَّخَذٌ فعلًا وليسَ
+   * دعوةَ إسنادٍ تُنتظَرُ. ونصُّهُ يقولُ «الإدارةُ» لا «العميلُ» — وبهذا
+   * سُمِّيَ النوعُ الجديدُ لا أن يُعادَ استخدامُ إلغاءٍ كاذبٍ.
+   */
+  const adminInterventionMessenger =
+    overrides.adminInterventionMessenger ??
+    createTelegramAdminInterventionMessenger(
+      asIdentifyingSender(withTrafficPriority(telegram, "admin_order_intervention")),
+    );
+  /**
    * بلاغُ المفقودِ للسائقِ (`F12-07`): يُرسَلُ ببوتِ السائقِ، وهو تحديثُ دعمٍ ذو
    * قيمةٍ زمنيّةٍ (متوسّطٌ) لا إلغاءُ رحلةٍ (حرجٌ) — فلذلك مُرسِلٌ مستقلٌّ برتبتِه.
    */
@@ -940,6 +958,7 @@ export function buildWorkerContainer(
     ),
     no_driver_found: createNoDriverFoundHandler(unmatchedMessengerFor("no_driver_found")),
     order_cancelled: createOrderCancelledHandler(cancellationMessenger),
+    admin_order_intervention: createAdminInterventionHandler(adminInterventionMessenger),
     lost_item_report: createLostItemReportHandler(lostItemMessenger),
     safety_resolution_closed: createSafetyResolutionClosedHandler(safetyResolutionMessenger),
     safety_resolution_blocked: createSafetyResolutionClosedHandler(safetyResolutionMessenger),
